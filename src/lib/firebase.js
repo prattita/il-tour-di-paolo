@@ -8,6 +8,7 @@ import { getStorage } from 'firebase/storage'
  * Never commit real keys — `.env` is gitignored.
  */
 function buildConfig() {
+  const measurementId = import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
   return {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
     authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -15,6 +16,8 @@ function buildConfig() {
     storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
     messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    // Optional — used if you wire Firebase Analytics later; safe to omit
+    ...(measurementId ? { measurementId } : {}),
   }
 }
 

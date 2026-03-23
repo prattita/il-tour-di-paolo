@@ -2,6 +2,8 @@
 
 Private family competition app — see [`DESIGN.md`](./DESIGN.md).
 
+**New to Firebase?** Read [`docs/FIREBASE_PRIMER.md`](./docs/FIREBASE_PRIMER.md).
+
 ## Local dev
 
 ```bash
@@ -15,8 +17,8 @@ npm run dev
 |------|-------------|
 | **Firebase project** | [Firebase Console](https://console.firebase.google.com) → create project → enable **Authentication** (Email/Password), **Firestore**, **Storage** (Blaze if required for Storage). |
 | **Web app config** | Project settings → Your apps → add Web app → copy config. |
-| **Env vars** | `cp .env.example .env` and paste `VITE_FIREBASE_*` values. Never commit `.env`. |
-| **Deploy rules** | Install [Firebase CLI](https://firebase.google.com/docs/cli), run `firebase login`, `firebase use <your-project-id>`, then `firebase deploy --only firestore:rules,storage`. |
+| **Env vars** | `cp .env.example .env` and paste `VITE_FIREBASE_*` values. `VITE_FIREBASE_MEASUREMENT_ID` is optional (Analytics). Never commit `.env`. |
+| **Deploy rules** | Install [Firebase CLI](https://firebase.google.com/docs/cli), `firebase login`, **`firebase use --add`** (pick project — creates `.firebaserc`). Then `firebase deploy --only firestore:rules,storage`. You usually **don’t need `firebase init`** — this repo already has `firebase.json` + rules files. |
 | **Vercel** | Import the GitHub repo → Framework Preset **Vite** → add the same `VITE_FIREBASE_*` env vars in Vercel → deploy. |
 
 Repo files:

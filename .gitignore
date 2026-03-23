@@ -27,3 +27,9 @@ dist-ssr
 *.sln
 *.sw?
 .cursor/
+
+# Design and mocks. Private files.
+docs/
+
+#firebase hidden files.
+.firebaserc.example
