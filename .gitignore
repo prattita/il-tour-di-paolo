@@ -28,8 +28,11 @@ dist-ssr
 *.sw?
 .cursor/
 
-# Design and mocks. Private files.
-docs/
+# Learning primers under docs/ — local only, not committed (naming: *PRIMER*.md or *primer*.md).
+# Includes: firebase-browser-key-restrictions-PRIMER.md, firebase-emulators-PRIMER.md, FIREBASE_PRIMER.md, etc.
+# DESIGN.md and other shared docs in docs/ stay tracked.
+docs/*PRIMER*.md
+docs/*primer*.md
 
 #firebase hidden files.
 .firebaserc.example
