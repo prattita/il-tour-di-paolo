@@ -30,7 +30,7 @@
 **Il Tour di Paolo 2026** is a private family competition web app. Participants complete tasks across a set of activity categories to earn medals. Progress is tracked per user, and approved completions are shared in a group feed with photos and optional descriptions.
 
 **Competition structure:**
-- 4–6 activities at group creation (expandable mid-competition, up to ~10)
+- 0+ activities at group creation (owner can add/edit later; soft guidance: start with 4–6, expandable up to ~10)
 - Exactly 3 tasks per activity
 - Completing 1 task → Bronze medal
 - Completing 2 tasks → Silver medal
@@ -176,7 +176,7 @@ batch.commit()
 
 | When | Value |
 |------|--------|
-| **Group creation** | Set to the number of activity documents created in the same flow (typically **4–6**, matching the minimum-at-creation rule). Must stay in sync with the actual number of docs under `groups/{groupId}/activities/`. |
+| **Group creation** | Set to the number of activity documents created in the same flow (**0+** allowed; soft guidance: typically **4–6**). Must stay in sync with the actual number of docs under `groups/{groupId}/activities/`. |
 | **Owner adds an activity** | Increment by **1** in the **same batch** as creating the new `activities/{activityId}` doc, writing the system feed post, and any other related updates. |
 | **Never** | Decremented — activities are not deleted in MVP (see §7.9). |
 
@@ -202,12 +202,15 @@ batch.commit()
 }
 ```
 
+> **Stable id requirement:** `activityId` is the canonical, stable identifier for an activity and must not be renumbered/reused. Any per-user selection data should reference these ids (not UI index positions).
+
 ### `groups/{groupId}/members/{userId}`
 ```
 {
   displayName: string,
   avatarUrl: string | null,
   joinedAt: timestamp,
+  selectedActivityIds: string[] | null,  // fast-follow; null = participates in all activities
   progress: {
     [activityId]: {
       tasksCompleted: number,       // 0–3, approved completions only
@@ -218,6 +221,11 @@ batch.commit()
 ```
 
 > **Important:** `progress` is only ever updated through the owner approval path. No other write path should touch it. This keeps feed medal snapshots and profile medals consistent.
+>
+> **Fast-follow semantics (`selectedActivityIds`):**
+> - `null` => participates in all activities (default; migration-safe for existing members)
+> - `[]` => participates in no activities (allowed; user still accesses group feed and can reselect activities later)
+> - `["activityIdA", "activityIdB"]` => participates in only those activities
 
 ### `groups/{groupId}/pending/{pendingId}`
 
@@ -312,7 +320,7 @@ batch.commit()
 
 ### 7.2 Group Creation
 - Owner sets group name and optional description
-- Owner defines minimum 4 activities inline at creation (soft max 6 at creation)
+- Owner can create a group with 0 or more activities at creation time (soft guidance: start with 4–6)
 - Each activity requires: name, optional description, 3 tasks (each with name and optional description), and medal condition descriptions (bronze/silver/gold)
 - **`activityCount`** on `groups/{groupId}` is set to the number of activity documents created (see §5)
 - Invite code auto-generated on group creation
@@ -644,7 +652,7 @@ service firebase.storage {
 - [x] Redirect unauthenticated users to `/auth`
 
 ### Phase 3 — Groups
-- [ ] Create group screen with inline activity builder (min 4 activities enforced)
+- [ ] Create group screen with inline activity builder (0+ activities allowed at creation)
 - [ ] Each activity: name, description, 3 tasks, medal condition descriptions
 - [ ] Set `groups.activityCount` = number of activities created at group creation
 - [ ] Auto-generate invite code on group creation
@@ -653,6 +661,7 @@ service firebase.storage {
 - [ ] Join group screen (enter invite code)
 - [ ] `/join/:inviteCode` route handling
 - [ ] Batch write on join (members subcollection + memberIds + groupIds)
+- [ ] Lock stable `activityId` usage in UI/state (no index-based activity identity)
 
 ### Phase 4 — Activity & Task Tracking
 - [ ] Activity list view per group
@@ -735,6 +744,9 @@ docs: update DESIGN.md with security rules section
 - **Remove members:** MVP scope — owner can remove any member via Group Settings. **All of that member’s pending submissions in the group are deleted automatically** (Firestore + Storage) before membership is removed.
 - **Task submission rule:** One pending submission per activity per user at a time. All other incomplete tasks in that activity are blocked until the pending submission is resolved.
 - **Pending document ids:** Composite `{userId}_{activityId}` (§5) — enforced in rules and prevents duplicate pendings without a Cloud Function.
+- **Group creation activity minimum:** No enforced minimum at creation; owner may create with 0+ and add/edit later (soft guidance: start with 4–6).
+- **Per-user activity selection (fast-follow):** Store on `groups/{groupId}/members/{userId}.selectedActivityIds` with `null` meaning "all activities".
+- **`selectedActivityIds: []` behavior (fast-follow):** Allowed. User can deselect all activities, still access feed, and later opt back into activities.
 
 ### Post-MVP / Stretch Goals
 - Cloud Function for atomic approval flow
