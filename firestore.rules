@@ -56,7 +56,17 @@ service cloud.firestore {
         allow create: if request.auth != null
           && request.auth.uid == memberId
           && request.auth.uid in groupDoc(groupId).data.memberIds;
-        allow update: if isGroupOwner(groupId);
+        allow update: if isGroupOwner(groupId)
+          || (
+            request.auth != null
+            && request.auth.uid == memberId
+            && isGroupMember(groupId)
+            && request.resource.data.diff(resource.data).changedKeys().hasOnly(['selectedActivityIds'])
+            && (
+              request.resource.data.selectedActivityIds == null
+              || request.resource.data.selectedActivityIds is list
+            )
+          );
         allow delete: if isGroupOwner(groupId);
       }
 

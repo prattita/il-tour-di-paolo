@@ -4,6 +4,9 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { PublicOnlyRoute } from './components/PublicOnlyRoute'
 import { AuthPage } from './pages/AuthPage'
 import { HomePage } from './pages/HomePage'
+import { CreateGroupPage } from './pages/CreateGroupPage'
+import { JoinGroupPage } from './pages/JoinGroupPage'
+import { GroupFeedPage } from './pages/GroupFeedPage'
 
 export default function App() {
   return (
@@ -23,6 +26,38 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <HomePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/group/new"
+            element={
+              <ProtectedRoute>
+                <CreateGroupPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/join/:inviteCode"
+            element={
+              <ProtectedRoute>
+                <JoinGroupPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/join"
+            element={
+              <ProtectedRoute>
+                <JoinGroupPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/group/:groupId/feed"
+            element={
+              <ProtectedRoute>
+                <GroupFeedPage />
               </ProtectedRoute>
             }
           />

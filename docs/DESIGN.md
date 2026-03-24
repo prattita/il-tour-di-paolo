@@ -321,7 +321,8 @@ batch.commit()
 ### 7.2 Group Creation
 - Owner sets group name and optional description
 - Owner can create a group with 0 or more activities at creation time (soft guidance: start with 4–6)
-- Each activity requires: name, optional description, 3 tasks (each with name and optional description), and medal condition descriptions (bronze/silver/gold)
+- Each activity requires: name, optional description, and 3 tasks (each with name and optional description)
+- Medal condition text is fixed in MVP and auto-populated: Bronze = "Complete 1 of 3 tasks", Silver = "Complete 2 of 3 tasks", Gold = "Complete 3 of 3 tasks"
 - **`activityCount`** on `groups/{groupId}` is set to the number of activity documents created (see §5)
 - Invite code auto-generated on group creation
 - Owner assigned automatically as the group creator — one owner per group
@@ -427,7 +428,7 @@ const getMedal = (tasksCompleted) => ({
 }[tasksCompleted] ?? null);
 ```
 
-Medal thresholds are fixed and not configurable. The owner defines medal condition descriptions per activity for context only.
+Medal thresholds are fixed and not configurable. In MVP, medal condition descriptions are also fixed and auto-populated per activity (1/2/3 tasks).
 
 ### Activity Locking
 Once any member has a task approved in an activity, `isLocked` is set to `true`. Task structure (add/remove/reorder) is frozen. Names and descriptions remain editable.
@@ -550,7 +551,18 @@ service cloud.firestore {
         allow create: if request.auth != null
           && request.auth.uid == memberId
           && request.auth.uid in groupDoc(groupId).data.memberIds;
-        allow update: if isGroupOwner(groupId);
+        // Owner can update member docs; member can only update own selectedActivityIds (fast-follow)
+        allow update: if isGroupOwner(groupId)
+          || (
+            request.auth != null
+            && request.auth.uid == memberId
+            && isGroupMember(groupId)
+            && request.resource.data.diff(resource.data).changedKeys().hasOnly(['selectedActivityIds'])
+            && (
+              request.resource.data.selectedActivityIds == null
+              || request.resource.data.selectedActivityIds is list
+            )
+          );
         allow delete: if isGroupOwner(groupId);
       }
 
@@ -652,16 +664,18 @@ service firebase.storage {
 - [x] Redirect unauthenticated users to `/auth`
 
 ### Phase 3 — Groups
-- [ ] Create group screen with inline activity builder (0+ activities allowed at creation)
-- [ ] Each activity: name, description, 3 tasks, medal condition descriptions
-- [ ] Set `groups.activityCount` = number of activities created at group creation
-- [ ] Auto-generate invite code on group creation
-- [ ] Write `invites/{inviteCode}` document on group creation
-- [ ] Owner role assigned on creation
-- [ ] Join group screen (enter invite code)
-- [ ] `/join/:inviteCode` route handling
-- [ ] Batch write on join (members subcollection + memberIds + groupIds)
-- [ ] Lock stable `activityId` usage in UI/state (no index-based activity identity)
+- [x] Create group screen with inline activity builder (0+ activities allowed at creation)
+- [x] Each activity: name, description, 3 tasks (medal condition text auto-populated/fixed)
+- [x] Set `groups.activityCount` = number of activities created at group creation
+- [x] Auto-generate invite code on group creation
+- [x] Write `invites/{inviteCode}` document on group creation
+- [x] Owner role assigned on creation
+- [x] Join group screen (enter invite code)
+- [x] `/join/:inviteCode` route handling
+- [x] Batch write on join (members subcollection + memberIds + groupIds)
+- [x] Lock stable `activityId` usage in UI/state (no index-based activity identity)
+- [x] Home group list from `users.groupIds` with routing to `/group/:groupId/feed`
+- [x] Group feed route renders basic group metadata shell (name/description/member count/invite code)
 
 ### Phase 4 — Activity & Task Tracking
 - [ ] Activity list view per group

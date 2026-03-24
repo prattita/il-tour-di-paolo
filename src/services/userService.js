@@ -26,3 +26,15 @@ export async function ensureUserProfile(uid, { email, displayName, avatarUrl = n
     createdAt: serverTimestamp(),
   })
 }
+
+export async function getUserGroupIds(uid) {
+  const db = getFirebaseDb()
+  if (!db) {
+    throw new Error('Firestore is not available. Check Firebase configuration.')
+  }
+  const ref = doc(db, 'users', uid)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) return []
+  const groupIds = snap.data().groupIds
+  return Array.isArray(groupIds) ? groupIds : []
+}
