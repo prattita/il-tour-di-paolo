@@ -304,7 +304,9 @@ batch.commit()
 
 ### 7.1 Authentication
 - Email and password signup/login via Firebase Auth
-- Display name set at signup
+- Google sign-in supported (enabled in Firebase Console); optional on `/auth`
+- Display name set at signup (email flow); Google uses provider profile when available
+- On first sign-in, create `users/{uid}` in Firestore if missing (see §5)
 - Protected routes: unauthenticated users redirected to `/auth`
 - Avatar upload post-MVP
 
@@ -635,11 +637,11 @@ service firebase.storage {
 - [x] `docs/DESIGN.md` in repo
 
 ### Phase 2 — Auth
-- [ ] Signup screen (email, password, display name)
-- [ ] Login screen
-- [ ] Firebase Auth integration
-- [ ] Protected route wrapper component
-- [ ] Redirect unauthenticated users to `/auth`
+- [x] Signup screen (email, password, display name) — `/auth` with Sign up tab
+- [x] Login screen — `/auth` with Log in tab
+- [x] Firebase Auth integration — `src/services/authService.js`, Google + email/password
+- [x] Protected route wrapper — `ProtectedRoute`, `PublicOnlyRoute`
+- [x] Redirect unauthenticated users to `/auth`
 
 ### Phase 3 — Groups
 - [ ] Create group screen with inline activity builder (min 4 activities enforced)
@@ -691,7 +693,7 @@ service firebase.storage {
 
 ### Phase 9 — Polish & Launch
 - [ ] Light blue pastel color palette applied consistently
-- [ ] Mobile responsiveness audit
+- [ ] **Responsive / multi–form-factor pass (Tailwind):** mocks are phone-first; audit tablet/desktop (breakpoints, `max-w-*` shells, tap targets, nav) and adjust — outcome drives any follow-up layout work
 - [ ] Loading states and error handling throughout
 - [ ] Empty states (no feed posts, no activities, no pending approvals)
 - [ ] Final security rules review
