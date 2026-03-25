@@ -1,4 +1,4 @@
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
+import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage'
 import { getFirebaseStorage } from '../lib/firebase'
 
 function requireStorage() {
@@ -9,12 +9,22 @@ function requireStorage() {
   return storage
 }
 
-/**
- * Path: `pending/{pendingId}/photo` — matches Storage rules prefix.
- */
-export async function uploadPendingPhoto(pendingId, file) {
+/** Path: `images/{pendingId}/{photoId}/photo` — immutable per submission attempt. */
+export async function uploadPendingPhoto(pendingId, photoId, file) {
   const storage = requireStorage()
-  const storageRef = ref(storage, `pending/${pendingId}/photo`)
+  const imagePath = `images/${pendingId}/${photoId}/photo`
+  const storageRef = ref(storage, imagePath)
   await uploadBytes(storageRef, file)
-  return getDownloadURL(storageRef)
+  const imageUrl = await getDownloadURL(storageRef)
+  return { imageUrl, imagePath }
+}
+
+export async function deleteSubmissionPhotoByPath(imagePath) {
+  if (!imagePath) return
+  const storage = requireStorage()
+  try {
+    await deleteObject(ref(storage, imagePath))
+  } catch (e) {
+    if (e?.code !== 'storage/object-not-found') throw e
+  }
 }

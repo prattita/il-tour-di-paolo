@@ -12,7 +12,7 @@ import { ActivityListPage } from './pages/ActivityListPage'
 import { TaskCompletePage } from './pages/TaskCompletePage'
 import { GroupInfoPage } from './pages/GroupInfoPage'
 import { GroupProfileStubPage } from './pages/GroupProfileStubPage'
-import { GroupApprovalsStubPage } from './pages/GroupApprovalsStubPage'
+import { GroupApprovalsPage } from './pages/GroupApprovalsPage'
 import { GroupSettingsStubPage } from './pages/GroupSettingsStubPage'
 
 export default function App() {
@@ -81,7 +81,7 @@ export default function App() {
             <Route path="activities" element={<ActivityListPage />} />
             <Route path="info" element={<GroupInfoPage />} />
             <Route path="profile/:userId" element={<GroupProfileStubPage />} />
-            <Route path="approvals" element={<GroupApprovalsStubPage />} />
+            <Route path="approvals" element={<GroupApprovalsPage />} />
             <Route path="settings" element={<GroupSettingsStubPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

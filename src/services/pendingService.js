@@ -59,7 +59,14 @@ export async function createPendingSubmission({
     throw new Error('You already have a submission awaiting review for this activity.')
   }
 
-  const imageUrl = await uploadPendingPhoto(pendingId, imageFile)
+  const photoId =
+    globalThis.crypto?.randomUUID?.() ||
+    `p_${Date.now()}_${Math.random().toString(16).slice(2)}`
+  const { imageUrl, imagePath } = await uploadPendingPhoto(
+    pendingId,
+    photoId,
+    imageFile,
+  )
 
   await setDoc(pendingRef, {
     userId,
@@ -69,6 +76,7 @@ export async function createPendingSubmission({
     taskId,
     taskName,
     imageUrl,
+    imagePath,
     description: description?.trim() || null,
     submittedAt: serverTimestamp(),
   })

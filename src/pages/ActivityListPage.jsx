@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { getGroup } from '../services/groupService'
@@ -49,6 +49,29 @@ export function ActivityListPage() {
   const [error, setError] = useState('')
 
   const submitted = Boolean(location.state?.submitted)
+
+  const rejectionBanner = member?.rejectionBanner
+  const dismissStorageKey = useMemo(() => {
+    if (!groupId || !rejectionBanner?.activityId || !rejectionBanner?.taskId) return null
+    return `rej-dismiss-${groupId}-${rejectionBanner.activityId}-${rejectionBanner.taskId}`
+  }, [groupId, rejectionBanner?.activityId, rejectionBanner?.taskId])
+
+  const [bannerDismissed, setBannerDismissed] = useState(true)
+
+  useEffect(() => {
+    if (!dismissStorageKey) {
+      setBannerDismissed(true)
+      return
+    }
+    setBannerDismissed(localStorage.getItem(dismissStorageKey) === '1')
+  }, [dismissStorageKey])
+
+  const dismissRejectionBanner = useCallback(() => {
+    if (dismissStorageKey) {
+      localStorage.setItem(dismissStorageKey, '1')
+    }
+    setBannerDismissed(true)
+  }, [dismissStorageKey])
 
   useEffect(() => {
     let active = true
@@ -145,6 +168,26 @@ export function ActivityListPage() {
       {submitted && isMember && (
         <div className="mb-4 rounded-lg border border-tour-accent/30 bg-tour-accent-muted px-3 py-2 text-sm text-[#0F6E56]">
           Submission sent. Your submission will appear in the feed once the owner approves it.
+        </div>
+      )}
+
+      {isMember && rejectionBanner && !bannerDismissed && (
+        <div
+          className="mb-4 flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-950 sm:flex-row sm:items-center sm:justify-between"
+          role="status"
+        >
+          <p>
+            Your submission for{' '}
+            <span className="font-medium">{rejectionBanner.taskName || 'this task'}</span> was not
+            approved. Please resubmit.
+          </p>
+          <button
+            type="button"
+            onClick={dismissRejectionBanner}
+            className="shrink-0 rounded-full border border-amber-300/80 px-3 py-1 text-[12px] font-medium text-amber-950 hover:bg-amber-100/80"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 

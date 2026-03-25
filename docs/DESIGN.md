@@ -39,7 +39,7 @@
 **Expected users:** ~10 (family members)  
 **Scalability target:** Designed to scale to 10,000 users without architectural changes
 
-> **Known tradeoff:** At scale, the approval flow (copy image, write feed, update progress, delete pending) should move to a Cloud Function for atomicity and security. For MVP with 10 family members, client-side with strict Firestore rules is acceptable. This is a noted post-MVP migration path.
+> **Known tradeoff:** At scale, the approval flow (write feed, update progress, delete pending) should move to a Cloud Function for stronger consistency and auditability. For MVP with ~10 family members, client-side with strict Firestore rules is acceptable. This is a noted post-MVP migration path.
 
 ---
 
@@ -106,8 +106,7 @@
     │
     ├── Firebase Auth        → Login, signup, session management
     ├── Firestore DB         → Users, groups, activities, progress, feed, pending submissions
-    └── Firebase Storage     → /pending/{pendingId} (awaiting approval; pendingId = userId_activityId)
-                               /feed/{postId} (approved, permanent)
+    └── Firebase Storage     → /images/{pendingId}/{photoId}/photo (immutable per submission attempt)
 
 [Vercel]                     → Hosts built React app, auto-deploys from GitHub main branch
 [GitHub]                     → Source control, triggers Vercel deploys on push to main
@@ -216,6 +215,12 @@ batch.commit()
       tasksCompleted: number,       // 0–3, approved completions only
       completedTaskIds: string[]
     }
+  },
+  rejectionBanner?: {              // owner-only write on reject; cleared when that activity is approved
+    taskName: string,
+    taskId: string,
+    activityId: string,
+    rejectedAt: timestamp
   }
 }
 ```
@@ -233,7 +238,9 @@ batch.commit()
 
 - **Why:** Enforces **at most one pending submission per user per activity** at the database level: a second `create` for the same pair fails because the document id already exists.
 - **Constraints:** Use canonical ids for `userId` and `activityId` (Firestore auto-ids are safe). If an activity id could contain `_`, use a different separator (e.g. `__`) in the app and rules — keep client and rules in sync.
-- **Storage:** Use the same `pendingId` for the Storage path (e.g. `/pending/{pendingId}/...`) so images line up with the Firestore doc.
+- **Storage:** Use the same `pendingId` for the *folder*, and a new `photoId` for each submission attempt:
+  - Storage object path: `/images/{pendingId}/{photoId}/photo`
+  - This prevents overwriting a previously-approved image when a member submits again for the same activity.
 
 ```
 {
@@ -243,7 +250,8 @@ batch.commit()
   activityName: string,
   taskId: string,
   taskName: string,
-  imageUrl: string,            // points to /pending/{pendingId}/... in Firebase Storage
+  imageUrl: string,            // download URL for /images/{pendingId}/{photoId}/photo
+  imagePath: string,           // "images/{pendingId}/{photoId}/photo" (for explicit reject cleanup)
   description: string | null,
   submittedAt: timestamp
 }
@@ -259,7 +267,7 @@ batch.commit()
   taskId: string,
   taskName: string,            // denormalized at approval time
   medal: "bronze" | "silver" | "gold" | null,
-  imageUrl: string,            // permanent /feed/{postId} path in Firebase Storage
+  imageUrl: string,            // reused from pending image URL (/images/{pendingId}/{photoId}/photo)
   description: string | null,
   type: "task_completion" | "system",
   timestamp: timestamp
@@ -311,7 +319,7 @@ batch.commit()
 
 - **Scope:** All routes under `/group/:groupId/*` (except task completion, which uses a focused header) share one shell.
 - **Profile entry:** No separate **Profile** row in the nav list. The **user block** at the top of the drawer/sidebar (avatar, name, role, **See profile** in smaller type) is one **clickable** target to `/group/:groupId/profile/:userId`. The top bar **avatar** (mobile/desktop) also links to profile.
-- **Mobile (&lt; `lg`):** Top bar with **burger** (opens a slide-in drawer), **screen title**, and **profile** avatar. Drawer lists: user block (above), then Feed, Activities, Group Info, divider, Approval Queue, Group Settings, Home, Sign out. Owner-only items use an **Owner** badge; non-owners see stubs until Phases 5 / 8.
+- **Mobile (&lt; `lg`):** Top bar with **burger** (opens a slide-in drawer), **screen title**, and **profile** avatar. Drawer lists: user block (above), then Feed, Activities, Group Info, divider, Approval Queue, Group Settings, Home, Sign out. Owner-only items use an **Owner** badge; non-owners who open Approval Queue or Group Settings are redirected to the group feed (full settings UI is Phase 8).
 - **Desktop (`lg` and up):** The same nav is a **persistent left column** (no overlay). Burger is hidden; navigation is always visible. Nav label inset matches the **group title** row (`px-4`) so active states align with the header text.
 - **Follow-up (Phase 9+):** Optional **collapsible / icon-only** sidebar on large screens to reclaim horizontal space while keeping shortcuts.
 - **Visual reference:** Warm neutrals, white cards, green primary accent — see `docs/UI_MOCKUPS.html` (v0.1 screens) and `docs/UI_MOCKUPS_v1.0.html` (drawer, **7a/7b Group Info**). Keep mock HTML files local if you prefer not to commit them.
@@ -373,7 +381,7 @@ batch.commit()
   - Description — optional.
   - Submit button: "Submit for review"
 - On submit:
-  - **Pending document id** = `{userId}_{activityId}` (see §5). Image uploads under `/pending/{pendingId}/` in Firebase Storage
+  - **Pending document id** = `{userId}_{activityId}` (see §5). Image uploads under `/images/{pendingId}/{photoId}/photo` in Firebase Storage
   - Submission written to `groups/{groupId}/pending/{pendingId}` with `userId` matching `request.auth.uid` and `activityId` consistent with the id
   - Task status flips to "Pending" — all other incomplete tasks in the activity become Blocked
   - Note shown: "Your submission will appear in the feed once the owner approves it."
@@ -384,18 +392,17 @@ batch.commit()
 - Each item shows: user name, activity, task, image, optional description, timestamp
 
 **On Approve:**
-1. Copy image from `/pending/{pendingId}` to `/feed/{postId}` in Firebase Storage
-2. Write feed post to `groups/{groupId}/feed/{postId}` in Firestore
-3. Update member progress (`tasksCompleted`, `completedTaskIds`) via transaction
-4. Recompute and store medal on member progress
-5. Delete pending document from Firestore
-6. Set `isLocked: true` on activity if not already set
-7. Remaining incomplete tasks in the activity become active again
+1. Write feed post to `groups/{groupId}/feed/{postId}` in Firestore (reuses pending `imageUrl`)
+2. Update member progress (`tasksCompleted`, `completedTaskIds`) via transaction
+3. Recompute medal snapshot for the feed post
+4. Delete pending document from Firestore
+5. Set `isLocked: true` on activity if not already set
+6. Remaining incomplete tasks in the activity become active again
 
-> **Partial failure note:** Steps 1–7 are executed client-side and are not atomic across Storage and Firestore. In the event of partial failure, an orphaned image may remain in `/pending/`. For MVP this is acceptable. A Cloud Function is the correct post-MVP fix.
+> **Current MVP behavior:** Approval does not copy image bytes in Storage; approved posts continue pointing to the same immutable object under `/images/{pendingId}/{photoId}/photo`.
 
 **On Reject:**
-1. Delete image from `/pending/{pendingId}` in Firebase Storage
+1. Delete image from `/images/{pendingId}/{photoId}/photo` in Firebase Storage (using `imagePath`)
 2. Delete pending document from Firestore
 3. Task status resets to available — all incomplete tasks in the activity become active again
 4. User sees an in-app banner on next visit: "Your submission for [task] was not approved. Please resubmit."
@@ -417,7 +424,7 @@ batch.commit()
 - Invite code display and regeneration (old code invalidated via batch write)
 - View member list
 - **Remove a member**
-  1. **Delete all pending submissions** for that user in this group: for each doc in `groups/{groupId}/pending` where `userId` equals the removed member, delete the corresponding object in Firebase Storage (`/pending/...`), then delete the Firestore pending document. (If there are many, use chunked batches; family scale is small.)
+  1. **Delete all pending submissions** for that user in this group: for each doc in `groups/{groupId}/pending` where `userId` equals the removed member, delete the corresponding object in Firebase Storage (`/images/...`, using `imagePath`), then delete the Firestore pending document. (If there are many, use chunked batches; family scale is small.)
   2. **Batch write — membership:** remove from all three locations (`members/{userId}`, `memberIds` on the group, `groupIds` on the user) as in §5.
   - The removed user loses access immediately; their **approved** history remains on the feed per §13 (display name kept on past posts where denormalized).
 - Add new activity mid-competition: create activity doc, **increment `activityCount` by 1** in the same batch, system feed post
@@ -629,13 +636,8 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    match /pending/{pendingId}/{allPaths=**} {
+    match /images/{submissionId}/{allPaths=**} {
       allow read, delete: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-
-    match /feed/{postId}/{allPaths=**} {
-      allow read: if request.auth != null;
       allow write: if request.auth != null;
     }
   }
@@ -701,22 +703,22 @@ service firebase.storage {
 - [x] One pending submission per activity rule enforced in UI
 - [x] "Awaiting approval before next task" hint when blocked
 - [x] Task completion form (image upload required, description optional) — `/group/:groupId/activity/:activityId/task/:taskId`
-- [x] Firebase Storage upload to `/pending/{pendingId}/photo` where `pendingId` = `{userId}_{activityId}`
+- [x] Firebase Storage upload to `/images/{pendingId}/{photoId}/photo` where `pendingId` = `{userId}_{activityId}` and `photoId` is per-attempt
 - [x] Write pending doc to `groups/.../pending/{pendingId}` (composite id; client rejects duplicate pending before write)
 - [x] Block all other incomplete tasks in activity while submission pending
 
 ### Phase 5 — Owner Approval Flow
-- [ ] Pending approvals screen (owner only)
-- [ ] Badge count on Group Settings
-- [ ] Approve: copy image to `/feed/`, write feed post, update progress via transaction, compute medal, delete pending doc, set isLocked, unblock activity tasks
-- [ ] Reject: delete image from `/pending/`, delete pending doc, unblock activity tasks
-- [ ] In-app rejection banner on next visit
+- [x] Pending approvals screen (owner only)
+- [x] Badge count on Group Settings
+- [x] Approve: write feed post (reuse pending `imageUrl`), update progress via transaction, compute medal, delete pending doc, set isLocked, unblock activity tasks
+- [x] Reject: delete image from `/images/`, delete pending doc, unblock activity tasks
+- [x] In-app rejection banner on next visit (dismiss stored in `localStorage` per group/activity/task; cleared server-side when the same activity is later approved)
 
 ### Phase 6 — Feed
-- [ ] Real-time Firestore listener on feed subcollection
-- [ ] Feed card component (avatar, activity, task, medal, image, description, timestamp)
+- [x] Real-time Firestore listener on feed subcollection
+- [x] Feed card component (avatar, activity, task, medal, image, description, timestamp)
 - [ ] System post rendering
-- [ ] Feed ordered by timestamp descending
+- [x] Feed ordered by timestamp descending
 
 ### Phase 7 — User Profile
 - [ ] Profile screen layout
@@ -734,6 +736,8 @@ service firebase.storage {
 
 ### Phase 9 — Polish & Launch
 - [ ] Final palette pass: mockups use warm neutrals + green accent (`#1D9E75`); align any remaining screens and refine tokens in `index.css` `@theme`
+- [ ] Adjust paddings, UI tweaks. Please ask for UI tweaks if not provided at this stage.
+- [ ] Adjust the Home Page to match the UI of the rest of the site.
 - [ ] **Responsive / multi–form-factor pass (Tailwind):** audit remaining breakpoints (`max-w-*`, tap targets, task form on wide screens); group shell drawer/sidebar is done
 - [ ] Loading states and error handling throughout
 - [ ] Empty states (no feed posts, no activities, no pending approvals)
