@@ -36,19 +36,19 @@ export function JoinGroupPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-slate-100 text-slate-900">
+    <div className="min-h-dvh text-tour-text">
       <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-10">
         <header className="mb-6">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Phase 3</p>
-          <h1 className="mt-1 text-2xl font-semibold text-slate-800">Join Group</h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="text-xs font-medium uppercase tracking-wide text-tour-text-secondary">Phase 3</p>
+          <h1 className="mt-1 text-2xl font-semibold text-tour-text">Join Group</h1>
+          <p className="mt-2 text-sm text-tour-text-secondary">
             Enter an invite code to join your family group.
           </p>
         </header>
 
-        <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+        <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-black/10 bg-tour-surface p-4">
           <div>
-            <label htmlFor="inviteCode" className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor="inviteCode" className="mb-1 block text-sm font-medium text-tour-text">
               Invite code
             </label>
             <input
@@ -56,7 +56,7 @@ export function JoinGroupPage() {
               type="text"
               value={inviteCode}
               onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              className="w-full rounded-lg border border-black/18 bg-tour-surface px-3 py-2 text-tour-text shadow-sm focus:border-tour-accent focus:outline-none focus:ring-1 focus:ring-tour-accent"
               placeholder="PAOLO26"
               required
             />
@@ -71,7 +71,7 @@ export function JoinGroupPage() {
           <button
             type="submit"
             disabled={pending}
-            className="w-full rounded-lg bg-slate-800 py-2.5 text-sm font-medium text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-lg bg-tour-accent py-2.5 text-sm font-medium text-tour-accent-muted hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pending ? 'Joining…' : 'Join group'}
           </button>
@@ -79,7 +79,7 @@ export function JoinGroupPage() {
 
         <Link
           to="/"
-          className="mt-4 self-start rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          className="mt-4 self-start rounded-lg border border-black/10 bg-tour-surface px-3 py-1.5 text-sm font-medium text-tour-text hover:bg-tour-muted"
         >
           Back home
         </Link>

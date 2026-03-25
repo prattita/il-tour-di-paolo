@@ -298,6 +298,7 @@ batch.commit()
 | Login / Signup | `/auth` | Public |
 | Home / Dashboard | `/` | Authenticated |
 | Group Feed | `/group/:groupId/feed` | Group member |
+| Group Info | `/group/:groupId/info` | Group member |
 | Activity List | `/group/:groupId/activities` | Group member |
 | Complete a Task | `/group/:groupId/activity/:activityId/task/:taskId` | Group member |
 | User Profile | `/group/:groupId/profile/:userId` | Group member |
@@ -305,6 +306,20 @@ batch.commit()
 | Pending Approvals | `/group/:groupId/approvals` | Owner only |
 | Create Group | `/group/new` | Authenticated |
 | Join Group | `/join/:inviteCode` | Authenticated |
+
+### 6.1 Group app shell & navigation
+
+- **Scope:** All routes under `/group/:groupId/*` (except task completion, which uses a focused header) share one shell.
+- **Profile entry:** No separate **Profile** row in the nav list. The **user block** at the top of the drawer/sidebar (avatar, name, role, **See profile** in smaller type) is one **clickable** target to `/group/:groupId/profile/:userId`. The top bar **avatar** (mobile/desktop) also links to profile.
+- **Mobile (&lt; `lg`):** Top bar with **burger** (opens a slide-in drawer), **screen title**, and **profile** avatar. Drawer lists: user block (above), then Feed, Activities, Group Info, divider, Approval Queue, Group Settings, Home, Sign out. Owner-only items use an **Owner** badge; non-owners see stubs until Phases 5 / 8.
+- **Desktop (`lg` and up):** The same nav is a **persistent left column** (no overlay). Burger is hidden; navigation is always visible. Nav label inset matches the **group title** row (`px-4`) so active states align with the header text.
+- **Follow-up (Phase 9+):** Optional **collapsible / icon-only** sidebar on large screens to reclaim horizontal space while keeping shortcuts.
+- **Visual reference:** Warm neutrals, white cards, green primary accent — see `docs/UI_MOCKUPS.html` (v0.1 screens) and `docs/UI_MOCKUPS_v1.0.html` (drawer, **7a/7b Group Info**). Keep mock HTML files local if you prefer not to commit them.
+
+### 6.2 Group Info vs Feed
+
+- **Feed** (`/group/:groupId/feed`): Approved completion posts only (Phase 6). **No** member counts, activity counts, or invite code on the feed screen.
+- **Group Info** (`/group/:groupId/info`): Name, description, and **Activities** overview for **all** members (see mock **7a**). **Invite code** and **Members** summary (counts / future roster) are **owner-only** (mock **7b**). Non-owners do not see invite code or member-management context.
 
 ---
 
@@ -326,6 +341,7 @@ batch.commit()
 - **`activityCount`** on `groups/{groupId}` is set to the number of activity documents created (see §5)
 - Invite code auto-generated on group creation
 - Owner assigned automatically as the group creator — one owner per group
+- Owner's `selectedActivityIds` is set to `null` on group creation (participates in all activities by default, including any added later)
 
 ### 7.3 Joining a Group
 - User navigates to `/join/:inviteCode` or enters code manually
@@ -675,17 +691,19 @@ service firebase.storage {
 - [x] Batch write on join (members subcollection + memberIds + groupIds)
 - [x] Lock stable `activityId` usage in UI/state (no index-based activity identity)
 - [x] Home group list from `users.groupIds` with routing to `/group/:groupId/feed`
-- [x] Group feed route renders basic group metadata shell (name/description/member count/invite code)
+- [x] Group feed route placeholder (Phase 6); metadata lives on **Group Info** (§6.2)
 
 ### Phase 4 — Activity & Task Tracking
-- [ ] Activity list view per group
-- [ ] Task status rendering (empty / pending / approved / blocked)
-- [ ] One pending submission per activity rule enforced in UI
-- [ ] "Awaiting approval before next task" hint when blocked
-- [ ] Task completion form (image upload required, description optional)
-- [ ] Firebase Storage upload to `/pending/{pendingId}/` where `pendingId` = `{userId}_{activityId}`
-- [ ] Write pending doc to `groups/.../pending/{pendingId}` (composite id enforces one pending per user per activity)
-- [ ] Block all other incomplete tasks in activity while submission pending
+- [x] Group app shell: mobile drawer + persistent `lg` sidebar (`GroupLayout`); stub routes for profile / approvals / settings until later phases
+- [x] Group Info page (`/group/:groupId/info`) — read-only summary (full edit in Phase 8)
+- [x] Activity list view per group (`/group/:groupId/activities`) aligned with mockup density (cards, medal badge, task status dots, pill **Complete**)
+- [x] Task status rendering (empty / pending / approved / blocked)
+- [x] One pending submission per activity rule enforced in UI
+- [x] "Awaiting approval before next task" hint when blocked
+- [x] Task completion form (image upload required, description optional) — `/group/:groupId/activity/:activityId/task/:taskId`
+- [x] Firebase Storage upload to `/pending/{pendingId}/photo` where `pendingId` = `{userId}_{activityId}`
+- [x] Write pending doc to `groups/.../pending/{pendingId}` (composite id; client rejects duplicate pending before write)
+- [x] Block all other incomplete tasks in activity while submission pending
 
 ### Phase 5 — Owner Approval Flow
 - [ ] Pending approvals screen (owner only)
@@ -715,8 +733,8 @@ service firebase.storage {
 - [ ] Edit activity form (respects isLocked rules)
 
 ### Phase 9 — Polish & Launch
-- [ ] Light blue pastel color palette applied consistently
-- [ ] **Responsive / multi–form-factor pass (Tailwind):** mocks are phone-first; audit tablet/desktop (breakpoints, `max-w-*` shells, tap targets, nav) and adjust — outcome drives any follow-up layout work
+- [ ] Final palette pass: mockups use warm neutrals + green accent (`#1D9E75`); align any remaining screens and refine tokens in `index.css` `@theme`
+- [ ] **Responsive / multi–form-factor pass (Tailwind):** audit remaining breakpoints (`max-w-*`, tap targets, task form on wide screens); group shell drawer/sidebar is done
 - [ ] Loading states and error handling throughout
 - [ ] Empty states (no feed posts, no activities, no pending approvals)
 - [ ] Final security rules review
@@ -761,8 +779,10 @@ docs: update DESIGN.md with security rules section
 - **Group creation activity minimum:** No enforced minimum at creation; owner may create with 0+ and add/edit later (soft guidance: start with 4–6).
 - **Per-user activity selection (fast-follow):** Store on `groups/{groupId}/members/{userId}.selectedActivityIds` with `null` meaning "all activities".
 - **`selectedActivityIds: []` behavior (fast-follow):** Allowed. User can deselect all activities, still access feed, and later opt back into activities.
+- **Owner activity participation (MVP):** Owner is implicitly joined to all activities (`selectedActivityIds: null`). No join/leave controls shown for owner in Group Info screen.
 
 ### Post-MVP / Stretch Goals
+- **Desktop shell:** Collapse or minimize the `lg` sidebar to icons-only (or hide behind a control) for more content width — see §6.1 follow-up.
 - Cloud Function for atomic approval flow
 - Tighten Firebase Storage rules to per-group membership
 - Push notification or email to owner on pending submission
@@ -774,10 +794,11 @@ docs: update DESIGN.md with security rules section
 - Mobile app (React Native)
 
 ### UI & Design Notes
-- **Navigation:** The app is a single SPA shell; users move between screens via routing (see §6). `UI_MOCKUPS.html` shows separate phone frames as **reference layouts**, not multiple simultaneous UIs.
-- Color palette: light blue pastel with related blue tones — target for Phase 9; mockup colors are **intentionally placeholder** until then.
-- UI screens mocked up: Activity list, Task completion form, Group feed, Owner approval queue, User profile
-- Task blocking state shown with greyed out button + "Awaiting approval before next task" hint
+- **Navigation:** Global auth/home/create/join are standalone. **Inside a group**, routes use the shared shell (§6.1): drawer on small viewports, left nav column from `lg` up; profile via user block + top avatar, not a duplicate nav row. Task completion keeps a simple top bar with **Back** (not the burger shell). **Group metadata** lives under **Group Info**, not Feed (§6.2).
+- **Mockups:** `UI_MOCKUPS.html` (v0.1 — activity list, task form, feed, approvals, profile) and `UI_MOCKUPS_v1.0.html` (burger drawer, group info). Use as layout/color reference; you may delete or gitignore HTML mocks before commit.
+- **Palette:** Warm off-white / grey surfaces, near-black text, **green accent** for primary actions (see `@theme` in `src/index.css`). Phase 9 may add a light blue pastel pass if you want closer parity with earlier DESIGN copy.
+- UI screens mocked up: Activity list, Task completion form, Group feed, Owner approval queue, User profile, Group info, Nav drawer
+- Task blocking state: disabled pill **Complete** + "Awaiting approval before next task" hint
 
 ---
 

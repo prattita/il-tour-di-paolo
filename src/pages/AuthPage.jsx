@@ -46,14 +46,14 @@ export function AuthPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-slate-100 text-slate-900">
+    <div className="min-h-dvh text-tour-text">
       <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-10">
         <div className="mb-8 text-center">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          <p className="text-xs font-medium uppercase tracking-wide text-tour-text-secondary">
             Il Tour di Paolo
           </p>
-          <h1 className="mt-1 text-2xl font-semibold text-slate-800">2026</h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <h1 className="mt-1 text-2xl font-semibold text-tour-text">2026</h1>
+          <p className="mt-2 text-sm text-tour-text-secondary">
             {mode === 'login' ? 'Sign in to continue' : 'Create an account'}
           </p>
         </div>
@@ -65,13 +65,13 @@ export function AuthPage() {
           </div>
         )}
 
-        <div className="mb-6 flex rounded-lg bg-slate-200/80 p-1">
+        <div className="mb-6 flex rounded-lg bg-black/[0.06] p-1">
           <button
             type="button"
             className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${
               mode === 'login'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-800'
+                ? 'bg-tour-surface text-tour-text shadow-sm'
+                : 'text-tour-text-secondary hover:text-tour-text'
             }`}
             onClick={() => {
               setMode('login')
@@ -84,8 +84,8 @@ export function AuthPage() {
             type="button"
             className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${
               mode === 'signup'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-800'
+                ? 'bg-tour-surface text-tour-text shadow-sm'
+                : 'text-tour-text-secondary hover:text-tour-text'
             }`}
             onClick={() => {
               setMode('signup')
@@ -99,7 +99,7 @@ export function AuthPage() {
         <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4">
           {mode === 'signup' && (
             <div>
-              <label htmlFor="displayName" className="mb-1 block text-sm font-medium text-slate-700">
+              <label htmlFor="displayName" className="mb-1 block text-sm font-medium text-tour-text">
                 Display name
               </label>
               <input
@@ -108,13 +108,13 @@ export function AuthPage() {
                 autoComplete="name"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                className="w-full rounded-lg border border-black/18 bg-tour-surface px-3 py-2 text-tour-text shadow-sm focus:border-tour-accent focus:outline-none focus:ring-1 focus:ring-tour-accent"
                 required={mode === 'signup'}
               />
             </div>
           )}
           <div>
-            <label htmlFor="email" className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor="email" className="mb-1 block text-sm font-medium text-tour-text">
               Email
             </label>
             <input
@@ -123,12 +123,12 @@ export function AuthPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              className="w-full rounded-lg border border-black/18 bg-tour-surface px-3 py-2 text-tour-text shadow-sm focus:border-tour-accent focus:outline-none focus:ring-1 focus:ring-tour-accent"
               required
             />
           </div>
           <div>
-            <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor="password" className="mb-1 block text-sm font-medium text-tour-text">
               Password
             </label>
             <input
@@ -137,12 +137,12 @@ export function AuthPage() {
               autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+              className="w-full rounded-lg border border-black/18 bg-tour-surface px-3 py-2 text-tour-text shadow-sm focus:border-tour-accent focus:outline-none focus:ring-1 focus:ring-tour-accent"
               required
               minLength={6}
             />
             {mode === 'signup' && (
-              <p className="mt-1 text-xs text-slate-500">At least 6 characters (Firebase default).</p>
+              <p className="mt-1 text-xs text-tour-text-secondary">At least 6 characters (Firebase default).</p>
             )}
           </div>
 
@@ -155,7 +155,7 @@ export function AuthPage() {
           <button
             type="submit"
             disabled={pending || !firebaseReady}
-            className="rounded-lg bg-slate-800 py-2.5 text-sm font-medium text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg bg-tour-accent py-2.5 text-sm font-medium text-tour-accent-muted hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Sign in'}
           </button>
@@ -163,10 +163,10 @@ export function AuthPage() {
 
         <div className="relative my-8">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-200" />
+            <div className="w-full border-t border-black/10" />
           </div>
-          <div className="relative flex justify-center text-xs uppercase tracking-wide text-slate-500">
-            <span className="bg-slate-100 px-2">or</span>
+          <div className="relative flex justify-center text-xs uppercase tracking-wide text-tour-text-secondary">
+            <span className="bg-tour-canvas px-2">or</span>
           </div>
         </div>
 
@@ -174,7 +174,7 @@ export function AuthPage() {
           type="button"
           disabled={pending || !firebaseReady}
           onClick={handleGoogle}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-black/10 bg-tour-surface py-2.5 text-sm font-medium text-tour-text hover:bg-tour-muted disabled:cursor-not-allowed disabled:opacity-50"
         >
           <GoogleIcon />
           Continue with Google

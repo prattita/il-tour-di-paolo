@@ -1,10 +1,23 @@
 @import 'tailwindcss';
 
-/* App-wide defaults — Phase 9 will align with DESIGN.md pastel palette */
+/* Tokens aligned with docs/UI_MOCKUPS.html (warm neutrals + green accent) */
+@theme {
+  --color-tour-canvas: #e8edf2;
+  --color-tour-muted: #f5f5f3;
+  --color-tour-surface: #ffffff;
+  --color-tour-text: #1a1a18;
+  --color-tour-text-secondary: #6b6b67;
+  --color-tour-text-tertiary: #9b9b96;
+  --color-tour-accent: #1d9e75;
+  --color-tour-accent-muted: #e1f5ee;
+}
+
 body {
   margin: 0;
   min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
+  background-color: var(--color-tour-canvas);
+  color: var(--color-tour-text);
 }
 
 #root {
