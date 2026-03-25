@@ -717,7 +717,6 @@ service firebase.storage {
 ### Phase 6 — Feed
 - [x] Real-time Firestore listener on feed subcollection
 - [x] Feed card component (avatar, activity, task, medal, image, description, timestamp)
-- [ ] System post rendering
 - [x] Feed ordered by timestamp descending
 
 ### Phase 7 — User Profile
@@ -732,9 +731,14 @@ service firebase.storage {
 - [ ] Invite code regeneration (batch: delete old invites doc, create new, update group)
 - [ ] Remove member: delete all their pending docs + Storage images, then batch membership removal
 - [ ] Add new activity mid-competition: increment `activityCount`, system feed post, new activity doc
+- [ ] System post rendering
 - [ ] Edit activity form (respects isLocked rules)
 
-### Phase 9 — Polish & Launch
+### Phase 9 - Privacy
+- [ ] Create a "Cancel" button to allow non-owners to withdraw a pending task submission. This unlocks the activity.
+- [ ] groups/{groupId}/pending/{pendingId} must allow delete when resource.data.userId == request.auth.uid.
+
+### Phase 10 — Polish & Launch
 - [ ] Final palette pass: mockups use warm neutrals + green accent (`#1D9E75`); align any remaining screens and refine tokens in `index.css` `@theme`
 - [ ] Adjust paddings, UI tweaks. Please ask for UI tweaks if not provided at this stage.
 - [ ] Adjust the Home Page to match the UI of the rest of the site.
