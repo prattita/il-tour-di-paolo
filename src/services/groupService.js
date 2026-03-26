@@ -29,7 +29,8 @@ function randomInviteCode() {
   return out
 }
 
-async function generateUniqueInviteCode(db) {
+export async function generateUniqueInviteCode() {
+  const db = requireDb()
   for (let attempts = 0; attempts < 12; attempts += 1) {
     const code = randomInviteCode()
     const inviteSnap = await getDoc(doc(db, 'invites', code))
@@ -38,7 +39,8 @@ async function generateUniqueInviteCode(db) {
   throw new Error('Unable to generate unique invite code. Please try again.')
 }
 
-function toActivityDoc(input, index) {
+/** New activity document (3 tasks, fixed medal copy). `sortOrder` controls list ordering. */
+export function buildActivityDocument(input, sortOrder) {
   const taskA = input.tasks?.[0]?.trim() || `Task 1`
   const taskB = input.tasks?.[1]?.trim() || `Task 2`
   const taskC = input.tasks?.[2]?.trim() || `Task 3`
@@ -55,7 +57,7 @@ function toActivityDoc(input, index) {
       silver: 'Complete 2 of 3 tasks',
       gold: 'Complete 3 of 3 tasks',
     },
-    sortOrder: index,
+    sortOrder,
     isLocked: false,
     createdAt: serverTimestamp(),
   }
@@ -77,9 +79,9 @@ export async function createGroup({
 
   const validActivities = activities
     .filter((activity) => activity.name?.trim())
-    .map((activity, index) => toActivityDoc(activity, index))
+    .map((activity, index) => buildActivityDocument(activity, index))
 
-  const inviteCode = await generateUniqueInviteCode(db)
+  const inviteCode = await generateUniqueInviteCode()
   const groupRef = doc(collection(db, 'groups'))
   const memberRef = doc(db, `groups/${groupRef.id}/members/${ownerId}`)
   const inviteRef = doc(db, 'invites', inviteCode)
@@ -184,6 +186,15 @@ export async function getGroup(groupId) {
 
 export async function getGroupsByIds(groupIds) {
   const uniqueIds = [...new Set(groupIds.filter(Boolean))]
-  const results = await Promise.all(uniqueIds.map((groupId) => getGroup(groupId)))
+  const results = await Promise.all(
+    uniqueIds.map(async (groupId) => {
+      try {
+        return await getGroup(groupId)
+      } catch (e) {
+        if (e?.code === 'permission-denied') return null
+        throw e
+      }
+    }),
+  )
   return results.filter(Boolean)
 }

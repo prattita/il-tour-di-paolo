@@ -33,6 +33,7 @@ dist-ssr
 # DESIGN.md and other shared docs in docs/ stay tracked.
 docs/*PRIMER*.md
 docs/*primer*.md
+docs/KNOWN_CONCERNS.md
 
 #firebase hidden files.
 .firebaserc.example

@@ -319,7 +319,7 @@ batch.commit()
 
 - **Scope:** All routes under `/group/:groupId/*` (except task completion, which uses a focused header) share one shell.
 - **Profile entry:** No separate **Profile** row in the nav list. The **user block** at the top of the drawer/sidebar (avatar, name, role, **See profile** in smaller type) is one **clickable** target to `/group/:groupId/profile/:userId`. The top bar **avatar** (mobile/desktop) also links to profile.
-- **Mobile (&lt; `lg`):** Top bar with **burger** (opens a slide-in drawer), **screen title**, and **profile** avatar. Drawer lists: user block (above), then Feed, Activities, Group Info, divider, Approval Queue, Group Settings, Home, Sign out. Owner-only items use an **Owner** badge; non-owners who open Approval Queue or Group Settings are redirected to the group feed (full settings UI is Phase 8).
+- **Mobile (&lt; `lg`):** Top bar with **burger** (opens a slide-in drawer), **screen title**, and **profile** avatar. Drawer lists: user block (above), then Feed, Activities, Group Info, divider, Approval Queue, Group Settings, Home, Sign out. Owner-only items use an **Owner** badge; non-owners who open Approval Queue or Group Settings are redirected to the group feed.
 - **Desktop (`lg` and up):** The same nav is a **persistent left column** (no overlay). Burger is hidden; navigation is always visible. Nav label inset matches the **group title** row (`px-4`) so active states align with the header text.
 - **Follow-up (Phase 9+):** Optional **collapsible / icon-only** sidebar on large screens to reclaim horizontal space while keeping shortcuts.
 - **Visual reference:** Warm neutrals, white cards, green primary accent — see `docs/UI_MOCKUPS.html` (v0.1 screens) and `docs/UI_MOCKUPS_v1.0.html` (drawer, **7a/7b Group Info**). Keep mock HTML files local if you prefer not to commit them.
@@ -327,7 +327,7 @@ batch.commit()
 ### 6.2 Group Info vs Feed
 
 - **Feed** (`/group/:groupId/feed`): Approved completion posts only (Phase 6). **No** member counts, activity counts, or invite code on the feed screen.
-- **Group Info** (`/group/:groupId/info`): Name, description, and **Activities** overview for **all** members (see mock **7a**). **Invite code** and **Members** summary (counts / future roster) are **owner-only** (mock **7b**). Non-owners do not see invite code or member-management context.
+- **Group Info** (`/group/:groupId/info`): Name, description, **full member roster** (initials, name, link to profile, Owner badge), and **Activities** with **collapsible** detail (optional description, three tasks) for **all** members — aligned with mock **7a** (Phase 8.5). **Invite code, regeneration, and member removal** live only under **Group settings** (Phase 8); they do **not** appear on Group Info. **Owners** see an **Edit group & invite** control on the group card that links to `/group/:groupId/settings`.
 
 ---
 
@@ -697,7 +697,7 @@ service firebase.storage {
 
 ### Phase 4 — Activity & Task Tracking
 - [x] Group app shell: mobile drawer + persistent `lg` sidebar (`GroupLayout`); stub routes for profile / approvals / settings until later phases
-- [x] Group Info page (`/group/:groupId/info`) — read-only summary (full edit in Phase 8)
+- [x] Group Info page (`/group/:groupId/info`) — member-facing summary; metadata edit + invite in **Group settings** (Phase 8); roster + collapsible activities (Phase 8.5)
 - [x] Activity list view per group (`/group/:groupId/activities`) aligned with mockup density (cards, medal badge, task status dots, pill **Complete**)
 - [x] Task status rendering (empty / pending / approved / blocked)
 - [x] One pending submission per activity rule enforced in UI
@@ -726,14 +726,28 @@ service firebase.storage {
 - [x] *(Stretch)* Progress bar per activity on profile
 
 ### Phase 8 — Group Settings & Activity Management
-- [ ] Group settings screen (owner only)
-- [ ] Edit group name/description
-- [ ] Invite code regeneration (batch: delete old invites doc, create new, update group)
-- [ ] Remove member: delete all their pending docs + Storage images, then batch membership removal
-- [ ] Add new activity mid-competition: increment `activityCount`, system feed post, new activity doc
-- [ ] System post rendering
-- [ ] Member roster UI (names + initials; no custom profile-photo upload in MVP — see fast-follow `docs/ProfilePics_onepager.md` for optional `avatarUrl` propagation to `groups/{groupId}/members/{userId}`).
-- [ ] Edit activity form (respects isLocked rules)
+- [x] Group settings screen (owner only)
+- [x] Edit group name/description
+- [x] Invite code regeneration (batch: delete old invites doc, create new, update group)
+- [x] Remove member: delete all their pending docs + Storage images, then batch membership removal
+- [x] Add new activity mid-competition: increment `activityCount`, system feed post, new activity doc
+- [x] System post rendering
+- [x] Member roster UI (names + initials; no custom profile-photo upload in MVP — see fast-follow `docs/ProfilePics_onepager.md` for optional `avatarUrl` propagation to `groups/{groupId}/members/{userId}`).
+- [x] Edit activity form (respects isLocked rules)
+
+### Phase 8.5 — Group information screen (all members)
+
+Refresh `/group/:groupId/info` so it matches mock **7a** / **7b** layout intent without duplicating **Group settings**.
+
+- [x] Cross-check **Group Info** against `docs/UI_MOCKUPS_v1.0.html` screens **7a** (member) and **7b** (owner) for spacing and hierarchy.
+- [x] **Remove invite code** (and regeneration) from Group Info — invite is **Group settings** only.
+- [x] **Member roster** visible to **everyone** in the group (initials, display name, profile link, **Owner** badge). No **Remove** on this page (removal stays in settings).
+- [x] **Activities:** list mirrors mocks — each row is **collapsible**; expanded state shows optional activity description and the **three tasks** (dot list). Medal rules stay implicit (1/2/3 tasks); no extra medal copy on this screen.
+- [x] **Owner only:** show **Edit group & invite** on the group card, linking to **`/group/:groupId/settings`**. **Non-owners** do not see that control.
+
+**Note:** Mock **7a** shows per-activity **Join** / **Joined** chips (`selectedActivityIds` fast-follow). Until that ships, omit join UI on Group Info; members still see all activities as in the Activities tab.
+
+**Wording — `isLocked` vs editing:** The flag means *at least one task in that activity has been approved*; the **three tasks and their order** are fixed in the database, but **names** (activity + tasks) remain editable in **Group settings**. On Group Info the chip reads **Progress started** so it is not confused with “cannot edit anywhere.”
 
 ### Phase 9 - Privacy
 - [ ] Create a "Cancel" button to allow non-owners to withdraw a pending task submission. This unlocks the activity.

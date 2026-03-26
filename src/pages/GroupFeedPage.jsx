@@ -93,41 +93,57 @@ export function GroupFeedPage() {
       )}
 
       <div className="flex flex-col gap-3">
-        {posts.map((post) => (
-          <article
-            key={post.id}
-            className="overflow-hidden rounded-xl border border-black/10 bg-tour-surface"
-          >
-            {post.imageUrl && (
-              <img
-                src={post.imageUrl}
-                alt=""
-                className="aspect-[4/3] w-full object-cover"
-              />
-            )}
-            <div className="space-y-2 px-3.5 py-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="text-[13px] font-medium text-tour-text">
-                    {post.displayName || 'Member'}
-                  </p>
-                  <p className="text-[12px] text-tour-text-secondary">
-                    {post.activityName}
-                    {' · '}
-                    {post.taskName}
-                  </p>
-                </div>
-                {post.type === 'task_completion' && (
-                  <MedalBadge tier={medalTierForPost(post.medal)} />
-                )}
-              </div>
-              {post.description && (
-                <p className="text-[12px] text-tour-text-secondary">{post.description}</p>
+        {posts.map((post) => {
+          const isSystemPost = post.type === 'system'
+          return isSystemPost ? (
+            <article
+              key={post.id}
+              className="rounded-xl border border-dashed border-tour-accent/35 bg-tour-accent-muted/50 px-3.5 py-3"
+            >
+              <p className="text-[10px] font-medium uppercase tracking-wide text-[#0F6E56]">
+                Group update
+              </p>
+              <p className="mt-1 text-[13px] text-tour-text">{post.message || 'Update'}</p>
+              <p className="mt-2 text-[11px] text-tour-text-secondary">
+                {formatFeedTime(post.timestamp)}
+              </p>
+            </article>
+          ) : (
+            <article
+              key={post.id}
+              className="overflow-hidden rounded-xl border border-black/10 bg-tour-surface"
+            >
+              {post.imageUrl && (
+                <img
+                  src={post.imageUrl}
+                  alt=""
+                  className="aspect-[4/3] w-full object-cover"
+                />
               )}
-              <p className="text-[11px] text-tour-text-secondary">{formatFeedTime(post.timestamp)}</p>
-            </div>
-          </article>
-        ))}
+              <div className="space-y-2 px-3.5 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-[13px] font-medium text-tour-text">
+                      {post.displayName || 'Member'}
+                    </p>
+                    <p className="text-[12px] text-tour-text-secondary">
+                      {post.activityName}
+                      {' · '}
+                      {post.taskName}
+                    </p>
+                  </div>
+                  {post.type === 'task_completion' && (
+                    <MedalBadge tier={medalTierForPost(post.medal)} />
+                  )}
+                </div>
+                {post.description && (
+                  <p className="text-[12px] text-tour-text-secondary">{post.description}</p>
+                )}
+                <p className="text-[11px] text-tour-text-secondary">{formatFeedTime(post.timestamp)}</p>
+              </div>
+            </article>
+          )
+        })}
       </div>
     </div>
   )

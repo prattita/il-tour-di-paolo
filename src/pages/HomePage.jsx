@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../context/useAuth'
 import { signOutUser } from '../services/authService'
 import { Link } from 'react-router-dom'
-import { getUserGroupIds } from '../services/userService'
+import { getUserGroupIds, pruneStaleGroupIdsFromUser } from '../services/userService'
 import { getGroupsByIds } from '../services/groupService'
 
 export function HomePage() {
@@ -24,6 +24,7 @@ export function HomePage() {
       setLoadingGroups(true)
       setGroupError('')
       try {
+        await pruneStaleGroupIdsFromUser(user.uid)
         const groupIds = await getUserGroupIds(user.uid)
         const groupDocs = await getGroupsByIds(groupIds)
         if (active) {

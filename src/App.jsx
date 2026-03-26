@@ -13,7 +13,7 @@ import { TaskCompletePage } from './pages/TaskCompletePage'
 import { GroupInfoPage } from './pages/GroupInfoPage'
 import { GroupProfilePage } from './pages/GroupProfilePage'
 import { GroupApprovalsPage } from './pages/GroupApprovalsPage'
-import { GroupSettingsStubPage } from './pages/GroupSettingsStubPage'
+import { GroupSettingsPage } from './pages/GroupSettingsPage'
 
 export default function App() {
   return (
@@ -82,7 +82,7 @@ export default function App() {
             <Route path="info" element={<GroupInfoPage />} />
             <Route path="profile/:userId" element={<GroupProfilePage />} />
             <Route path="approvals" element={<GroupApprovalsPage />} />
-            <Route path="settings" element={<GroupSettingsStubPage />} />
+            <Route path="settings" element={<GroupSettingsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
