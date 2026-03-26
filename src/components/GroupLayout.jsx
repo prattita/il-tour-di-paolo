@@ -65,7 +65,7 @@ function GroupNavPanel({ groupId, user, isOwner, onNavigate }) {
               {user?.displayName || user?.email || 'Member'}
             </p>
             <p className="text-[11px] text-tour-text-secondary">{isOwner ? 'Owner' : 'Member'}</p>
-            <p className="mt-1.5 text-[11px] font-medium text-tour-accent">See profile</p>
+            <p className="mt-1.2 text-[11px] font-medium text-tour-accent">See profile</p>
           </div>
         </div>
       </NavLink>

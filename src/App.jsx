@@ -11,7 +11,7 @@ import { GroupFeedPage } from './pages/GroupFeedPage'
 import { ActivityListPage } from './pages/ActivityListPage'
 import { TaskCompletePage } from './pages/TaskCompletePage'
 import { GroupInfoPage } from './pages/GroupInfoPage'
-import { GroupProfileStubPage } from './pages/GroupProfileStubPage'
+import { GroupProfilePage } from './pages/GroupProfilePage'
 import { GroupApprovalsPage } from './pages/GroupApprovalsPage'
 import { GroupSettingsStubPage } from './pages/GroupSettingsStubPage'
 
@@ -80,7 +80,7 @@ export default function App() {
             <Route path="feed" element={<GroupFeedPage />} />
             <Route path="activities" element={<ActivityListPage />} />
             <Route path="info" element={<GroupInfoPage />} />
-            <Route path="profile/:userId" element={<GroupProfileStubPage />} />
+            <Route path="profile/:userId" element={<GroupProfilePage />} />
             <Route path="approvals" element={<GroupApprovalsPage />} />
             <Route path="settings" element={<GroupSettingsStubPage />} />
           </Route>

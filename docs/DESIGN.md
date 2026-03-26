@@ -720,10 +720,10 @@ service firebase.storage {
 - [x] Feed ordered by timestamp descending
 
 ### Phase 7 — User Profile
-- [ ] Profile screen layout
-- [ ] Medal summary (N/N format per medal tier)
-- [ ] Per-activity breakdown with tasks completed and medal badge
-- [ ] *(Stretch)* Progress bar per activity on profile
+- [x] Profile screen layout
+- [x] Medal summary (N/N format per medal tier)
+- [x] Per-activity breakdown with tasks completed and medal badge
+- [x] *(Stretch)* Progress bar per activity on profile
 
 ### Phase 8 — Group Settings & Activity Management
 - [ ] Group settings screen (owner only)

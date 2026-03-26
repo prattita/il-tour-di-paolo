@@ -12,11 +12,17 @@ const labels = {
   none: 'No medal yet',
 }
 
-export function MedalBadge({ tier }) {
+const sizeClasses = {
+  default: 'px-2 py-0.5 text-[11px]',
+  sm: 'px-1.5 py-px text-[10px] leading-tight',
+}
+
+export function MedalBadge({ tier, size = 'default' }) {
   const t = styles[tier] ? tier : 'none'
+  const sz = sizeClasses[size] ?? sizeClasses.default
   return (
     <span
-      className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${styles[t]}`}
+      className={`inline-block rounded-full font-medium ${sz} ${styles[t]}`}
     >
       {labels[t]}
     </span>
