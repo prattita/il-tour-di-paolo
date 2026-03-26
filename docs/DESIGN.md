@@ -732,6 +732,7 @@ service firebase.storage {
 - [ ] Remove member: delete all their pending docs + Storage images, then batch membership removal
 - [ ] Add new activity mid-competition: increment `activityCount`, system feed post, new activity doc
 - [ ] System post rendering
+- [ ] Member roster UI (names + initials; no custom profile-photo upload in MVP — see fast-follow `docs/ProfilePics_onepager.md` for optional `avatarUrl` propagation to `groups/{groupId}/members/{userId}`).
 - [ ] Edit activity form (respects isLocked rules)
 
 ### Phase 9 - Privacy
@@ -745,6 +746,10 @@ service firebase.storage {
 - [ ] **Responsive / multi–form-factor pass (Tailwind):** audit remaining breakpoints (`max-w-*`, tap targets, task form on wide screens); group shell drawer/sidebar is done
 - [ ] Loading states and error handling throughout
 - [ ] Empty states (no feed posts, no activities, no pending approvals)
+- [ ] On desktop (`lg+`): top bar should remain visible while the feed scrolls (group name + profile icon), and the sidebar bottom section (`Home` + `Sign out`) should stay visible.
+  - On mobile, navigation is drawer-based; if you still want persistent `Home`/`Sign out` outside the drawer, that becomes a dedicated UI follow-up.
+
+### Phase 11 - Launch
 - [ ] Final security rules review
 - [ ] Final Vercel production deploy
 - [ ] Invite family 🎉
@@ -790,6 +795,7 @@ docs: update DESIGN.md with security rules section
 - **Owner activity participation (MVP):** Owner is implicitly joined to all activities (`selectedActivityIds: null`). No join/leave controls shown for owner in Group Info screen.
 
 ### Post-MVP / Stretch Goals
+- **Profile pictures (upload + shared avatar across groups):** Out of MVP to avoid feature creep. Spec and implementation checklist: `docs/ProfilePics_onepager.md`.
 - **Desktop shell:** Collapse or minimize the `lg` sidebar to icons-only (or hide behind a control) for more content width — see §6.1 follow-up.
 - Cloud Function for atomic approval flow
 - Tighten Firebase Storage rules to per-group membership
