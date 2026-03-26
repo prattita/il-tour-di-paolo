@@ -162,6 +162,7 @@ export async function joinGroupByInviteCode({
   const userRef = doc(db, 'users', userId)
 
   // Keep batch order aligned with rules: group.memberIds -> members doc -> user.groupIds.
+  // `set(..., { merge: true })` so join still works if `users/{uid}` is not created yet (race with ensureUserProfile).
   const batch = writeBatch(db)
   batch.update(groupRef, { memberIds: arrayUnion(userId) })
   batch.set(memberRef, {
@@ -171,7 +172,7 @@ export async function joinGroupByInviteCode({
     selectedActivityIds: null,
     progress: {},
   })
-  batch.update(userRef, { groupIds: arrayUnion(groupId) })
+  batch.set(userRef, { groupIds: arrayUnion(groupId) }, { merge: true })
   await batch.commit()
 
   return { groupId, alreadyMember: false }

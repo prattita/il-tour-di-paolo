@@ -34,6 +34,7 @@ dist-ssr
 docs/*PRIMER*.md
 docs/*primer*.md
 docs/KNOWN_CONCERNS.md
+docs/IDEAS.md
 
 #firebase hidden files.
 .firebaserc.example

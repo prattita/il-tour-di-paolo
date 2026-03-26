@@ -132,9 +132,9 @@ All three must always be written together in a **Firestore batch write** on join
 
 ```javascript
 // On join — all three update atomically or none do
-batch.set(groups/{groupId}/members/{userId}, memberDoc)
 batch.update(groups/{groupId}, { memberIds: arrayUnion(userId) })
-batch.update(users/{userId}, { groupIds: arrayUnion(groupId) })
+batch.set(groups/{groupId}/members/{userId}, memberDoc)
+batch.set(users/{userId}, { groupIds: arrayUnion(groupId) }, { merge: true })
 batch.commit()
 
 // On leave (owner removes member) — see §7.9: first delete that member's pending
@@ -319,7 +319,7 @@ batch.commit()
 
 - **Scope:** All routes under `/group/:groupId/*` (except task completion, which uses a focused header) share one shell.
 - **Profile entry:** No separate **Profile** row in the nav list. The **user block** at the top of the drawer/sidebar (avatar, name, role, **See profile** in smaller type) is one **clickable** target to `/group/:groupId/profile/:userId`. The top bar **avatar** (mobile/desktop) also links to profile.
-- **Mobile (&lt; `lg`):** Top bar with **burger** (opens a slide-in drawer), **screen title**, and **profile** avatar. Drawer lists: user block (above), then Feed, Activities, Group Info, divider, Approval Queue, Group Settings, Home, Sign out. Owner-only items use an **Owner** badge; non-owners who open Approval Queue or Group Settings are redirected to the group feed.
+- **Mobile (&lt; `lg`):** Top bar with **burger** (opens a slide-in drawer), **screen title**, and **profile** avatar. Drawer lists: user block (above), then Feed, Activities, Group Info, then **Home**, **Sign out**. **Approval Queue** and **Group Settings** appear **only for the owner** (after a divider), each with an **Owner** badge. Non-owners do not see those entries; direct URLs still redirect (`/approvals`, `/settings` → feed).
 - **Desktop (`lg` and up):** The same nav is a **persistent left column** (no overlay). Burger is hidden; navigation is always visible. Nav label inset matches the **group title** row (`px-4`) so active states align with the header text.
 - **Follow-up (Phase 9+):** Optional **collapsible / icon-only** sidebar on large screens to reclaim horizontal space while keeping shortcuts.
 - **Visual reference:** Warm neutrals, white cards, green primary accent — see `docs/UI_MOCKUPS.html` (v0.1 screens) and `docs/UI_MOCKUPS_v1.0.html` (drawer, **7a/7b Group Info**). Keep mock HTML files local if you prefer not to commit them.
@@ -355,7 +355,7 @@ batch.commit()
 - User navigates to `/join/:inviteCode` or enters code manually
 - System validates invite code against `invites/{inviteCode}` in Firestore
 - On valid code: **batch write** adds user to all three membership locations atomically
-- **Batch order (required for security rules):** (1) `update groups/{groupId}` — `memberIds: arrayUnion(self)`; (2) `set groups/{groupId}/members/{userId}`; (3) `update users/{userId}` — `groupIds: arrayUnion(groupId)`. Later operations in the batch see earlier writes when rules are evaluated — see §10.
+- **Batch order (required for security rules):** (1) `update groups/{groupId}` — `memberIds: arrayUnion(self)`; (2) `set groups/{groupId}/members/{userId}`; (3) `merge-set users/{userId}` — `groupIds: arrayUnion(groupId)`. Rules for step (2) must use **`getAfter()`** on the group document (`groups/{groupId}`), not **`get()`**: `get()` only sees pre-batch state, so the new member is not in `memberIds` yet and the create would always be denied. See §10.
 - User lands on group feed after joining
 
 ### 7.4 Activity & Task Tracking
@@ -494,7 +494,7 @@ Other members **never read** `users/{userId}` for someone else’s profile. The 
 
 ### Join batch write order
 
-For **join**, operations must be ordered so later rule checks see updated membership: **`groups/{groupId}` update (`memberIds`) first**, then **`members/{userId}` create**, then **`users/{userId}` update** — see §7.3. Firestore evaluates batched writes so prior operations in the batch are visible to subsequent rule checks.
+For **join**, operations must be ordered: **`groups/{groupId}` update (`memberIds`) first**, then **`members/{userId}` create**, then **`users/{userId}` merge** — see §7.3. For the **`members/{userId}` create** rule, **`getAfter(groups/{groupId})`** exposes the group **after** step (1); **`get(groups/{groupId})`** does **not** and will keep denying self-join if the rule requires `uid in memberIds`.
 
 ### Summary of rule patterns (reference)
 
@@ -747,7 +747,7 @@ Refresh `/group/:groupId/info` so it matches mock **7a** / **7b** layout intent 
 
 **Note:** Mock **7a** shows per-activity **Join** / **Joined** chips (`selectedActivityIds` fast-follow). Until that ships, omit join UI on Group Info; members still see all activities as in the Activities tab.
 
-**Wording — `isLocked` vs editing:** The flag means *at least one task in that activity has been approved*; the **three tasks and their order** are fixed in the database, but **names** (activity + tasks) remain editable in **Group settings**. On Group Info the chip reads **Progress started** so it is not confused with “cannot edit anywhere.”
+**`isLocked` (editing only):** Set when *any* member has at least one approved task in that activity; it **freezes task structure** for owners (count/order/ids), not per-user progress. **Names** stay editable in **Group settings**. **Group Info** does **not** show `isLocked` — it is not member-specific and confused non-owners (“Progress started” read as *their* progress). Per-member status lives under **Activities** and **Profile**.
 
 ### Phase 9 - Privacy
 - [ ] Create a "Cancel" button to allow non-owners to withdraw a pending task submission. This unlocks the activity.
@@ -762,6 +762,7 @@ Refresh `/group/:groupId/info` so it matches mock **7a** / **7b** layout intent 
 - [ ] Empty states (no feed posts, no activities, no pending approvals)
 - [ ] On desktop (`lg+`): top bar should remain visible while the feed scrolls (group name + profile icon), and the sidebar bottom section (`Home` + `Sign out`) should stay visible.
   - On mobile, navigation is drawer-based; if you still want persistent `Home`/`Sign out` outside the drawer, that becomes a dedicated UI follow-up.
+  - Ensure Fee
 
 ### Phase 11 - Launch
 - [ ] Final security rules review

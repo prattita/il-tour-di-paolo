@@ -80,29 +80,23 @@ function GroupNavPanel({ groupId, user, isOwner, onNavigate }) {
         <NavLink to={`/group/${groupId}/info`} className={navLinkClass}>
           Group Info
         </NavLink>
-        <div className="my-2 h-px bg-black/10" />
-        <NavLink
-          to={`/group/${groupId}/approvals`}
-          className={({ isActive }) =>
-            [navLinkClass({ isActive }), !isOwner ? 'text-tour-text-secondary' : ''].join(' ')
-          }
-        >
-          <span className="flex w-full items-center justify-between gap-2">
-            <span>Approval Queue</span>
-            {isOwner && ownerBadge()}
-          </span>
-        </NavLink>
-        <NavLink
-          to={`/group/${groupId}/settings`}
-          className={({ isActive }) =>
-            [navLinkClass({ isActive }), !isOwner ? 'text-tour-text-secondary' : ''].join(' ')
-          }
-        >
-          <span className="flex w-full items-center justify-between gap-2">
-            <span>Group Settings</span>
-            {isOwner && ownerBadge()}
-          </span>
-        </NavLink>
+        {isOwner && (
+          <>
+            <div className="my-2 h-px bg-black/10" />
+            <NavLink to={`/group/${groupId}/approvals`} className={navLinkClass}>
+              <span className="flex w-full items-center justify-between gap-2">
+                <span>Approval Queue</span>
+                {ownerBadge()}
+              </span>
+            </NavLink>
+            <NavLink to={`/group/${groupId}/settings`} className={navLinkClass}>
+              <span className="flex w-full items-center justify-between gap-2">
+                <span>Group Settings</span>
+                {ownerBadge()}
+              </span>
+            </NavLink>
+          </>
+        )}
       </nav>
 
       <div className="border-t border-black/10 px-4 py-2">

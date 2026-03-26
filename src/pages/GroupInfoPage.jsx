@@ -175,14 +175,7 @@ export function GroupInfoPage() {
                     onClick={() => toggleActivityExpanded(a.id)}
                     className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-black/[0.03]"
                   >
-                    <span className="min-w-0 flex-1">
-                      <span className="text-[13px] font-medium text-tour-text">{a.name}</span>
-                      {a.isLocked && (
-                        <span className="ml-2 rounded bg-tour-muted px-1.5 py-0.5 text-[10px] font-medium text-tour-text-secondary">
-                          Progress started
-                        </span>
-                      )}
-                    </span>
+                    <span className="min-w-0 flex-1 text-[13px] font-medium text-tour-text">{a.name}</span>
                     <span className="shrink-0 text-[11px] text-tour-text-secondary" aria-hidden>
                       {open ? '▲' : '▼'}
                     </span>
