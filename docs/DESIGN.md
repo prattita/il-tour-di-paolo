@@ -747,7 +747,7 @@ Refresh `/group/:groupId/info` so it matches mock **7a** / **7b** layout intent 
 
 **Note:** Mock **7a** shows per-activity **Join** / **Joined** chips (`selectedActivityIds` fast-follow). Until that ships, omit join UI on Group Info; members still see all activities as in the Activities tab.
 
-**`isLocked` (editing only):** Set when *any* member has at least one approved task in that activity; it **freezes task structure** for owners (count/order/ids), not per-user progress. **Names** stay editable in **Group settings**. **Group Info** does **not** show `isLocked` — it is not member-specific and confused non-owners (“Progress started” read as *their* progress). Per-member status lives under **Activities** and **Profile**.
+**Wording — `isLocked` vs editing:** The flag means *at least one task in that activity has been approved*; the **three tasks and their order** are fixed in the database, but **names** (activity + tasks) remain editable in **Group settings**. On Group Info the chip reads **Progress started** so it is not confused with “cannot edit anywhere.”
 
 ### Phase 9 - Privacy
 - [ ] Create a "Cancel" button to allow non-owners to withdraw a pending task submission. This unlocks the activity.
@@ -762,7 +762,7 @@ Refresh `/group/:groupId/info` so it matches mock **7a** / **7b** layout intent 
 - [ ] Empty states (no feed posts, no activities, no pending approvals)
 - [ ] On desktop (`lg+`): top bar should remain visible while the feed scrolls (group name + profile icon), and the sidebar bottom section (`Home` + `Sign out`) should stay visible.
   - On mobile, navigation is drawer-based; if you still want persistent `Home`/`Sign out` outside the drawer, that becomes a dedicated UI follow-up.
-  - Ensure Fee
+  - Ensure Feed page is the default landing page after opening the group
 
 ### Phase 11 - Launch
 - [ ] Final security rules review
