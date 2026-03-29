@@ -3,10 +3,11 @@ import { Link, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { getGroup } from '../services/groupService'
 import { subscribeActivities, subscribeGroupMember } from '../services/activityService'
-import { subscribePendingSubmission } from '../services/pendingService'
+import { subscribePendingSubmission, withdrawPendingSubmission } from '../services/pendingService'
 import { getTaskStatus } from '../lib/taskStatus'
 import { medalTierFromTasksCompleted } from '../lib/medalTier'
 import { MedalBadge } from '../components/MedalBadge'
+import { PageLoading } from '../components/PageLoading'
 
 function TaskStatusDot({ status }) {
   if (status === 'approved') {
@@ -47,6 +48,7 @@ export function ActivityListPage() {
   const [pendingByActivityId, setPendingByActivityId] = useState({})
   const [loadingGroup, setLoadingGroup] = useState(true)
   const [error, setError] = useState('')
+  const [withdrawBusyActivityId, setWithdrawBusyActivityId] = useState(null)
 
   const submitted = Boolean(location.state?.submitted)
 
@@ -72,6 +74,28 @@ export function ActivityListPage() {
     }
     setBannerDismissed(true)
   }, [dismissStorageKey])
+
+  const handleWithdrawSubmission = useCallback(
+    async (activityId, pendingDoc) => {
+      if (!groupId || !user?.uid || !pendingDoc?.id) return
+      if (
+        !window.confirm(
+          'Withdraw this submission? Your photo will be removed and you can submit a task again when you are ready.',
+        )
+      ) {
+        return
+      }
+      setWithdrawBusyActivityId(activityId)
+      try {
+        await withdrawPendingSubmission(groupId, user.uid, pendingDoc.id, pendingDoc)
+      } catch (e) {
+        window.alert(e.message || 'Could not withdraw submission.')
+      } finally {
+        setWithdrawBusyActivityId(null)
+      }
+    },
+    [groupId, user?.uid],
+  )
 
   useEffect(() => {
     let active = true
@@ -142,14 +166,14 @@ export function ActivityListPage() {
 
   return (
     <div className="text-tour-text">
-      <div className="mb-4 border-b border-black/10 pb-3 lg:hidden">
+      <div className="mb-3 border-b border-black/10 pb-2 lg:hidden">
         <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
           Il Tour di Paolo 2026
         </p>
-        <p className="text-[15px] font-medium text-tour-text">{group?.name || 'Group'}</p>
+        <p className="text-[15px] font-medium leading-snug text-tour-text">{group?.name || 'Group'}</p>
       </div>
 
-      {loadingGroup && <p className="text-sm text-tour-text-secondary">Loading group…</p>}
+      {loadingGroup && <PageLoading label="Loading group…" />}
 
       {!loadingGroup && error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -166,7 +190,7 @@ export function ActivityListPage() {
       )}
 
       {submitted && isMember && (
-        <div className="mb-4 rounded-lg border border-tour-accent/30 bg-tour-accent-muted px-3 py-2 text-sm text-[#0F6E56]">
+        <div className="mb-4 rounded-lg border border-tour-accent/30 bg-tour-accent-muted px-3 py-2 text-sm text-tour-accent-foreground">
           Submission sent. Your submission will appear in the feed once the owner approves it.
         </div>
       )}
@@ -195,11 +219,11 @@ export function ActivityListPage() {
         <>
           {activities.length === 0 && (
             <p className="rounded-xl border border-black/10 bg-tour-surface p-4 text-sm text-tour-text-secondary">
-              No activities yet. The owner can add them from group settings (Phase 8).
+              No activities yet. The owner can add them in Group settings.
             </p>
           )}
 
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             {activities.map((activity) => {
               const progress = member?.progress?.[activity.id]
               const pendingDoc = pendingByActivityId[activity.id]
@@ -215,15 +239,40 @@ export function ActivityListPage() {
                   key={activity.id}
                   className="rounded-xl border border-black/10 bg-tour-surface px-3.5 py-3"
                 >
-                  <div className="mb-2.5 flex items-center justify-between gap-2">
-                    <h2 className="text-[14px] font-medium text-tour-text">{activity.name}</h2>
-                    <MedalBadge tier={tier} />
+                  <div
+                    className={[
+                      'flex items-center justify-between gap-3',
+                      activity.description ? 'mb-1' : 'mb-2',
+                    ].join(' ')}
+                  >
+                    <h2 className="min-w-0 flex-1 text-[14px] font-medium leading-snug text-tour-text">
+                      {activity.name}
+                    </h2>
+                    <MedalBadge tier={tier} className="w-[4.75rem] shrink-0" />
                   </div>
                   {activity.description && (
-                    <p className="mb-2 text-[12px] text-tour-text-secondary">{activity.description}</p>
+                    <p className="mb-4 text-[12px] leading-snug text-tour-text-secondary">
+                      {activity.description}
+                    </p>
                   )}
                   {showAwaitingHint && (
                     <p className="mb-2 text-[11px] text-amber-900">Awaiting approval before next task</p>
+                  )}
+                  {pendingDoc && (
+                    <div className="mb-2 rounded-lg border border-black/10 bg-tour-muted/40 px-2.5 py-2">
+                      <p className="text-[11px] text-tour-text-secondary">
+                        Waiting for the owner to review your submission for{' '}
+                        <span className="font-medium text-tour-text">{pendingDoc.taskName || 'this task'}</span>.
+                      </p>
+                      <button
+                        type="button"
+                        disabled={withdrawBusyActivityId === activity.id}
+                        onClick={() => handleWithdrawSubmission(activity.id, pendingDoc)}
+                        className="mt-2 rounded-lg border border-red-200/90 bg-tour-surface px-2.5 py-1.5 text-[11px] font-medium text-red-900 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {withdrawBusyActivityId === activity.id ? 'Withdrawing…' : 'Withdraw submission'}
+                      </button>
+                    </div>
                   )}
                   <ul className="divide-y divide-black/10">
                     {tasks.map((task) => {
@@ -242,7 +291,7 @@ export function ActivityListPage() {
                           {status === 'empty' && (
                             <Link
                               to={completePath}
-                              className="shrink-0 rounded-full border border-tour-accent px-2.5 py-1 text-[11px] font-medium text-[#0F6E56]"
+                              className="shrink-0 rounded-full border border-tour-accent px-2.5 py-1 text-[11px] font-medium text-tour-accent-foreground"
                             >
                               Complete
                             </Link>

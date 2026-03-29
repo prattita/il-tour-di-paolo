@@ -59,22 +59,28 @@ export function CreateGroupPage() {
     }
   }
 
+  const fieldClass =
+    'min-h-11 w-full rounded-lg border border-black/18 bg-tour-surface px-3 py-2.5 text-tour-text shadow-sm focus:border-tour-accent focus:outline-none focus:ring-1 focus:ring-tour-accent'
+
   return (
-    <div className="min-h-dvh text-tour-text">
-      <main className="mx-auto w-full max-w-3xl px-4 py-8 md:py-10">
-        <header className="mb-6 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-tour-text-secondary">Phase 3</p>
-            <h1 className="mt-1 text-2xl font-semibold text-tour-text">Create Group</h1>
+    <div className="min-h-dvh bg-tour-muted text-tour-text">
+      <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-5 md:py-10">
+        <header className="mb-6 flex flex-wrap items-start justify-between gap-4 rounded-xl border border-black/10 bg-tour-surface p-4 sm:p-5">
+          <div className="min-w-0">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
+              Il Tour di Paolo 2026
+            </p>
+            <h1 className="mt-1 text-xl font-semibold text-tour-text sm:text-2xl">Create group</h1>
             <p className="mt-2 text-sm text-tour-text-secondary">
-              Start with 0 or more activities. You can edit and add activities later.
+              Start with zero or more activities. You can edit and add activities later in group
+              settings.
             </p>
           </div>
           <Link
             to="/"
-            className="rounded-lg border border-black/18 bg-tour-surface px-3 py-1.5 text-sm font-medium text-tour-text hover:bg-tour-muted"
+            className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-black/10 bg-tour-muted px-4 py-2.5 text-sm font-medium text-tour-text hover:bg-black/[0.04]"
           >
-            Back home
+            Back to welcome
           </Link>
         </header>
 
@@ -88,7 +94,7 @@ export function CreateGroupPage() {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border border-black/18 bg-tour-surface px-3 py-2 text-tour-text shadow-sm focus:border-tour-accent focus:outline-none focus:ring-1 focus:ring-tour-accent"
+              className={fieldClass}
               required
             />
 
@@ -100,7 +106,7 @@ export function CreateGroupPage() {
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full rounded-lg border border-black/18 bg-tour-surface px-3 py-2 text-tour-text shadow-sm focus:border-tour-accent focus:outline-none focus:ring-1 focus:ring-tour-accent"
+              className="min-h-[5.5rem] w-full rounded-lg border border-black/18 bg-tour-surface px-3 py-2.5 text-tour-text shadow-sm focus:border-tour-accent focus:outline-none focus:ring-1 focus:ring-tour-accent"
             />
           </section>
 
@@ -118,7 +124,7 @@ export function CreateGroupPage() {
               <button
                 type="button"
                 onClick={addActivity}
-                className="rounded-lg border border-black/18 bg-tour-surface px-3 py-1.5 text-sm font-medium text-tour-text hover:bg-tour-muted"
+                className="min-h-11 rounded-lg border border-black/10 bg-tour-muted px-4 py-2 text-sm font-medium text-tour-text hover:bg-black/[0.04]"
               >
                 Add activity
               </button>
@@ -151,7 +157,7 @@ export function CreateGroupPage() {
                     onChange={(e) =>
                       updateActivity(index, (curr) => ({ ...curr, name: e.target.value }))
                     }
-                    className="w-full rounded-lg border border-black/18 px-3 py-2 text-sm text-tour-text"
+                    className="min-h-11 w-full rounded-lg border border-black/18 px-3 py-2.5 text-sm text-tour-text"
                   />
 
                   <label className="mb-1 mt-3 block text-sm font-medium text-tour-text">
@@ -163,7 +169,7 @@ export function CreateGroupPage() {
                     onChange={(e) =>
                       updateActivity(index, (curr) => ({ ...curr, description: e.target.value }))
                     }
-                    className="w-full rounded-lg border border-black/18 px-3 py-2 text-sm text-tour-text"
+                    className="min-h-11 w-full rounded-lg border border-black/18 px-3 py-2.5 text-sm text-tour-text"
                   />
 
                   <div className="mt-3 grid gap-3 md:grid-cols-3">
@@ -180,7 +186,7 @@ export function CreateGroupPage() {
                               return { ...curr, tasks: nextTasks }
                             })
                           }
-                          className="mt-1 w-full rounded-lg border border-black/18 px-3 py-2 text-sm text-tour-text"
+                          className="mt-1 min-h-11 w-full rounded-lg border border-black/18 px-3 py-2.5 text-sm text-tour-text"
                         />
                       </label>
                     ))}
@@ -200,7 +206,7 @@ export function CreateGroupPage() {
           <button
             type="submit"
             disabled={pending}
-            className="rounded-lg bg-tour-accent px-4 py-2.5 text-sm font-medium text-tour-accent-muted hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-11 rounded-lg bg-tour-accent px-5 py-3 text-sm font-medium text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pending ? 'Creating group…' : 'Create group'}
           </button>

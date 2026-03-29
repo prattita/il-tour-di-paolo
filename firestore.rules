@@ -79,15 +79,26 @@ service cloud.firestore {
       }
 
       match /pending/{pendingId} {
-        allow read: if isGroupOwner(groupId)
-          || (request.auth != null && resource.data.userId == request.auth.uid);
+        // `get` on a missing doc has no `resource.data` — the old "submitter read" check denied
+        // non-owners before their first submit. Allow `get` for the owner's queue, or any member
+        // for paths `theirUid_*` (doc may or may not exist). `list` stays owner-only (approvals).
+        allow get: if isGroupOwner(groupId)
+          || (isGroupMember(groupId) && pendingId.matches('^' + request.auth.uid + '_.+'));
+
+        allow list: if isGroupOwner(groupId);
 
         allow create: if request.auth != null
           && request.resource.data.userId == request.auth.uid
           && request.auth.uid in groupDoc(groupId).data.memberIds
           && pendingId == request.auth.uid + '_' + request.resource.data.activityId;
 
-        allow delete: if isGroupOwner(groupId);
+        // Owner (queue) or submitter (Phase 9 withdraw). Submitter must still be a group member.
+        allow delete: if isGroupOwner(groupId)
+          || (
+            request.auth != null
+            && resource.data.userId == request.auth.uid
+            && request.auth.uid in groupDoc(groupId).data.memberIds
+          );
 
         allow update: if false;
       }

@@ -7,6 +7,7 @@ import {
   subscribePendingQueue,
 } from '../services/approvalService'
 import { getGroup } from '../services/groupService'
+import { PageLoading } from '../components/PageLoading'
 
 function formatSubmittedAt(value) {
   if (!value) return '—'
@@ -126,7 +127,7 @@ export function GroupApprovalsPage() {
         <p className="text-[15px] font-medium text-tour-text">{group?.name || 'Group'}</p>
       </div>
 
-      {loadingGroup && <p className="text-sm text-tour-text-secondary">Loading…</p>}
+      {loadingGroup && <PageLoading />}
 
       {actionError && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">

@@ -7,6 +7,7 @@ import { getTaskStatus } from '../lib/taskStatus'
 import { getGroup } from '../services/groupService'
 import { getGroupMember } from '../services/activityService'
 import { createPendingSubmission, getPendingSubmission } from '../services/pendingService'
+import { PageLoading } from '../components/PageLoading'
 
 export function TaskCompletePage() {
   const { groupId, activityId, taskId } = useParams()
@@ -68,7 +69,7 @@ export function TaskCompletePage() {
               status === 'approved'
                 ? 'This task is already completed.'
                 : status === 'pending'
-                  ? 'This task is already submitted for review.'
+                  ? 'This task is already submitted for review. To cancel, go to Activities and tap Withdraw submission on that activity.'
                   : 'Finish your pending submission for another task in this activity first.',
             )
           }
@@ -131,8 +132,8 @@ export function TaskCompletePage() {
         <span className="w-10 shrink-0" aria-hidden />
       </header>
 
-      <main className="mx-auto w-full max-w-lg px-3 py-4 sm:px-4">
-        {loading && <p className="text-sm text-tour-text-secondary">Loading…</p>}
+      <main className="mx-auto w-full max-w-lg px-3 py-4 sm:max-w-xl sm:px-4 lg:max-w-2xl">
+        {loading && <PageLoading />}
 
         {!loading && gateMessage && (
           <div className="space-y-4">
@@ -215,7 +216,7 @@ export function TaskCompletePage() {
                 className={`w-full rounded-lg py-2.5 text-center text-[14px] font-medium ${
                   submitting || !imageFile
                     ? 'border border-black/10 bg-tour-muted text-tour-text-secondary'
-                    : 'bg-tour-accent text-tour-accent-muted hover:opacity-95'
+                    : 'bg-tour-accent text-white hover:opacity-95'
                 }`}
               >
                 {submitting ? 'Submitting…' : 'Submit for review'}

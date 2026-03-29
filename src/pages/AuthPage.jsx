@@ -6,6 +6,9 @@ import {
   signInWithGoogle,
 } from '../services/authService'
 
+const inputClass =
+  'min-h-11 w-full rounded-lg border border-black/18 bg-tour-surface px-3 py-2.5 text-tour-text shadow-sm focus:border-tour-accent focus:outline-none focus:ring-1 focus:ring-tour-accent'
+
 export function AuthPage() {
   const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
@@ -46,147 +49,157 @@ export function AuthPage() {
   }
 
   return (
-    <div className="min-h-dvh text-tour-text">
-      <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-10">
-        <div className="mb-8 text-center">
-          <p className="text-xs font-medium uppercase tracking-wide text-tour-text-secondary">
-            Il Tour di Paolo
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold text-tour-text">2026</h1>
-          <p className="mt-2 text-sm text-tour-text-secondary">
-            {mode === 'login' ? 'Sign in to continue' : 'Create an account'}
-          </p>
-        </div>
+    <div className="min-h-dvh bg-tour-muted text-tour-text">
+      <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col justify-center px-4 py-8 sm:px-5 sm:py-10">
+        <div className="mx-auto w-full max-w-md">
+          <div className="rounded-xl border border-black/10 bg-tour-surface p-5 sm:p-6">
+            <header className="mb-6 text-center sm:text-left">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
+                Il Tour di Paolo 2026
+              </p>
+              <h1 className="mt-1 text-xl font-semibold text-tour-text sm:text-2xl">
+                {mode === 'login' ? 'Sign in' : 'Create an account'}
+              </h1>
+              <p className="mt-2 text-sm text-tour-text-secondary">
+                {mode === 'login'
+                  ? 'Use your email or Google to continue.'
+                  : 'Set a display name your group will see.'}
+              </p>
+            </header>
 
-        {!firebaseReady && (
-          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-sm text-amber-900">
-            Firebase is not configured. Add <code className="text-xs">VITE_FIREBASE_*</code> to{' '}
-            <code className="text-xs">.env</code> (or Vercel env).
-          </div>
-        )}
-
-        <div className="mb-6 flex rounded-lg bg-black/[0.06] p-1">
-          <button
-            type="button"
-            className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${
-              mode === 'login'
-                ? 'bg-tour-surface text-tour-text shadow-sm'
-                : 'text-tour-text-secondary hover:text-tour-text'
-            }`}
-            onClick={() => {
-              setMode('login')
-              setError('')
-            }}
-          >
-            Log in
-          </button>
-          <button
-            type="button"
-            className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${
-              mode === 'signup'
-                ? 'bg-tour-surface text-tour-text shadow-sm'
-                : 'text-tour-text-secondary hover:text-tour-text'
-            }`}
-            onClick={() => {
-              setMode('signup')
-              setError('')
-            }}
-          >
-            Sign up
-          </button>
-        </div>
-
-        <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4">
-          {mode === 'signup' && (
-            <div>
-              <label htmlFor="displayName" className="mb-1 block text-sm font-medium text-tour-text">
-                Display name
-              </label>
-              <input
-                id="displayName"
-                type="text"
-                autoComplete="name"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full rounded-lg border border-black/18 bg-tour-surface px-3 py-2 text-tour-text shadow-sm focus:border-tour-accent focus:outline-none focus:ring-1 focus:ring-tour-accent"
-                required={mode === 'signup'}
-              />
-            </div>
-          )}
-          <div>
-            <label htmlFor="email" className="mb-1 block text-sm font-medium text-tour-text">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-black/18 bg-tour-surface px-3 py-2 text-tour-text shadow-sm focus:border-tour-accent focus:outline-none focus:ring-1 focus:ring-tour-accent"
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className="mb-1 block text-sm font-medium text-tour-text">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-black/18 bg-tour-surface px-3 py-2 text-tour-text shadow-sm focus:border-tour-accent focus:outline-none focus:ring-1 focus:ring-tour-accent"
-              required
-              minLength={6}
-            />
-            {mode === 'signup' && (
-              <p className="mt-1 text-xs text-tour-text-secondary">At least 6 characters (Firebase default).</p>
+            {!firebaseReady && (
+              <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-center text-sm text-amber-900">
+                Firebase is not configured. Add <code className="text-xs">VITE_FIREBASE_*</code> to{' '}
+                <code className="text-xs">.env</code> (or Vercel env).
+              </div>
             )}
-          </div>
 
-          {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-              {error}
+            <div className="mb-6 flex rounded-xl border border-black/10 bg-tour-muted p-1">
+              <button
+                type="button"
+                className={`min-h-11 flex-1 rounded-lg px-2 text-sm font-medium transition-colors ${
+                  mode === 'login'
+                    ? 'bg-tour-surface text-tour-text shadow-sm'
+                    : 'text-tour-text-secondary hover:text-tour-text'
+                }`}
+                onClick={() => {
+                  setMode('login')
+                  setError('')
+                }}
+              >
+                Log in
+              </button>
+              <button
+                type="button"
+                className={`min-h-11 flex-1 rounded-lg px-2 text-sm font-medium transition-colors ${
+                  mode === 'signup'
+                    ? 'bg-tour-surface text-tour-text shadow-sm'
+                    : 'text-tour-text-secondary hover:text-tour-text'
+                }`}
+                onClick={() => {
+                  setMode('signup')
+                  setError('')
+                }}
+              >
+                Sign up
+              </button>
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={pending || !firebaseReady}
-            className="rounded-lg bg-tour-accent py-2.5 text-sm font-medium text-tour-accent-muted hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {pending ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Sign in'}
-          </button>
-        </form>
+            <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4">
+              {mode === 'signup' && (
+                <div>
+                  <label htmlFor="displayName" className="mb-1.5 block text-sm font-medium text-tour-text">
+                    Display name
+                  </label>
+                  <input
+                    id="displayName"
+                    type="text"
+                    autoComplete="name"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    className={inputClass}
+                    required={mode === 'signup'}
+                  />
+                </div>
+              )}
+              <div>
+                <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-tour-text">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={inputClass}
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-tour-text">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={inputClass}
+                  required
+                  minLength={6}
+                />
+                {mode === 'signup' && (
+                  <p className="mt-1.5 text-xs text-tour-text-secondary">
+                    At least 6 characters (Firebase default).
+                  </p>
+                )}
+              </div>
 
-        <div className="relative my-8">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-black/10" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase tracking-wide text-tour-text-secondary">
-            <span className="bg-tour-canvas px-2">or</span>
+              {error && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={pending || !firebaseReady}
+                className="min-h-11 w-full rounded-lg bg-tour-accent px-4 py-3 text-sm font-medium text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {pending ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Sign in'}
+              </button>
+            </form>
+
+            <div className="relative my-8">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-black/10" />
+              </div>
+              <div className="relative flex justify-center text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
+                <span className="bg-tour-surface px-3">or</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              disabled={pending || !firebaseReady}
+              onClick={handleGoogle}
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-black/10 bg-tour-muted px-4 py-3 text-sm font-medium text-tour-text hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <GoogleIcon />
+              Continue with Google
+            </button>
           </div>
         </div>
-
-        <button
-          type="button"
-          disabled={pending || !firebaseReady}
-          onClick={handleGoogle}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-black/10 bg-tour-surface py-2.5 text-sm font-medium text-tour-text hover:bg-tour-muted disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <GoogleIcon />
-          Continue with Google
-        </button>
-      </main>
+      </div>
     </div>
   )
 }
 
 function GoogleIcon() {
   return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden>
+    <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden>
       <path
         fill="#4285F4"
         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"

@@ -300,7 +300,7 @@ export function GroupSettingsPage() {
             )}
             <Link
               to={`/group/${groupId}/approvals`}
-              className="mt-3 inline-block rounded-full border border-tour-accent px-4 py-2 text-[12px] font-medium text-[#0F6E56]"
+              className="mt-3 inline-block rounded-full border border-tour-accent px-4 py-2 text-[12px] font-medium text-tour-accent-foreground"
             >
               Open approval queue
               {pendingCount > 0 ? (

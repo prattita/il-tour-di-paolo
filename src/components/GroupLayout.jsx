@@ -16,12 +16,11 @@ function userInitials(user) {
   return '??'
 }
 
-/** Same horizontal inset as brand header (`px-4`) so labels align with group title. */
 function navLinkClass({ isActive }) {
   return [
-    'block w-full rounded-lg py-2.5 text-left text-[13px] transition-colors',
+    'block w-full rounded-lg py-2.5 pl-3.5 pr-3 text-left text-[13px] transition-colors',
     isActive
-      ? 'bg-[#E6F1FB] font-medium text-[#185FA5]'
+      ? 'bg-tour-accent-muted font-medium text-tour-accent-foreground'
       : 'text-tour-text hover:bg-black/[0.04]',
   ].join(' ')
 }
@@ -55,7 +54,7 @@ function GroupNavPanel({ groupId, user, isOwner, onNavigate }) {
       >
         <div className="flex items-start gap-2.5">
           <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#B5D4F4] text-[12px] font-medium text-[#0C447C]"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tour-accent-muted text-[12px] font-medium text-tour-accent-foreground"
             aria-hidden
           >
             {user ? userInitials(user) : '—'}
@@ -65,12 +64,12 @@ function GroupNavPanel({ groupId, user, isOwner, onNavigate }) {
               {user?.displayName || user?.email || 'Member'}
             </p>
             <p className="text-[11px] text-tour-text-secondary">{isOwner ? 'Owner' : 'Member'}</p>
-            <p className="mt-1.2 text-[11px] font-medium text-tour-accent">See profile</p>
+            <p className="mt-1.2 text-[11px] font-medium text-tour-accent-foreground">See profile</p>
           </div>
         </div>
       </NavLink>
 
-      <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-4 py-2" onClick={handleNav}>
+      <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-4 py-2 pl-5 pr-4" onClick={handleNav}>
         <NavLink to={`/group/${groupId}/feed`} className={navLinkClass}>
           Feed
         </NavLink>
@@ -99,10 +98,10 @@ function GroupNavPanel({ groupId, user, isOwner, onNavigate }) {
         )}
       </nav>
 
-      <div className="border-t border-black/10 px-4 py-2">
+      <div className="border-t border-black/10 py-2 pl-5 pr-4">
         <NavLink
           to="/"
-          className="block rounded-lg py-2 text-[12px] text-tour-text-secondary hover:bg-black/[0.04]"
+          className="block rounded-lg py-2 pl-3.5 pr-3 text-[12px] text-tour-text-secondary hover:bg-black/[0.04]"
         >
           Home (all groups)
         </NavLink>
@@ -112,7 +111,7 @@ function GroupNavPanel({ groupId, user, isOwner, onNavigate }) {
             signOutUser().catch(console.error)
             onNavigate?.()
           }}
-          className="mt-0.5 w-full rounded-lg py-2 text-left text-[13px] text-[#A32D2D] hover:bg-red-50"
+          className="mt-0.5 w-full rounded-lg py-2 pl-3.5 pr-3 text-left text-[13px] text-[#A32D2D] hover:bg-red-50"
         >
           Sign out
         </button>
@@ -161,15 +160,15 @@ export function GroupLayout() {
   const profilePath = `/group/${groupId}/profile/${user?.uid || ''}`
 
   return (
-    <div className="flex min-h-dvh bg-tour-muted text-tour-text">
-      <aside className="hidden w-56 shrink-0 flex-col border-r border-black/10 bg-tour-surface lg:flex lg:flex-col">
+    <div className="flex h-[100dvh] min-h-0 overflow-hidden bg-tour-muted text-tour-text">
+      <aside className="hidden h-[100dvh] min-h-0 w-56 shrink-0 flex-col border-r border-black/10 bg-tour-surface lg:flex">
         <div className="shrink-0 border-b border-black/10 px-4 py-3">
           <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
             Il Tour di Paolo 2026
           </p>
           <p className="truncate text-[13px] font-medium text-tour-text">{group?.name || '…'}</p>
         </div>
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <GroupNavPanel groupId={groupId} user={user} isOwner={isOwner} />
         </div>
       </aside>
@@ -201,8 +200,8 @@ export function GroupLayout() {
         </>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-3 border-b border-black/10 bg-tour-surface px-4 py-2.5">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-black/10 bg-tour-surface px-4 py-2.5">
           <button
             type="button"
             className="flex h-10 w-10 shrink-0 flex-col items-center justify-center gap-1 rounded-lg hover:bg-black/[0.04] lg:hidden"
@@ -222,14 +221,14 @@ export function GroupLayout() {
           </div>
           <NavLink
             to={profilePath}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#B5D4F4] text-[12px] font-medium text-[#0C447C] hover:opacity-90"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tour-accent-muted text-[12px] font-medium text-tour-accent-foreground hover:opacity-90"
             title="Profile"
           >
             {user ? userInitials(user) : '?'}
           </NavLink>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-3 sm:p-4">
+        <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
           <div className="mx-auto w-full max-w-3xl">
             <Outlet />
           </div>

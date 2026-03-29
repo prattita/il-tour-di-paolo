@@ -35,6 +35,7 @@ docs/*PRIMER*.md
 docs/*primer*.md
 docs/KNOWN_CONCERNS.md
 docs/IDEAS.md
+docs/VerticalLandscape_onepager.md
 
 #firebase hidden files.
 .firebaserc.example

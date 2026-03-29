@@ -1,6 +1,6 @@
-import { doc, getDoc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore'
+import { deleteDoc, doc, getDoc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore'
 import { getFirebaseDb } from '../lib/firebase'
-import { uploadPendingPhoto } from './storageService'
+import { deleteSubmissionPhotoByPath, uploadPendingPhoto } from './storageService'
 
 function requireDb() {
   const db = getFirebaseDb()
@@ -80,4 +80,22 @@ export async function createPendingSubmission({
     description: description?.trim() || null,
     submittedAt: serverTimestamp(),
   })
+}
+
+/**
+ * Member withdraws their own pending submission (Phase 9). Unlocks other tasks in the activity.
+ * Does not set rejectionBanner (unlike owner reject).
+ */
+export async function withdrawPendingSubmission(groupId, userId, pendingId, pending) {
+  if (!pending?.userId || pending.userId !== userId) {
+    throw new Error('You can only withdraw your own submission.')
+  }
+  if (makePendingDocId(userId, pending.activityId) !== pendingId) {
+    throw new Error('Invalid pending submission.')
+  }
+  const db = requireDb()
+  const pendingRef = doc(db, `groups/${groupId}/pending/${pendingId}`)
+  await deleteDoc(pendingRef)
+  const fallbackPath = `images/${pendingId}/photo`
+  await deleteSubmissionPhotoByPath(pending.imagePath || fallbackPath)
 }

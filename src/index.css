@@ -8,8 +8,11 @@
   --color-tour-text: #1a1a18;
   --color-tour-text-secondary: #6b6b67;
   --color-tour-text-tertiary: #9b9b96;
+  /* Primary green — mockups / DESIGN §11 Phase 10 */
   --color-tour-accent: #1d9e75;
   --color-tour-accent-muted: #e1f5ee;
+  /* Text on light green surfaces (nav active, chips) */
+  --color-tour-accent-foreground: #0f6e56;
 }
 
 body {

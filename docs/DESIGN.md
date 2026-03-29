@@ -386,6 +386,8 @@ batch.commit()
   - Task status flips to "Pending" — all other incomplete tasks in the activity become Blocked
   - Note shown: "Your submission will appear in the feed once the owner approves it."
 
+**Withdraw (Phase 9):** While a submission is pending, the **submitter** may **withdraw** it from the **Activities** list (`Withdraw submission`). That **deletes** the pending Firestore document and the **Storage** photo (same cleanup as owner reject, but **no** `rejectionBanner`). Other tasks in the activity become available again. Rules: **`delete`** on `pending/{pendingId}` allowed if `resource.data.userId == request.auth.uid` **and** the user is still in **`group.memberIds`** (or owner).
+
 ### 7.6 Owner Approval Flow
 - Owner sees pending approvals queue at `/group/:groupId/approvals`
 - Badge indicator on Group Settings showing pending count
@@ -473,6 +475,7 @@ Once any member has a task approved in an activity, `isLocked` is set to `true`.
 | Delete activities | ❌ | ❌ (no one) |
 | Regenerate invite code | ❌ | ✅ |
 | View & action pending approvals | ❌ | ✅ |
+| Withdraw **own** pending submission | ✅ | ✅ |
 | Write system feed posts | ❌ | ✅ |
 | Remove members | ❌ | ✅ |
 
@@ -504,8 +507,9 @@ For **join**, operations must be ordered: **`groups/{groupId}` update (`memberId
 | `pending` **create** | `get()` group → caller must be in **`memberIds`**; **`pendingId`** must equal `userId + '_' + activityId` (matches §5 composite key) |
 | Invites **list** vs **get** | **`get`**: authenticated lookup by code; **`list`**: denied (no enumerating all invite codes) |
 | Invites **create** | Use **`request.resource.data.groupId`** (no `resource` on create) |
-| `pending` **read** | Owner **or** submitter (`resource.data.userId == request.auth.uid`) so the UI can restore state after refresh |
-| **Remove member** | Owner **`delete`** on that user’s `pending` docs (and Storage) is already allowed by owner-only `delete` on `pending` |
+| `pending` **read** | **`get`**: owner **or** member whose **`pendingId`** matches `^uid_.+` (so `getDoc` on a **missing** pending slot still works; `resource.data` is absent). **`list`**: owner only (approval queue) |
+| `pending` **delete** | Owner **or** submitter (`resource.data.userId == request.auth.uid`) **and** submitter still in **`memberIds`** (Phase 9 withdraw) |
+| **Remove member** | Owner **`delete`** on that user’s `pending` docs (and Storage); same rule path as queue reject |
 | One pending per user per activity | **Composite document id** `{userId}_{activityId}` — duplicate create fails at the database |
 | Storage | Loose paths for MVP — **see caveat below** |
 
@@ -747,22 +751,37 @@ Refresh `/group/:groupId/info` so it matches mock **7a** / **7b** layout intent 
 
 **Note:** Mock **7a** shows per-activity **Join** / **Joined** chips (`selectedActivityIds` fast-follow). Until that ships, omit join UI on Group Info; members still see all activities as in the Activities tab.
 
-**Wording — `isLocked` vs editing:** The flag means *at least one task in that activity has been approved*; the **three tasks and their order** are fixed in the database, but **names** (activity + tasks) remain editable in **Group settings**. On Group Info the chip reads **Progress started** so it is not confused with “cannot edit anywhere.”
+**`isLocked` (editing only):** See Phase 8.5 note — **Group Info** does not surface this flag; it is global per activity, not per member.
 
-### Phase 9 - Privacy
-- [ ] Create a "Cancel" button to allow non-owners to withdraw a pending task submission. This unlocks the activity.
-- [ ] groups/{groupId}/pending/{pendingId} must allow delete when resource.data.userId == request.auth.uid.
+### Phase 9 — Privacy (withdraw pending)
+
+- [x] **Withdraw submission** on **Activities** when the current user has a pending doc for that activity; confirms before delete; unlocks the activity for new submissions.
+- [x] **`pending` delete** in rules: owner **or** (`resource.data.userId == request.auth.uid` **and** caller in **`group.memberIds`**).
+
+#### Privacy & authorization notes (Phase 9 and related)
+
+- **Submitter-only:** Only the user named in `pending.userId` may self-delete; composite `pendingId` ties the doc to that uid + activity, so another member cannot target someone else’s doc via rules (they would fail `userId` match on `resource`).
+- **Membership gate on withdraw:** Self-delete requires **still being a group member** — avoids odd edge cases after removal (owner removal already deletes that member’s pendings client-side).
+- **No rejection UX:** Withdraw is **not** a rejection; the app does **not** set `rejectionBanner` (unlike owner reject). Copy in the confirm dialog states the photo is removed.
+- **Owner visibility:** The approval queue updates in real time if a member withdraws; the owner never saw a “reject” action.
+- **Storage:** Client deletes the object at `imagePath` after Firestore delete (same pattern as reject). **Storage rules remain broad** (any authed user with path knowledge) — see §10 Storage caveat and `KNOWN_CONCERNS.md`; not introduced by Phase 9.
+- **No new PII export:** Withdraw does not add exports; it **removes** one pending row and one image the user already uploaded.
+- **Legal / consent:** Family MVP — not a substitute for jurisdiction-specific privacy policy or consent flows if you expand beyond a closed group.
 
 ### Phase 10 — Polish & Launch
-- [ ] Final palette pass: mockups use warm neutrals + green accent (`#1D9E75`); align any remaining screens and refine tokens in `index.css` `@theme`
-- [ ] Adjust paddings, UI tweaks. Please ask for UI tweaks if not provided at this stage.
-- [ ] Adjust the Home Page to match the UI of the rest of the site.
-- [ ] **Responsive / multi–form-factor pass (Tailwind):** audit remaining breakpoints (`max-w-*`, tap targets, task form on wide screens); group shell drawer/sidebar is done
-- [ ] Loading states and error handling throughout
-- [ ] Empty states (no feed posts, no activities, no pending approvals)
-- [ ] On desktop (`lg+`): top bar should remain visible while the feed scrolls (group name + profile icon), and the sidebar bottom section (`Home` + `Sign out`) should stay visible.
-  - On mobile, navigation is drawer-based; if you still want persistent `Home`/`Sign out` outside the drawer, that becomes a dedicated UI follow-up.
-  - Ensure Feed page is the default landing page after opening the group
+*(In progress — expect iterative tweaks; MVP scope only.)*
+
+- [x] Final palette pass (first pass): warm neutrals + green accent `#1D9E75` in `@theme`; `tour-accent-foreground` for text on muted green; sidebar nav active state uses accent (replaces blue); scattered `#0F6E56` usages aligned to token
+- [x] Further paddings / tap targets (pass 2): primary/secondary CTAs and form fields use **`min-h-11` (~44px)** where practical; Auth, Welcome, Join, Create group aligned
+- [x] Home / **Welcome** screen: personalized **“Welcome back {firstName}!”** (`firstNameFromUser` in `src/lib/userDisplay.js`); **Your groups** block **above** create/join; **Sign out** matches group shell (red text + `hover:bg-red-50`); group rows still open **`/group/:id/feed`**
+- [x] **`/auth`** screen matches shell UX: `bg-tour-muted`, surface card, `Il Tour di Paolo 2026` eyebrow, segmented login/signup, green primary + white label, taller inputs/buttons
+- [x] **Join** + **Create group** standalone pages: same visual language as Welcome (muted canvas, surface forms, no “Phase 3” copy)
+- [ ] **Responsive / multi–form-factor pass:** task form widens at `sm`/`lg`; remaining breakpoints TBD
+- [x] Loading states (first pass): shared `PageLoading` spinner on Home (groups), Feed, Activities, Approvals, Task complete; error banners unchanged where present
+- [x] Empty states: feed / approvals / activities already had copy; activities empty state copy de-“Phase 8”-ified
+- [x] Desktop (`lg+`): shell uses `h-[100dvh]` + `min-h-0` / `overflow-hidden` so **only `<main>` scrolls** — top bar and sidebar **Home** / **Sign out** stay visible; nav items scroll if needed
+  - Mobile: drawer unchanged; persistent Home/Sign out outside drawer = optional follow-up
+- [x] Default landing: `/group/:groupId` → `feed` (existing); Home group links now target **feed** explicitly
 
 ### Phase 11 - Launch
 - [ ] Final security rules review

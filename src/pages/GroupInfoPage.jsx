@@ -100,7 +100,7 @@ export function GroupInfoPage() {
         {isOwner && (
           <Link
             to={`/group/${groupId}/settings`}
-            className="mt-3 inline-flex rounded-lg border border-tour-accent/40 bg-tour-accent-muted/60 px-3 py-2 text-[12px] font-medium text-[#0F6E56] hover:opacity-95"
+            className="mt-3 inline-flex rounded-lg border border-tour-accent/40 bg-tour-accent-muted/60 px-3 py-2 text-[12px] font-medium text-tour-accent-foreground hover:opacity-95"
           >
             Edit group & invite
           </Link>

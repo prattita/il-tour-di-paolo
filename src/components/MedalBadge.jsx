@@ -9,7 +9,7 @@ const labels = {
   gold: 'Gold',
   silver: 'Silver',
   bronze: 'Bronze',
-  none: 'No medal yet',
+  none: 'No medal',
 }
 
 const sizeClasses = {
@@ -17,12 +17,12 @@ const sizeClasses = {
   sm: 'px-1.5 py-px text-[10px] leading-tight',
 }
 
-export function MedalBadge({ tier, size = 'default' }) {
+export function MedalBadge({ tier, size = 'default', className = '' }) {
   const t = styles[tier] ? tier : 'none'
   const sz = sizeClasses[size] ?? sizeClasses.default
   return (
     <span
-      className={`inline-block rounded-full font-medium ${sz} ${styles[t]}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full font-medium ${sz} ${styles[t]} ${className}`.trim()}
     >
       {labels[t]}
     </span>
