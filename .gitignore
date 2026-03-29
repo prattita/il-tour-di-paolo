@@ -31,11 +31,8 @@ dist-ssr
 # Learning primers under docs/ — local only, not committed (naming: *PRIMER*.md or *primer*.md).
 # Includes: firebase-browser-key-restrictions-PRIMER.md, firebase-emulators-PRIMER.md, FIREBASE_PRIMER.md, etc.
 # DESIGN.md and other shared docs in docs/ stay tracked.
-docs/*PRIMER*.md
-docs/*primer*.md
+docs/learning/*
 docs/KNOWN_CONCERNS.md
-docs/IDEAS.md
-docs/VerticalLandscape_onepager.md
 
 #firebase hidden files.
 .firebaserc.example
