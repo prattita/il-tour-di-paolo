@@ -279,31 +279,41 @@ export function ActivityListPage() {
                       const status = getTaskStatus(task, progress, pendingDoc)
                       const completePath = `/group/${groupId}/activity/${activity.id}/task/${task.id}`
 
+                      const completePillClass =
+                        'shrink-0 rounded-full border border-tour-accent px-2.5 py-1 text-[11px] font-medium text-tour-accent-foreground'
+
                       return (
-                        <li key={task.id} className="flex items-center gap-2.5 py-2 first:pt-0 last:pb-0">
-                          <TaskStatusDot status={status} />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[13px] text-tour-text">{task.name}</p>
-                            {status === 'pending' && (
-                              <p className="mt-0.5 text-[11px] text-tour-text-secondary">Pending</p>
-                            )}
-                          </div>
-                          {status === 'empty' && (
+                        <li key={task.id} className="min-w-0 first:pt-0 last:pb-0">
+                          {status === 'empty' ? (
                             <Link
                               to={completePath}
-                              className="shrink-0 rounded-full border border-tour-accent px-2.5 py-1 text-[11px] font-medium text-tour-accent-foreground"
+                              className="-mx-2 flex min-w-0 items-center gap-2.5 rounded-lg px-2 py-2 text-left text-inherit no-underline hover:bg-black/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-tour-accent"
                             >
-                              Complete
+                              <TaskStatusDot status={status} />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[13px] text-tour-text">{task.name}</p>
+                              </div>
+                              <span className={completePillClass}>Complete</span>
                             </Link>
-                          )}
-                          {status === 'blocked' && (
-                            <button
-                              type="button"
-                              disabled
-                              className="shrink-0 cursor-not-allowed rounded-full border border-black/10 px-2.5 py-1 text-[11px] font-medium text-tour-text-secondary opacity-60"
-                            >
-                              Complete
-                            </button>
+                          ) : (
+                            <div className="flex items-center gap-2.5 py-2">
+                              <TaskStatusDot status={status} />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[13px] text-tour-text">{task.name}</p>
+                                {status === 'pending' && (
+                                  <p className="mt-0.5 text-[11px] text-tour-text-secondary">Pending</p>
+                                )}
+                              </div>
+                              {status === 'blocked' && (
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="shrink-0 cursor-not-allowed rounded-full border border-black/10 px-2.5 py-1 text-[11px] font-medium text-tour-text-secondary opacity-60"
+                                >
+                                  Complete
+                                </button>
+                              )}
+                            </div>
                           )}
                         </li>
                       )

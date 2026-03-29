@@ -769,24 +769,30 @@ Refresh `/group/:groupId/info` so it matches mock **7a** / **7b** layout intent 
 - **Legal / consent:** Family MVP — not a substitute for jurisdiction-specific privacy policy or consent flows if you expand beyond a closed group.
 
 ### Phase 10 — Polish & Launch
-*(In progress — expect iterative tweaks; MVP scope only.)*
+*(MVP complete — March 2026.)*
 
 - [x] Final palette pass (first pass): warm neutrals + green accent `#1D9E75` in `@theme`; `tour-accent-foreground` for text on muted green; sidebar nav active state uses accent (replaces blue); scattered `#0F6E56` usages aligned to token
 - [x] Further paddings / tap targets (pass 2): primary/secondary CTAs and form fields use **`min-h-11` (~44px)** where practical; Auth, Welcome, Join, Create group aligned
 - [x] Home / **Welcome** screen: personalized **“Welcome back {firstName}!”** (`firstNameFromUser` in `src/lib/userDisplay.js`); **Your groups** block **above** create/join; **Sign out** matches group shell (red text + `hover:bg-red-50`); group rows still open **`/group/:id/feed`**
 - [x] **`/auth`** screen matches shell UX: `bg-tour-muted`, surface card, `Il Tour di Paolo` eyebrow, segmented login/signup, green primary + white label, taller inputs/buttons
 - [x] **Join** + **Create group** standalone pages: same visual language as Welcome (muted canvas, surface forms, no “Phase 3” copy)
-- [ ] **Responsive / multi–form-factor pass:** task form widens at `sm`/`lg`; remaining breakpoints TBD
+- [x] **Responsive / multi–form-factor pass (MVP):** task form widens at `sm`/`lg`; group shell scroll lock; further breakpoint polish = **post-MVP** if needed
 - [x] Loading states (first pass): shared `PageLoading` spinner on Home (groups), Feed, Activities, Approvals, Task complete; error banners unchanged where present
 - [x] Empty states: feed / approvals / activities already had copy; activities empty state copy de-“Phase 8”-ified
 - [x] Desktop (`lg+`): shell uses `h-[100dvh]` + `min-h-0` / `overflow-hidden` so **only `<main>` scrolls** — top bar and sidebar **Home** / **Sign out** stay visible; nav items scroll if needed
   - Mobile: drawer unchanged; persistent Home/Sign out outside drawer = optional follow-up
 - [x] Default landing: `/group/:groupId` → `feed` (existing); Home group links now target **feed** explicitly
+- [x] Feed cards aligned with **`docs/UI_MOCKUPS_v1.0.html`** Page 3 (header / image / body); branding string **“Il Tour di Paolo”** (no year) in shell + key screens
 
-### Phase 11 - Launch
-- [ ] Final security rules review
-- [ ] Final Vercel production deploy
-- [ ] Invite family 🎉
+### Phase 11 — Launch
+- [x] **Final security rules review** — March 2026 pass against repo `firestore.rules` + `storage.rules` (see **notes** below). **Action:** ensure Firebase Console deployed rules match Git (`firebase deploy --only firestore:rules,storage`).
+- [x] **Final Vercel production deploy** — production app live; env vars match `.env.example` (`VITE_FIREBASE_*`); Firebase **Authorized domains** includes the Vercel hostname.
+- [ ] **Invite family** — manual milestone when you’re ready.
+
+#### Phase 11 — Security review notes (March 2026)
+- **Firestore:** `users/` self-only; `groups/` `get` for any authed user (join-by-id), `list` denied; subcollections gated by **`memberIds`** / **`ownerId`** as in DESIGN §10; **`pending`** `get`/`list` split fixes non-owner `getDoc` on missing doc; **`feed`** member read, owner write; **`invites`** owner create/delete, `list` denied.
+- **Storage:** MVP rules remain **broad** (any authed user under `images/...`) — intentional for family scale; **post-MVP** tighten per DESIGN §13 / `docs/KNOWN_CONCERNS.md`.
+- **Residual:** Client-side approval, invite code on group doc, Storage path guessability — all documented in **`docs/KNOWN_CONCERNS.md`**; acceptable for closed family MVP.
 
 ---
 

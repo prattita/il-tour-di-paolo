@@ -119,26 +119,26 @@ export function GroupInfoPage() {
               const initials = userInitials(m.displayName)
               const rowOwner = m.id === group.ownerId
               return (
-                <li key={m.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                  <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#B5D4F4] text-[12px] font-medium text-[#0C447C]"
-                    aria-hidden
+                <li key={m.id} className="min-w-0 py-3 first:pt-0 last:pb-0">
+                  <Link
+                    to={`/group/${groupId}/profile/${m.id}`}
+                    className="-mx-2 flex min-w-0 items-center gap-3 rounded-lg px-2 py-1 text-tour-text hover:bg-black/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-tour-accent"
                   >
-                    {initials}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <Link
-                      to={`/group/${groupId}/profile/${m.id}`}
-                      className="text-[13px] font-medium text-tour-text hover:underline"
+                    <div
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#B5D4F4] text-[12px] font-medium text-[#0C447C]"
+                      aria-hidden
                     >
-                      {m.displayName || 'Member'}
-                    </Link>
-                    {rowOwner && (
-                      <span className="ml-2 rounded bg-tour-muted px-1.5 py-0.5 text-[10px] font-medium text-tour-text-secondary">
-                        Owner
-                      </span>
-                    )}
-                  </div>
+                      {initials}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[13px] font-medium">{m.displayName || 'Member'}</span>
+                      {rowOwner && (
+                        <span className="ml-2 rounded bg-tour-muted px-1.5 py-0.5 text-[10px] font-medium text-tour-text-secondary">
+                          Owner
+                        </span>
+                      )}
+                    </div>
+                  </Link>
                 </li>
               )
             })}
