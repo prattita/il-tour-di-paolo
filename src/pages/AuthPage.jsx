@@ -55,7 +55,7 @@ export function AuthPage() {
           <div className="rounded-xl border border-black/10 bg-tour-surface p-5 sm:p-6">
             <header className="mb-6 text-center sm:text-left">
               <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
-                Il Tour di Paolo 2026
+                Il Tour di Paolo
               </p>
               <h1 className="mt-1 text-xl font-semibold text-tour-text sm:text-2xl">
                 {mode === 'login' ? 'Sign in' : 'Create an account'}

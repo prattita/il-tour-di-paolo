@@ -1,4 +1,4 @@
-# Il Tour di Paolo 2026
+# Il Tour di Paolo
 
 Private family competition app — see [`docs/DESIGN.md`](./docs/DESIGN.md).
 

@@ -164,7 +164,7 @@ export function GroupLayout() {
       <aside className="hidden h-[100dvh] min-h-0 w-56 shrink-0 flex-col border-r border-black/10 bg-tour-surface lg:flex">
         <div className="shrink-0 border-b border-black/10 px-4 py-3">
           <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
-            Il Tour di Paolo 2026
+            Il Tour di Paolo
           </p>
           <p className="truncate text-[13px] font-medium text-tour-text">{group?.name || '…'}</p>
         </div>
@@ -184,7 +184,7 @@ export function GroupLayout() {
           <aside className="fixed left-0 top-0 z-50 flex h-full w-[min(220px,85vw)] flex-col border-r border-black/10 bg-tour-surface shadow-lg lg:hidden">
             <div className="shrink-0 border-b border-black/10 px-4 py-3">
               <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
-                Il Tour di Paolo 2026
+                Il Tour di Paolo
               </p>
               <p className="truncate text-[13px] font-medium">{group?.name || '…'}</p>
             </div>

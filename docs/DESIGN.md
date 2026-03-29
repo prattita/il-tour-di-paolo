@@ -1,4 +1,4 @@
-# Il Tour di Paolo 2026 — Design Document
+# Il Tour di Paolo — Design Document
 
 > Version: 0.5  
 > Last updated: March 2026  
@@ -27,7 +27,7 @@
 
 ## 1. Project Overview
 
-**Il Tour di Paolo 2026** is a private family competition web app. Participants complete tasks across a set of activity categories to earn medals. Progress is tracked per user, and approved completions are shared in a group feed with photos and optional descriptions.
+**Il Tour di Paolo** is a private family competition web app. Participants complete tasks across a set of activity categories to earn medals. Progress is tracked per user, and approved completions are shared in a group feed with photos and optional descriptions.
 
 **Competition structure:**
 - 0+ activities at group creation (owner can add/edit later; soft guidance: start with 4–6, expandable up to ~10)
@@ -774,7 +774,7 @@ Refresh `/group/:groupId/info` so it matches mock **7a** / **7b** layout intent 
 - [x] Final palette pass (first pass): warm neutrals + green accent `#1D9E75` in `@theme`; `tour-accent-foreground` for text on muted green; sidebar nav active state uses accent (replaces blue); scattered `#0F6E56` usages aligned to token
 - [x] Further paddings / tap targets (pass 2): primary/secondary CTAs and form fields use **`min-h-11` (~44px)** where practical; Auth, Welcome, Join, Create group aligned
 - [x] Home / **Welcome** screen: personalized **“Welcome back {firstName}!”** (`firstNameFromUser` in `src/lib/userDisplay.js`); **Your groups** block **above** create/join; **Sign out** matches group shell (red text + `hover:bg-red-50`); group rows still open **`/group/:id/feed`**
-- [x] **`/auth`** screen matches shell UX: `bg-tour-muted`, surface card, `Il Tour di Paolo 2026` eyebrow, segmented login/signup, green primary + white label, taller inputs/buttons
+- [x] **`/auth`** screen matches shell UX: `bg-tour-muted`, surface card, `Il Tour di Paolo` eyebrow, segmented login/signup, green primary + white label, taller inputs/buttons
 - [x] **Join** + **Create group** standalone pages: same visual language as Welcome (muted canvas, surface forms, no “Phase 3” copy)
 - [ ] **Responsive / multi–form-factor pass:** task form widens at `sm`/`lg`; remaining breakpoints TBD
 - [x] Loading states (first pass): shared `PageLoading` spinner on Home (groups), Feed, Activities, Approvals, Task complete; error banners unchanged where present

@@ -168,7 +168,7 @@ export function ActivityListPage() {
     <div className="text-tour-text">
       <div className="mb-3 border-b border-black/10 pb-2 lg:hidden">
         <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
-          Il Tour di Paolo 2026
+          Il Tour di Paolo
         </p>
         <p className="text-[15px] font-medium leading-snug text-tour-text">{group?.name || 'Group'}</p>
       </div>

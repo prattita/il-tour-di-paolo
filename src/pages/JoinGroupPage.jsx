@@ -44,7 +44,7 @@ export function JoinGroupPage() {
         <div className="mx-auto w-full max-w-md">
           <header className="mb-6">
             <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
-              Il Tour di Paolo 2026
+              Il Tour di Paolo
             </p>
             <h1 className="mt-1 text-xl font-semibold text-tour-text sm:text-2xl">Join group</h1>
             <p className="mt-2 text-sm text-tour-text-secondary">

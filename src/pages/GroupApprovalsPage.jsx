@@ -122,7 +122,7 @@ export function GroupApprovalsPage() {
     <div className="text-tour-text">
       <div className="mb-4 border-b border-black/10 pb-3 lg:hidden">
         <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
-          Il Tour di Paolo 2026
+          Il Tour di Paolo
         </p>
         <p className="text-[15px] font-medium text-tour-text">{group?.name || 'Group'}</p>
       </div>

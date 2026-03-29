@@ -71,7 +71,7 @@ export function HomePage() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
-                Il Tour di Paolo 2026
+                Il Tour di Paolo
               </p>
               <h1 className="mt-1 text-lg font-semibold text-tour-text sm:text-xl">{welcomeHeading}</h1>
               <p className="mt-2 text-sm text-tour-text-secondary">
