@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
+import { Avatar } from '../components/Avatar'
 import { useAuth } from '../context/useAuth'
 import { subscribePendingCount } from '../services/approvalService'
 import {
@@ -14,18 +15,6 @@ import {
   removeGroupMember,
   updateGroupDetails,
 } from '../services/groupSettingsService'
-
-function userInitials(displayName, email) {
-  const name = displayName?.trim()
-  if (name) {
-    const parts = name.split(/\s+/).filter(Boolean)
-    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
-    return name.slice(0, 2).toUpperCase()
-  }
-  const em = email?.trim()
-  if (em) return em.slice(0, 2).toUpperCase()
-  return '??'
-}
 
 function emptyAddActivity() {
   return { name: '', description: '', tasks: ['', '', ''] }
@@ -383,19 +372,19 @@ export function GroupSettingsPage() {
             <ul className="mt-3 divide-y divide-black/10">
               {members.map((m) => {
                 const isRowOwner = m.id === group?.ownerId
-                const initials = userInitials(m.displayName, null)
                 return (
                   <li key={m.id} className="flex min-w-0 items-center gap-2 py-3 first:pt-0">
                     <Link
                       to={`/group/${groupId}/profile/${m.id}`}
                       className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-1 text-tour-text hover:bg-black/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-tour-accent"
                     >
-                      <div
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#B5D4F4] text-[12px] font-medium text-[#0C447C]"
-                        aria-hidden
-                      >
-                        {initials}
-                      </div>
+                      <Avatar
+                        avatarUrl={m.avatarUrl}
+                        displayName={m.displayName}
+                        seed={m.id}
+                        className="h-10 w-10 text-[12px] shrink-0"
+                        alt=""
+                      />
                       <div className="min-w-0 flex-1">
                         <span className="text-[13px] font-medium">{m.displayName || 'Member'}</span>
                         {isRowOwner && (

@@ -246,6 +246,7 @@ batch.commit()
 {
   userId: string,              // must match request.auth.uid — enforced by rules
   displayName: string,
+  avatarUrl: string | null,    // snapshot from members/{userId} at submit (Phase One profile pics)
   activityId: string,          // must match suffix of pendingId (see composite key above)
   activityName: string,
   taskId: string,
@@ -262,6 +263,7 @@ batch.commit()
 {
   userId: string,
   displayName: string,
+  avatarUrl: string | null,    // denormalized at approval time (member snapshot)
   activityId: string,
   activityName: string,        // denormalized at approval time
   taskId: string,
@@ -306,6 +308,7 @@ batch.commit()
 | Login / Signup | `/auth` | Public |
 | Home / Dashboard | `/` | Authenticated |
 | Group Feed | `/group/:groupId/feed` | Group member |
+| Standings | `/group/:groupId/standings` | Group member |
 | Group Info | `/group/:groupId/info` | Group member |
 | Activity List | `/group/:groupId/activities` | Group member |
 | Complete a Task | `/group/:groupId/complete` (optional query `activityId`, `taskId` for locked mode). Legacy path `/group/:groupId/activity/:activityId/task/:taskId` redirects to the canonical URL. | Group member |
@@ -319,8 +322,8 @@ batch.commit()
 
 - **Scope:** All routes under `/group/:groupId/*` (except task completion, which uses a focused header) share one shell.
 - **Profile entry:** No separate **Profile** row in the nav list. The **user block** at the top of the drawer/sidebar (avatar, name, role, **See profile** in smaller type) is one **clickable** target to `/group/:groupId/profile/:userId`. The top bar **avatar** (mobile/desktop) also links to profile.
-- **Mobile (&lt; `lg`):** Top bar with **burger** (opens a slide-in drawer), **screen title**, and **profile** avatar. Drawer lists: user block (above), then Feed, Activities, Group Info, then **Home**, **Sign out**. **Approval Queue** and **Group Settings** appear **only for the owner** (after a divider), each with an **Owner** badge. Non-owners do not see those entries; direct URLs still redirect (`/approvals`, `/settings` → feed).
-- **Desktop (`lg` and up):** The same nav is a **persistent left column** (no overlay). Burger is hidden; navigation is always visible. Nav label inset matches the **group title** row (`px-4`) so active states align with the header text.
+- **Mobile (&lt; `lg`):** Top bar with **burger** (opens a slide-in drawer), **screen title**, and **profile** avatar. Drawer lists: user block (above), then Feed, Activities, Group Info, **Standings**, then **Home**, **Sign out**. **Approval Queue** and **Group Settings** appear **only for the owner** (after a divider), each with an **Owner** badge. Non-owners do not see those entries; direct URLs still redirect (`/approvals`, `/settings` → feed).
+- **Desktop (`lg` and up):** The same nav is a **persistent left column** (no overlay). Burger is hidden; navigation is always visible (Feed, Activities, Group Info, Standings, then owner-only items, then Home / Sign out). Nav label inset matches the **group title** row (`px-4`) so active states align with the header text.
 - **Follow-up (Phase 9+):** Optional **collapsible / icon-only** sidebar on large screens to reclaim horizontal space while keeping shortcuts.
 - **Visual reference:** Warm neutrals, white cards, green primary accent — see `docs/UI_MOCKUPS.html` (v0.1 screens) and `docs/UI_MOCKUPS_v1.0.html` (drawer, **7a/7b Group Info**). Keep mock HTML files local if you prefer not to commit them.
 
@@ -736,7 +739,7 @@ service firebase.storage {
 - [x] Remove member: delete all their pending docs + Storage images, then batch membership removal
 - [x] Add new activity mid-competition: increment `activityCount`, system feed post, new activity doc
 - [x] System post rendering
-- [x] Member roster UI (names + initials; no custom profile-photo upload in MVP — see fast-follow `docs/ProfilePics_onepager.md` for optional `avatarUrl` propagation to `groups/{groupId}/members/{userId}`).
+- [x] Member roster UI (names + initials; no custom profile-photo upload in MVP — see Phase One `docs/phase-one/profilePics-onepager.md` for `avatarUrl` upload + propagation to `groups/{groupId}/members/{userId}`).
 - [x] Edit activity form (respects isLocked rules)
 
 ### Phase 8.5 — Group information screen (all members)
@@ -835,7 +838,7 @@ docs: update DESIGN.md with security rules section
 - **Owner activity participation (MVP):** Owner is implicitly joined to all activities (`selectedActivityIds: null`). No join/leave controls shown for owner in Group Info screen.
 
 ### Post-MVP / Stretch Goals
-- **Profile pictures (upload + shared avatar across groups):** Out of MVP to avoid feature creep. Spec and implementation checklist: `docs/ProfilePics_onepager.md`.
+- **Profile pictures (upload + shared avatar across groups):** Out of MVP to avoid feature creep. Spec and implementation checklist: `docs/phase-one/profilePics-onepager.md`.
 - **Desktop shell:** Collapse or minimize the `lg` sidebar to icons-only (or hide behind a control) for more content width — see §6.1 follow-up.
 - Cloud Function for atomic approval flow
 - Tighten Firebase Storage rules to per-group membership

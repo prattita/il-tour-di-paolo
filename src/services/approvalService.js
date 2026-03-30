@@ -97,10 +97,12 @@ export async function approvePendingSubmission(groupId, pendingId, pending) {
     const medal = feedMedalFromTasksCompleted(tasksCompleted)
     const rb = memberSnap.data().rejectionBanner
     const clearRejection = rb && rb.activityId === pending.activityId
+    const memberAvatarUrl = memberSnap.data().avatarUrl ?? null
 
     transaction.set(feedPostRef, {
       userId: pending.userId,
       displayName: pending.displayName,
+      avatarUrl: memberAvatarUrl,
       activityId: pending.activityId,
       activityName: pending.activityName,
       taskId: pending.taskId,

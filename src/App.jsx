@@ -15,6 +15,7 @@ import { GroupInfoPage } from './pages/GroupInfoPage'
 import { GroupProfilePage } from './pages/GroupProfilePage'
 import { GroupApprovalsPage } from './pages/GroupApprovalsPage'
 import { GroupSettingsPage } from './pages/GroupSettingsPage'
+import { GroupStandingsPage } from './pages/GroupStandingsPage'
 
 export default function App() {
   return (
@@ -89,6 +90,7 @@ export default function App() {
             <Route path="feed" element={<GroupFeedPage />} />
             <Route path="activities" element={<ActivityListPage />} />
             <Route path="info" element={<GroupInfoPage />} />
+            <Route path="standings" element={<GroupStandingsPage />} />
             <Route path="profile/:userId" element={<GroupProfilePage />} />
             <Route path="approvals" element={<GroupApprovalsPage />} />
             <Route path="settings" element={<GroupSettingsPage />} />

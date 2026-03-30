@@ -1,20 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { NavLink, Outlet, useLocation, useParams } from 'react-router-dom'
+import { Avatar } from './Avatar'
 import { useAuth } from '../context/useAuth'
 import { signOutUser } from '../services/authService'
+import { subscribeGroupMember } from '../services/activityService'
 import { getGroup } from '../services/groupService'
-
-function userInitials(user) {
-  const name = user?.displayName?.trim()
-  if (name) {
-    const parts = name.split(/\s+/).filter(Boolean)
-    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
-    return name.slice(0, 2).toUpperCase()
-  }
-  const email = user?.email?.trim()
-  if (email) return email.slice(0, 2).toUpperCase()
-  return '??'
-}
 
 function navLinkClass({ isActive }) {
   return [
@@ -33,12 +23,15 @@ function ownerBadge() {
   )
 }
 
-function GroupNavPanel({ groupId, user, isOwner, onNavigate }) {
+function GroupNavPanel({ groupId, user, meMember, isOwner, onNavigate }) {
   const profilePath = `/group/${groupId}/profile/${user?.uid || ''}`
 
   const handleNav = () => {
     onNavigate?.()
   }
+
+  const navDisplayName = meMember?.displayName || user?.displayName
+  const navAvatarUrl = meMember?.avatarUrl ?? null
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -53,12 +46,14 @@ function GroupNavPanel({ groupId, user, isOwner, onNavigate }) {
         }
       >
         <div className="flex items-start gap-2.5">
-          <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tour-accent-muted text-[12px] font-medium text-tour-accent-foreground"
-            aria-hidden
-          >
-            {user ? userInitials(user) : '—'}
-          </div>
+          <Avatar
+            avatarUrl={navAvatarUrl}
+            displayName={navDisplayName}
+            email={user?.email}
+            seed={user?.uid}
+            className="h-9 w-9 text-[12px]"
+            alt=""
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-medium leading-tight text-tour-text">
               {user?.displayName || user?.email || 'Member'}
@@ -78,6 +73,9 @@ function GroupNavPanel({ groupId, user, isOwner, onNavigate }) {
         </NavLink>
         <NavLink to={`/group/${groupId}/info`} className={navLinkClass}>
           Group Info
+        </NavLink>
+        <NavLink to={`/group/${groupId}/standings`} className={navLinkClass}>
+          Standings
         </NavLink>
         {isOwner && (
           <>
@@ -126,6 +124,7 @@ export function GroupLayout() {
   const { user } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const [group, setGroup] = useState(null)
+  const [meMember, setMeMember] = useState(null)
 
   useEffect(() => {
     let active = true
@@ -145,10 +144,31 @@ export function GroupLayout() {
   }, [groupId])
 
   const isOwner = Boolean(user?.uid && group?.ownerId === user.uid)
+  const isMember = Boolean(user?.uid && group?.memberIds?.includes(user.uid))
+
+  useEffect(() => {
+    if (!groupId || !user?.uid || !isMember) {
+      return undefined
+    }
+    const unsub = subscribeGroupMember(
+      groupId,
+      user.uid,
+      (m) => setMeMember(m),
+      () => setMeMember(null),
+    )
+    return () => {
+      unsub()
+      setMeMember(null)
+    }
+  }, [groupId, user?.uid, isMember])
+
+  const headerDisplayName = meMember?.displayName || user?.displayName
+  const headerAvatarUrl = meMember?.avatarUrl ?? null
 
   const title = useMemo(() => {
     const p = location.pathname
     if (p.includes('/activities')) return 'Activities'
+    if (p.includes('/standings')) return 'Standings'
     if (p.includes('/info')) return 'Group Info'
     if (p.includes('/approvals')) return 'Pending approvals'
     if (p.includes('/settings')) return 'Group settings'
@@ -169,7 +189,7 @@ export function GroupLayout() {
           <p className="truncate text-[13px] font-medium text-tour-text">{group?.name || '…'}</p>
         </div>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <GroupNavPanel groupId={groupId} user={user} isOwner={isOwner} />
+          <GroupNavPanel groupId={groupId} user={user} meMember={meMember} isOwner={isOwner} />
         </div>
       </aside>
 
@@ -192,6 +212,7 @@ export function GroupLayout() {
               <GroupNavPanel
                 groupId={groupId}
                 user={user}
+                meMember={meMember}
                 isOwner={isOwner}
                 onNavigate={() => setMenuOpen(false)}
               />
@@ -221,10 +242,21 @@ export function GroupLayout() {
           </div>
           <NavLink
             to={profilePath}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-tour-accent-muted text-[12px] font-medium text-tour-accent-foreground hover:opacity-90"
+            className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full hover:opacity-90"
             title="Profile"
           >
-            {user ? userInitials(user) : '?'}
+            {user ? (
+              <Avatar
+                avatarUrl={headerAvatarUrl}
+                displayName={headerDisplayName}
+                email={user.email}
+                seed={user.uid}
+                className="h-9 w-9 text-[12px]"
+                alt=""
+              />
+            ) : (
+              <span className="text-[12px] text-tour-text-secondary">?</span>
+            )}
           </NavLink>
         </header>
 

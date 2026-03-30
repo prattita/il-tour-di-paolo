@@ -3,48 +3,11 @@ import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { useGroupCompletionPickerData } from '../hooks/useGroupCompletionPickerData'
 import { hasAnyEligibleCompletionActivity } from '../lib/completionEligibility'
+import { Avatar } from '../components/Avatar'
 import { MedalBadge } from '../components/MedalBadge'
 import { subscribeGroupFeed } from '../services/feedService'
 import { getGroup } from '../services/groupService'
 import { PageLoading } from '../components/PageLoading'
-
-/** Mock v1.0 Page 3 — avatar tints (see UI_MOCKUPS_v1.0.html `.av-*`). */
-const FEED_AVATAR_PALETTE = [
-  { bg: 'bg-[#B5D4F4]', text: 'text-[#0C447C]' },
-  { bg: 'bg-[#9FE1CB]', text: 'text-[#085041]' },
-  { bg: 'bg-[#CECBF6]', text: 'text-[#26215C]' },
-  { bg: 'bg-[#F5C4B3]', text: 'text-[#4A1B0C]' },
-]
-
-function hashString(s) {
-  let h = 0
-  for (let i = 0; i < s.length; i += 1) {
-    h = (h << 5) - h + s.charCodeAt(i)
-    h |= 0
-  }
-  return Math.abs(h)
-}
-
-function feedInitials(displayName) {
-  const name = displayName?.trim()
-  if (!name) return '??'
-  const parts = name.split(/\s+/).filter(Boolean)
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
-  return name.slice(0, 2).toUpperCase()
-}
-
-function FeedAvatar({ displayName, seed }) {
-  const initials = feedInitials(displayName)
-  const palette = FEED_AVATAR_PALETTE[hashString(seed || displayName || 'x') % FEED_AVATAR_PALETTE.length]
-  return (
-    <div
-      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-medium ${palette.bg} ${palette.text}`}
-      aria-hidden
-    >
-      {initials}
-    </div>
-  )
-}
 
 /** Closer to mock “2 hours ago” / “Yesterday” than full locale string. */
 function formatFeedTime(value) {
@@ -187,7 +150,13 @@ export function GroupFeedPage() {
 
           const headerBody = (
             <>
-              <FeedAvatar displayName={post.displayName} seed={post.userId} />
+              <Avatar
+                avatarUrl={post.avatarUrl}
+                displayName={post.displayName}
+                seed={post.userId}
+                className="h-8 w-8 text-[12px]"
+                alt=""
+              />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[13px] font-medium text-tour-text">
                   {post.displayName || 'Member'}

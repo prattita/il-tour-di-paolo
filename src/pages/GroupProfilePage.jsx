@@ -1,22 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { Avatar } from '../components/Avatar'
 import { useAuth } from '../context/useAuth'
 import { MedalBadge } from '../components/MedalBadge'
 import { subscribeActivities, subscribeGroupMember } from '../services/activityService'
+import { uploadUserAvatarAndSyncGroups } from '../services/avatarService'
 import { getGroup } from '../services/groupService'
 import { inclusiveMedalCounts, medalTierFromTasksCompleted } from '../lib/medalTier'
-
-function userInitials(displayName, email) {
-  const name = displayName?.trim()
-  if (name) {
-    const parts = name.split(/\s+/).filter(Boolean)
-    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
-    return name.slice(0, 2).toUpperCase()
-  }
-  const em = email?.trim()
-  if (em) return em.slice(0, 2).toUpperCase()
-  return '??'
-}
 
 /** Fixed desktop width keeps bars aligned; `className` sets width (e.g. `w-full` / `w-[140px]`). */
 function ActivityProgressBar({ tasksCompleted, className = 'w-full min-w-0 sm:w-[140px] sm:shrink-0' }) {
@@ -43,6 +33,22 @@ function ActivityProgressBar({ tasksCompleted, className = 'w-full min-w-0 sm:w-
 const PROFILE_ACTIVITY_BADGE_W = 'w-[7.25rem]'
 const PROFILE_SUMMARY_BADGE_W = 'w-[4.75rem]'
 
+const PROFILE_AVATAR_INPUT_ID = 'profile-avatar-file-input'
+
+function CameraGlyph({ className = 'h-3.5 w-3.5' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2v11z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="13" r="4" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  )
+}
+
 export function GroupProfilePage() {
   const { groupId, userId } = useParams()
   const { user } = useAuth()
@@ -51,6 +57,8 @@ export function GroupProfilePage() {
   const [activities, setActivities] = useState([])
   const [subjectMember, setSubjectMember] = useState(null)
   const [listError, setListError] = useState('')
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const [avatarError, setAvatarError] = useState('')
 
   useEffect(() => {
     let active = true
@@ -102,7 +110,22 @@ export function GroupProfilePage() {
   )
 
   const displayName = subjectMember?.displayName
-  const initials = userInitials(displayName, null)
+  const isSelf = Boolean(user?.uid && userId && user.uid === userId)
+
+  async function handleAvatarFile(ev) {
+    const file = ev.target.files?.[0]
+    ev.target.value = ''
+    if (!file || !user?.uid) return
+    setAvatarError('')
+    setAvatarUploading(true)
+    try {
+      await uploadUserAvatarAndSyncGroups(user.uid, file)
+    } catch (e) {
+      setAvatarError(e.message || 'Could not update photo.')
+    } finally {
+      setAvatarUploading(false)
+    }
+  }
 
   return (
     <div className="text-tour-text">
@@ -139,21 +162,63 @@ export function GroupProfilePage() {
 
       {!loadingGroup && isMember && subjectInGroup && subjectMember && (
         <>
-          <section className="mb-4 flex items-start gap-3 rounded-xl border border-black/10 bg-tour-surface px-3.5 py-3">
-            <div
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#B5D4F4] text-[14px] font-medium text-[#0C447C]"
-              aria-hidden
-            >
-              {initials}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h1 className="text-[16px] font-medium text-tour-text">
-                {displayName || 'Member'}
-              </h1>
-              {user?.uid === userId && (
-                <p className="mt-0.5 text-[11px] text-tour-text-secondary">You</p>
+          <section className="mb-4 rounded-xl border border-black/10 bg-tour-surface px-3.5 py-3">
+            <div className="flex items-center gap-3">
+              {isSelf ? (
+                <label
+                  htmlFor={PROFILE_AVATAR_INPUT_ID}
+                  aria-label="Change profile photo"
+                  className={`relative isolate inline-flex shrink-0 cursor-pointer ${avatarUploading ? 'pointer-events-none opacity-70' : ''}`}
+                >
+                  <Avatar
+                    avatarUrl={subjectMember?.avatarUrl}
+                    displayName={displayName}
+                    email={user?.email}
+                    seed={userId}
+                    className="h-16 w-16 text-[16px]"
+                    alt=""
+                  />
+                  <span
+                    className="pointer-events-none absolute bottom-0 right-0 z-10 flex h-8 w-8 items-center justify-center rounded-full border-[3px] border-tour-surface bg-tour-accent text-white shadow-md"
+                    aria-hidden
+                  >
+                    <CameraGlyph className="h-4 w-4" />
+                  </span>
+                  <input
+                    id={PROFILE_AVATAR_INPUT_ID}
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={handleAvatarFile}
+                    disabled={avatarUploading}
+                  />
+                  {avatarUploading && (
+                    <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/45 text-[11px] font-medium text-white">
+                      …
+                    </span>
+                  )}
+                </label>
+              ) : (
+                <Avatar
+                  avatarUrl={subjectMember?.avatarUrl}
+                  displayName={displayName}
+                  seed={userId}
+                  className="h-12 w-12 text-[14px] shrink-0"
+                  alt=""
+                />
               )}
+              <div className="min-w-0 flex-1">
+                <h1 className="text-[16px] font-medium text-tour-text">
+                  {displayName || 'Member'}
+                </h1>
+                {isSelf && (
+                  <p className="mt-0.5 text-[11px] text-tour-text-secondary">You</p>
+                )}
+              </div>
             </div>
+            {isSelf && avatarError && (
+              <p className="mt-2 text-[12px] text-red-800">{avatarError}</p>
+            )}
           </section>
 
           <section className="mb-4 rounded-xl border border-black/10 bg-tour-surface px-3.5 py-3">

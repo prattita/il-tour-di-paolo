@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
+import { Avatar } from '../components/Avatar'
 import { useAuth } from '../context/useAuth'
 import {
   approvePendingSubmission,
@@ -161,7 +162,15 @@ export function GroupApprovalsPage() {
               />
             )}
             <div className="space-y-2 px-3.5 py-3">
-              <div className="text-[13px]">
+              <div className="flex items-start gap-2.5 text-[13px]">
+                <Avatar
+                  avatarUrl={pending.avatarUrl}
+                  displayName={pending.displayName}
+                  seed={pending.userId}
+                  className="h-9 w-9 text-[12px] shrink-0"
+                  alt=""
+                />
+                <div className="min-w-0 flex-1">
                 <p className="font-medium text-tour-text">{pending.displayName || 'Member'}</p>
                 <p className="mt-0.5 text-tour-text-secondary">
                   <span className="text-tour-text">{pending.activityName}</span>
@@ -171,6 +180,7 @@ export function GroupApprovalsPage() {
                 <p className="mt-1 text-[11px] text-tour-text-secondary">
                   Submitted {formatSubmittedAt(pending.submittedAt)}
                 </p>
+                </div>
               </div>
               {pending.description && (
                 <p className="text-[12px] text-tour-text-secondary">{pending.description}</p>

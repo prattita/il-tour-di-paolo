@@ -1,18 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { Avatar } from '../components/Avatar'
 import { useAuth } from '../context/useAuth'
 import { subscribeActivities, subscribeGroupMembers } from '../services/activityService'
 import { getGroup } from '../services/groupService'
-
-function userInitials(displayName) {
-  const name = displayName?.trim()
-  if (name) {
-    const parts = name.split(/\s+/).filter(Boolean)
-    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
-    return name.slice(0, 2).toUpperCase()
-  }
-  return '??'
-}
 
 export function GroupInfoPage() {
   const { groupId } = useParams()
@@ -116,7 +107,6 @@ export function GroupInfoPage() {
         ) : (
           <ul className="mt-3 divide-y divide-black/10">
             {members.map((m) => {
-              const initials = userInitials(m.displayName)
               const rowOwner = m.id === group.ownerId
               return (
                 <li key={m.id} className="min-w-0 py-3 first:pt-0 last:pb-0">
@@ -124,12 +114,13 @@ export function GroupInfoPage() {
                     to={`/group/${groupId}/profile/${m.id}`}
                     className="-mx-2 flex min-w-0 items-center gap-3 rounded-lg px-2 py-1 text-tour-text hover:bg-black/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-tour-accent"
                   >
-                    <div
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#B5D4F4] text-[12px] font-medium text-[#0C447C]"
-                      aria-hidden
-                    >
-                      {initials}
-                    </div>
+                    <Avatar
+                      avatarUrl={m.avatarUrl}
+                      displayName={m.displayName}
+                      seed={m.id}
+                      className="h-10 w-10 text-[12px]"
+                      alt=""
+                    />
                     <div className="min-w-0 flex-1">
                       <span className="text-[13px] font-medium">{m.displayName || 'Member'}</span>
                       {rowOwner && (

@@ -74,6 +74,16 @@ service cloud.firestore {
               request.resource.data.selectedActivityIds == null
               || request.resource.data.selectedActivityIds is list
             )
+          )
+          || (
+            request.auth != null
+            && request.auth.uid == memberId
+            && isGroupMember(groupId)
+            && request.resource.data.diff(resource.data).changedKeys().hasOnly(['avatarUrl'])
+            && (
+              request.resource.data.avatarUrl == null
+              || request.resource.data.avatarUrl is string
+            )
           );
         allow delete: if isGroupOwner(groupId);
       }
@@ -90,7 +100,11 @@ service cloud.firestore {
         allow create: if request.auth != null
           && request.resource.data.userId == request.auth.uid
           && request.auth.uid in groupDoc(groupId).data.memberIds
-          && pendingId == request.auth.uid + '_' + request.resource.data.activityId;
+          && pendingId == request.auth.uid + '_' + request.resource.data.activityId
+          && (
+            request.resource.data.avatarUrl == null
+            || request.resource.data.avatarUrl is string
+          );
 
         // Owner (queue) or submitter (Phase 9 withdraw). Submitter must still be a group member.
         allow delete: if isGroupOwner(groupId)

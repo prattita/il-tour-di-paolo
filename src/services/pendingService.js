@@ -1,5 +1,6 @@
 import { deleteDoc, doc, getDoc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore'
 import { getFirebaseDb } from '../lib/firebase'
+import { getGroupMember } from './activityService'
 import { deleteSubmissionPhotoByPath, uploadPendingPhoto } from './storageService'
 
 function requireDb() {
@@ -68,9 +69,13 @@ export async function createPendingSubmission({
     imageFile,
   )
 
+  const member = await getGroupMember(groupId, userId)
+  const avatarUrl = member?.avatarUrl ?? null
+
   await setDoc(pendingRef, {
     userId,
     displayName,
+    avatarUrl,
     activityId,
     activityName,
     taskId,
