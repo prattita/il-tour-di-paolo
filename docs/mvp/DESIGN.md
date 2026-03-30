@@ -308,7 +308,7 @@ batch.commit()
 | Group Feed | `/group/:groupId/feed` | Group member |
 | Group Info | `/group/:groupId/info` | Group member |
 | Activity List | `/group/:groupId/activities` | Group member |
-| Complete a Task | `/group/:groupId/activity/:activityId/task/:taskId` | Group member |
+| Complete a Task | `/group/:groupId/complete` (optional query `activityId`, `taskId` for locked mode). Legacy path `/group/:groupId/activity/:activityId/task/:taskId` redirects to the canonical URL. | Group member |
 | User Profile | `/group/:groupId/profile/:userId` | Group member |
 | Group Settings | `/group/:groupId/settings` | Owner only |
 | Pending Approvals | `/group/:groupId/approvals` | Owner only |
@@ -706,7 +706,7 @@ service firebase.storage {
 - [x] Task status rendering (empty / pending / approved / blocked)
 - [x] One pending submission per activity rule enforced in UI
 - [x] "Awaiting approval before next task" hint when blocked
-- [x] Task completion form (image upload required, description optional) — `/group/:groupId/activity/:activityId/task/:taskId`
+- [x] Task completion form (image upload required, description optional) — `/group/:groupId/complete` (+ query / legacy redirect; Phase One quick completion)
 - [x] Firebase Storage upload to `/images/{pendingId}/{photoId}/photo` where `pendingId` = `{userId}_{activityId}` and `photoId` is per-attempt
 - [x] Write pending doc to `groups/.../pending/{pendingId}` (composite id; client rejects duplicate pending before write)
 - [x] Block all other incomplete tasks in activity while submission pending

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { useGroupCompletionPickerData } from '../hooks/useGroupCompletionPickerData'
+import { hasAnyEligibleCompletionActivity } from '../lib/completionEligibility'
 import { MedalBadge } from '../components/MedalBadge'
 import { subscribeGroupFeed } from '../services/feedService'
 import { getGroup } from '../services/groupService'
@@ -112,6 +114,20 @@ export function GroupFeedPage() {
 
   const isMember = Boolean(user?.uid && group?.memberIds?.includes(user.uid))
 
+  const {
+    activities,
+    member,
+    pendingByActivityId,
+    pickerDataReady,
+    isMember: completionMember,
+  } = useGroupCompletionPickerData(groupId, user?.uid)
+
+  const showCompleteFab =
+    Boolean(groupId) &&
+    pickerDataReady &&
+    completionMember &&
+    hasAnyEligibleCompletionActivity(activities, member, pendingByActivityId)
+
   useEffect(() => {
     if (!groupId || !isMember) return
     setFeedError('')
@@ -124,7 +140,9 @@ export function GroupFeedPage() {
   }, [groupId, isMember])
 
   return (
-    <div className="text-tour-text">
+    <div
+      className={`relative text-tour-text ${showCompleteFab ? 'pb-[calc(5rem+env(safe-area-inset-bottom,0px))]' : ''}`}
+    >
       <div className="mb-4 border-b border-black/10 pb-3 lg:hidden">
         <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
           Il Tour di Paolo
@@ -228,6 +246,23 @@ export function GroupFeedPage() {
           )
         })}
       </div>
+
+      {showCompleteFab && (
+        <Link
+          to={`/group/${groupId}/complete`}
+          className="fixed bottom-[max(1rem,env(safe-area-inset-bottom,0px))] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-tour-accent text-white shadow-lg hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-tour-accent focus-visible:ring-offset-2"
+          aria-label="Complete a task"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path
+              d="M12 5v14M5 12h14"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </Link>
+      )}
     </div>
   )
 }

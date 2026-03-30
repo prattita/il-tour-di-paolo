@@ -10,6 +10,7 @@ import { JoinGroupPage } from './pages/JoinGroupPage'
 import { GroupFeedPage } from './pages/GroupFeedPage'
 import { ActivityListPage } from './pages/ActivityListPage'
 import { TaskCompletePage } from './pages/TaskCompletePage'
+import { LegacyTaskCompleteRedirect } from './pages/LegacyTaskCompleteRedirect'
 import { GroupInfoPage } from './pages/GroupInfoPage'
 import { GroupProfilePage } from './pages/GroupProfilePage'
 import { GroupApprovalsPage } from './pages/GroupApprovalsPage'
@@ -61,10 +62,18 @@ export default function App() {
             }
           />
           <Route
-            path="/group/:groupId/activity/:activityId/task/:taskId"
+            path="/group/:groupId/complete"
             element={
               <ProtectedRoute>
                 <TaskCompletePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/group/:groupId/activity/:activityId/task/:taskId"
+            element={
+              <ProtectedRoute>
+                <LegacyTaskCompleteRedirect />
               </ProtectedRoute>
             }
           />

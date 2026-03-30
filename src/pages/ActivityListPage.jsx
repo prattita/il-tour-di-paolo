@@ -277,7 +277,10 @@ export function ActivityListPage() {
                   <ul className="divide-y divide-black/10">
                     {tasks.map((task) => {
                       const status = getTaskStatus(task, progress, pendingDoc)
-                      const completePath = `/group/${groupId}/activity/${activity.id}/task/${task.id}`
+                      const completePath = `/group/${groupId}/complete?${new URLSearchParams({
+                        activityId: activity.id,
+                        taskId: task.id,
+                      }).toString()}`
 
                       const completePillClass =
                         'shrink-0 rounded-full border border-tour-accent px-2.5 py-1 text-[11px] font-medium text-tour-accent-foreground'

@@ -10,17 +10,34 @@
 
 A floating action button (FAB) on the Feed screen gives members a fast path to submit a task completion without opening the Activities page first. The existing task completion page gains a **second entry mode**: either **locked** (activity + task fixed, today’s behavior) or **picker** (two dropdowns, then the same upload + submit flow).
 
+**Scope:** No new Firestore collections; reuse `members` progress, activity definitions, and `pending/{userId}_{activityId}` existence — same inputs as the Activities list ([DESIGN.md §5](../mvp/DESIGN.md), [§7.4](../mvp/DESIGN.md)).
+
+---
+
+## Alignment with DESIGN.md
+
+| Topic | Where in DESIGN | How this feature follows it |
+| --- | --- | --- |
+| Task completion shell | §6.1 — focused top bar with **Back**, **not** the group drawer/sidebar | Register **`/group/:groupId/complete`** as a **sibling** route to `GroupLayout` in `App.jsx` (same as today’s task URL), not nested under `/group/:groupId/*` children. |
+| One pending per user per activity | §7.4, §5 `pending` id | Dropdown 1 excludes activities where this user already has a pending doc; task dropdown excludes the task currently held in that pending doc. |
+| Withdraw | Phase 9 / §7.5 | After withdraw, the activity becomes eligible again — same as Activities list. |
+| Route table | §6 | After ship, update the **Complete a Task** row to the canonical URL + legacy redirect note. |
+
 ---
 
 ## Note on activity participation
 
-All members are enrolled in all activities by default. Dropdown 1 lists only activities where **this user** still has something they are allowed to submit: not all three tasks approved yet, and **no blocking pending submission** for that activity (see [DESIGN.md §7.4](../mvp/DESIGN.md) — one in-flight submission per user per activity). Activities with nothing left to do are omitted.
+**Today (MVP):** Every member is treated as enrolled in all activities for completion purposes; Group Info does not yet expose `selectedActivityIds` join UI ([DESIGN.md §6.2](../mvp/DESIGN.md)).
+
+**Fast-follow (`selectedActivityIds` on `members/{uid}`):** When that ships, Dropdown 1 must list only activities the member **participates** in — same rule as Activities: `null` / missing ⇒ all activities; non-empty array ⇒ only those ids; `[]` ⇒ no participating activities (FAB hidden; direct URL shows the empty state).
+
+Until then, the implementation can assume “all activities” and still call a small helper (e.g. `memberParticipatesInActivity(member, activityId)`) so the rule lives in one place when selection UI lands.
 
 ---
 
 ## FAB — Feed screen
 
-A floating action button sits fixed at the bottom-right of the **Feed** view, above scrollable content (respect `safe-area-inset-bottom` on notched devices).
+A floating action button sits fixed at the bottom-right of the **Feed** view, above scrollable content (respect `safe-area-inset-bottom` on notched devices). Ensure the FAB sits **above** the scrollable feed (z-index) so it does not scroll away.
 
 ```
 ┌─────────────────────────┐
@@ -33,7 +50,8 @@ A floating action button sits fixed at the bottom-right of the **Feed** view, ab
 
 - Tap → navigate to the task completion URL **without** `activityId` / `taskId` search params (picker mode).
 - Shown **only** on the Feed route (`/group/:groupId/feed`).
-- Size: **56×56 dp**, circular, elevated with a subtle shadow (Material-style FAB).
+- Size: **56×56 CSS px** (e.g. Tailwind `h-14 w-14`), circular, elevated with a subtle shadow; primary fill should match the app accent ([DESIGN.md §13](../mvp/DESIGN.md) — green `#1D9E75` / `@theme` tokens).
+- **Accessibility:** `aria-label` such as “Complete a task” (or equivalent Italian copy if the UI is localized later).
 
 ### FAB visibility
 
@@ -64,6 +82,16 @@ The **owner’s approval queue** (empty vs non-empty) does **not** affect FAB vi
 /group/:groupId/complete
 ```
 
+### Routing implementation (`App.jsx`)
+
+`TaskCompletePage` must remain **outside** `GroupLayout` ([DESIGN.md §6.1](../mvp/DESIGN.md) — focused header, not burger shell). Add:
+
+```text
+/group/:groupId/complete → same element/wrapper as legacy task route
+```
+
+Do **not** nest `complete` under the `/group/:groupId` route that renders `GroupLayout`.
+
 ### Legacy route (redirect)
 
 MVP registers the completion page at:
@@ -75,11 +103,9 @@ MVP registers the completion page at:
 When implementing this feature:
 
 - Point **Activities** list links at the canonical URL with the same ids as search params.
-- Keep **redirect** from the legacy path to  
+- Keep a **redirect** from the legacy path to  
   `/group/:groupId/complete?activityId=...&taskId=...`  
   so bookmarks and shared links keep working.
-
-**Implementation detail:** `TaskCompletePage` today lives **outside** the `GroupLayout` nested routes ([App.jsx](../../src/App.jsx)); add `/group/:groupId/complete` alongside it with the same shell/header pattern unless you intentionally move it.
 
 When shipped, update the **Complete a Task** row in DESIGN.md §6 to describe the canonical URL and mention the legacy redirect.
 
@@ -87,19 +113,24 @@ When shipped, update the **Complete a Task** row in DESIGN.md §6 to describe th
 
 ## Updated task completion page
 
-Two modes, chosen from the URL.
+Two modes, chosen from the URL and param validity.
 
 ### Mode A — From Activities (locked)
 
-When both `activityId` and `taskId` search params are present **and** valid for this user:
+When **both** `activityId` and `taskId` search params are present, each **parses to a non-empty string**, and both resolve to a valid activity + task **for this group**:
 
-- Resolve activity + task; if invalid or user cannot submit that task, show the same gate / error patterns as today (not found, not a member, already completed, blocked by pending, etc.).
+- If invalid or the user cannot submit that task, show the same gate / error patterns as today (not found, not a member, already completed, blocked by pending, etc.).
 - Show **read-only** activity + task fields (no chevrons — muted “summary” styling is fine).
 - Show the **upload form immediately** (image required, description optional, submit for review) — same as MVP.
 
 ### Mode B — From Feed FAB (picker)
 
-When **either** search param is missing:
+Use picker mode when:
+
+- Neither query param is present, **or**
+- **Malformed query:** only one of `activityId` or `taskId` is present — do **not** partially lock; treat as picker (empty or partially filled dropdowns). Optionally `replace` the URL to `/group/:groupId/complete` to drop orphan params.
+
+Then:
 
 - Show **Dropdown 1 — Activity** and **Dropdown 2 — Task** as below.
 - Upload form stays **hidden** until both selections are valid.
@@ -134,6 +165,7 @@ After both are chosen, the form below matches MVP (image, description, submit).
 - Includes activities where the user has **not** had all three tasks **approved** yet.
 - **Excludes** activities where all three tasks are already approved.
 - **Excludes** activities where this user already has a **pending** submission (same rule as Activities UI — [DESIGN.md §7.4](../mvp/DESIGN.md)).
+- When `selectedActivityIds` is active: intersect with the member’s participating activities (see **Note on activity participation**).
 - Sort: **alphabetical** by activity name.
 - Placeholder: `Select activity`.
 
@@ -141,7 +173,7 @@ After both are chosen, the form below matches MVP (image, description, submit).
 
 - Disabled until Dropdown 1 has a selection.
 - Options = tasks for that activity that are **not** approved yet.
-- **Excludes** tasks that are **pending** for that activity (only one pending per activity; the pending row always corresponds to one task).
+- **Excludes** the task currently in **pending** for that activity (only one pending per activity; the pending row always corresponds to one task).
 - Sort: **task order** (1 → 2 → 3).
 - Placeholder: `Select task` (disabled styling until activity chosen).
 
@@ -173,29 +205,37 @@ Use the **same inputs** as the Activities page: current user’s `members/{uid}.
 
 ---
 
-## Edge case — no eligible activities
+## Edge cases
+
+### No eligible activities
 
 If the user has no activities they can still submit to, **hide the FAB**. If they open `/group/:groupId/complete` anyway (direct URL), show:
 
-```
+```text
 You have no remaining tasks to submit.
 All your activities are complete or pending review.
 ```
+
+### Group has no activities yet
+
+Same as above from the member’s perspective (nothing to select). If you want clearer copy for owners (`activityCount === 0`), optional follow-up: one line such as “Activities will appear here once the group owner adds them” — not required for v1 if this edge is rare.
 
 ---
 
 ## Implementation checklist
 
-- [ ] Add FAB on Feed only; fixed bottom-right; hide when no eligible activities
-- [ ] Register `/group/:groupId/complete`; read `activityId` + `taskId` from **`useSearchParams`** (query string)
-- [ ] Redirect legacy `/group/:groupId/activity/:activityId/task/:taskId` → canonical URL with query
-- [ ] Point Activities **Complete** links at `/group/:groupId/complete?...`
-- [ ] Picker: Activity dropdown (filters: not fully approved, no pending for activity)
-- [ ] Picker: Task dropdown (depends on activity; exclude approved + pending task)
-- [ ] Reset task + hide form when activity changes
-- [ ] Locked mode: read-only activity/task + show form when params valid
-- [ ] Empty state when picker has no eligible activities
-- [ ] Update DESIGN.md §6 route row after ship
+- [x] Add FAB on Feed only; fixed bottom-right; `safe-area-inset-bottom`; z-index above feed; hide when no eligible activities
+- [x] `aria-label` on FAB
+- [x] Register `/group/:groupId/complete` **outside** `GroupLayout`; read `activityId` + `taskId` from **`useSearchParams`**
+- [x] Malformed query (only one param) → picker mode; optional URL `replace` to strip orphans
+- [x] Redirect legacy `/group/:groupId/activity/:activityId/task/:taskId` → canonical URL with query
+- [x] Point Activities **Complete** links at `/group/:groupId/complete?...`
+- [x] Picker: Activity dropdown (filters: not fully approved, no pending for activity; future: `selectedActivityIds`)
+- [x] Picker: Task dropdown (depends on activity; exclude approved + pending task)
+- [x] Reset task + hide form when activity changes
+- [x] Locked mode: read-only activity/task + show form when params valid
+- [x] Empty state when picker has no eligible activities
+- [x] Update DESIGN.md §6 route row after ship
 
 ---
 
@@ -207,3 +247,10 @@ All your activities are complete or pending review.
 | Pre-fill FAB from “last used” activity | Unpredictable; users often switch activities. |
 | Single combined activity+task control | Too long to scan; two steps are clearer. |
 | List completed activities | No actionable submit path; noise in the menu. |
+| Nest `/complete` under `GroupLayout` | Would show drawer/sidebar; contradicts DESIGN §6.1 focused completion flow. |
+
+---
+
+## Rename note
+
+This spec previously lived at `quicktaskcompletition-onepager.md` (typo). Use **`quicktaskcompletion-onepager.md`** as the canonical filename.
