@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { MedalBadge } from '../components/MedalBadge'
 import { subscribeGroupFeed } from '../services/feedService'
@@ -156,33 +156,51 @@ export function GroupFeedPage() {
 
       <div className="flex flex-col gap-2">
         {posts.map((post) => {
-          const isSystemPost = post.type === 'system'
-          return isSystemPost ? (
-            <article
-              key={post.id}
-              className="rounded-lg border border-black/10 bg-tour-muted px-3 py-2 text-center text-[12px] leading-snug text-tour-text-secondary"
+          if (post.type === 'system') {
+            return (
+              <article
+                key={post.id}
+                className="rounded-lg border border-black/10 bg-tour-muted px-3 py-2 text-center text-[12px] leading-snug text-tour-text-secondary"
+              >
+                {post.message || 'Update'}
+              </article>
+            )
+          }
+
+          const headerBody = (
+            <>
+              <FeedAvatar displayName={post.displayName} seed={post.userId} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] font-medium text-tour-text">
+                  {post.displayName || 'Member'}
+                </p>
+                <p className="text-[11px] text-tour-text-secondary">
+                  {formatFeedTime(post.timestamp)}
+                </p>
+              </div>
+              {post.type === 'task_completion' && (
+                <MedalBadge tier={medalTierForPost(post.medal)} className="shrink-0" />
+              )}
+            </>
+          )
+          const rowClass = 'flex items-center gap-2 px-3 py-2.5'
+          const header = post.userId ? (
+            <Link
+              to={`/group/${groupId}/profile/${post.userId}`}
+              className={`${rowClass} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tour-accent focus-visible:ring-inset`}
             >
-              {post.message || 'Update'}
-            </article>
+              {headerBody}
+            </Link>
           ) : (
+            <div className={rowClass}>{headerBody}</div>
+          )
+
+          return (
             <article
               key={post.id}
               className="overflow-hidden rounded-xl border border-black/10 bg-tour-surface"
             >
-              <div className="flex items-center gap-2 px-3 py-2.5">
-                <FeedAvatar displayName={post.displayName} seed={post.userId} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-medium text-tour-text">
-                    {post.displayName || 'Member'}
-                  </p>
-                  <p className="text-[11px] text-tour-text-secondary">
-                    {formatFeedTime(post.timestamp)}
-                  </p>
-                </div>
-                {post.type === 'task_completion' && (
-                  <MedalBadge tier={medalTierForPost(post.medal)} className="shrink-0" />
-                )}
-              </div>
+              {header}
 
               {post.imageUrl ? (
                 <div className="relative h-[400px] w-full overflow-hidden bg-[#EAF3DE] sm:h-[600px]">
