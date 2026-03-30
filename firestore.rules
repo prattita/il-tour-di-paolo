@@ -119,7 +119,44 @@ service cloud.firestore {
 
       match /feed/{postId} {
         allow read: if isGroupMember(groupId);
-        allow write: if isGroupOwner(groupId);
+
+        // Owner-only create/delete (approval queue, system posts, moderation).
+        allow create, delete: if isGroupOwner(groupId);
+
+        // Owner: full post updates. Member: only `likes` or only `commentCount` (batched with comment writes).
+        allow update: if isGroupOwner(groupId)
+          || (
+            isGroupMember(groupId)
+            && (
+              (
+                request.resource.data.diff(resource.data).changedKeys().hasOnly(['likes'])
+                && (request.resource.data.likes == null || request.resource.data.likes is list)
+              )
+              || (
+                request.resource.data.diff(resource.data).changedKeys().hasOnly(['commentCount'])
+                && request.resource.data.commentCount is int
+                && request.resource.data.commentCount >= 0
+              )
+            )
+          );
+
+        match /comments/{commentId} {
+          allow read: if isGroupMember(groupId);
+
+          allow create: if isGroupMember(groupId)
+            && request.resource.data.userId == request.auth.uid
+            && request.resource.data.displayName is string
+            && request.resource.data.text is string
+            && request.resource.data.text.size() > 0
+            && request.resource.data.text.size() <= 500
+            && (request.resource.data.avatarUrl == null || request.resource.data.avatarUrl is string)
+            && request.resource.data.createdAt is timestamp;
+
+          allow delete: if isGroupOwner(groupId)
+            || (request.auth != null && resource.data.userId == request.auth.uid);
+
+          allow update: if false;
+        }
       }
     }
 

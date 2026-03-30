@@ -1,50 +1,58 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { useGroupCompletionPickerData } from '../hooks/useGroupCompletionPickerData'
 import { hasAnyEligibleCompletionActivity } from '../lib/completionEligibility'
-import { Avatar } from '../components/Avatar'
-import { MedalBadge } from '../components/MedalBadge'
-import { subscribeGroupFeed } from '../services/feedService'
-import { getGroup } from '../services/groupService'
+import { FeedPostCard } from '../components/FeedPostCard'
 import { PageLoading } from '../components/PageLoading'
+import { Avatar } from '../components/Avatar'
+import { subscribeGroupMembers } from '../services/activityService'
+import {
+  addFeedPostComment,
+  deleteFeedPostComment,
+  listFeedPostComments,
+  setFeedPostLiked,
+} from '../services/feedInteractionsService'
+import {
+  buildFeedSnapMap,
+  FEED_PAGE_SIZE,
+  fetchFeedOlderPage,
+  getFeedPost,
+  getOldestMergedFeedSnapshot,
+  mergeFeedPosts,
+  subscribeGroupFeedHead,
+} from '../services/feedService'
+import { getGroup } from '../services/groupService'
 
-/** Closer to mock “2 hours ago” / “Yesterday” than full locale string. */
-function formatFeedTime(value) {
-  if (!value) return ''
-  const d = typeof value.toDate === 'function' ? value.toDate() : value
-  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return ''
-
-  const now = Date.now()
-  const diffMs = now - d.getTime()
-  if (diffMs < 0) {
-    return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+function postMatchesFilters(post, userIds, activityIds) {
+  if (post.type === 'system') {
+    if (userIds.length > 0) return false
+    if (activityIds.length > 0) return false
+    return true
   }
-
-  const diffMin = Math.floor(diffMs / 60_000)
-  if (diffMin < 1) return 'Just now'
-  if (diffMin < 60) return `${diffMin}m ago`
-
-  const diffHr = Math.floor(diffMin / 60)
-  if (diffHr < 24) return `${diffHr}h ago`
-
-  const startOf = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
-  const dayDiff = Math.floor((startOf(new Date(now)) - startOf(d)) / 86_400_000)
-  if (dayDiff === 1) return 'Yesterday'
-  if (dayDiff < 7) {
-    return d.toLocaleDateString(undefined, { weekday: 'short' })
-  }
-
-  return d.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
-  })
+  if (userIds.length > 0 && !userIds.includes(post.userId)) return false
+  if (activityIds.length > 0 && !activityIds.includes(post.activityId)) return false
+  return true
 }
 
-function medalTierForPost(medal) {
-  if (medal === 'gold' || medal === 'silver' || medal === 'bronze') return medal
-  return 'none'
+function firstName(displayName) {
+  if (!displayName || typeof displayName !== 'string') return 'Member'
+  const part = displayName.trim().split(/\s+/)[0]
+  return part || 'Member'
+}
+
+function ChevronDownIcon({ className }) {
+  return (
+    <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M6 9l6 6 6-6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
 }
 
 export function GroupFeedPage() {
@@ -52,8 +60,24 @@ export function GroupFeedPage() {
   const { user } = useAuth()
   const [group, setGroup] = useState(null)
   const [loadingGroup, setLoadingGroup] = useState(true)
-  const [posts, setPosts] = useState([])
   const [feedError, setFeedError] = useState('')
+  const [headSnaps, setHeadSnaps] = useState([])
+  const [olderPageSnaps, setOlderPageSnaps] = useState([])
+  const [hasMoreOlder, setHasMoreOlder] = useState(false)
+  const [loadMoreLoading, setLoadMoreLoading] = useState(false)
+  const [postOverlay, setPostOverlay] = useState({})
+  const [members, setMembers] = useState([])
+
+  const [filterUserIds, setFilterUserIds] = useState([])
+  const [filterActivityIds, setFilterActivityIds] = useState([])
+  const filterBarRef = useRef(null)
+  const [filterMenuOpen, setFilterMenuOpen] = useState(null)
+
+  const [expandedPostId, setExpandedPostId] = useState(null)
+  const [commentsByPostId, setCommentsByPostId] = useState({})
+  const [commentsLoadingId, setCommentsLoadingId] = useState(null)
+  const [commentActionError, setCommentActionError] = useState('')
+  const [likeBusyId, setLikeBusyId] = useState(null)
 
   useEffect(() => {
     let active = true
@@ -76,6 +100,7 @@ export function GroupFeedPage() {
   }, [groupId])
 
   const isMember = Boolean(user?.uid && group?.memberIds?.includes(user.uid))
+  const isGroupOwner = Boolean(user?.uid && group?.ownerId === user.uid)
 
   const {
     activities,
@@ -92,15 +117,221 @@ export function GroupFeedPage() {
     hasAnyEligibleCompletionActivity(activities, member, pendingByActivityId)
 
   useEffect(() => {
+    if (!groupId || !isMember) {
+      setMembers([])
+      return
+    }
+    const unsub = subscribeGroupMembers(
+      groupId,
+      (list) => setMembers(list),
+      () => setMembers([]),
+    )
+    return () => unsub()
+  }, [groupId, isMember])
+
+  useEffect(() => {
     if (!groupId || !isMember) return
     setFeedError('')
-    const unsub = subscribeGroupFeed(
+    setHeadSnaps([])
+    setOlderPageSnaps([])
+    setHasMoreOlder(false)
+    setPostOverlay({})
+    setExpandedPostId(null)
+    setCommentsByPostId({})
+    setFilterUserIds([])
+    setFilterActivityIds([])
+    setFilterMenuOpen(null)
+
+    const unsub = subscribeGroupFeedHead(
       groupId,
-      (list) => setPosts(list),
+      ({ snapshots }) => {
+        setHeadSnaps(snapshots)
+        setPostOverlay((o) => {
+          const next = { ...o }
+          for (const d of snapshots) delete next[d.id]
+          return next
+        })
+      },
       (e) => setFeedError(e.message || 'Could not load feed.'),
     )
     return () => unsub()
   }, [groupId, isMember])
+
+  useEffect(() => {
+    if (olderPageSnaps.length > 0) return
+    setHasMoreOlder(headSnaps.length === FEED_PAGE_SIZE)
+  }, [headSnaps.length, olderPageSnaps.length])
+
+  const mergedPosts = useMemo(() => mergeFeedPosts(headSnaps, olderPageSnaps), [headSnaps, olderPageSnaps])
+
+  const snapMap = useMemo(
+    () => buildFeedSnapMap(headSnaps, olderPageSnaps),
+    [headSnaps, olderPageSnaps],
+  )
+
+  const displayPosts = useMemo(
+    () => mergedPosts.map((p) => postOverlay[p.id] ?? p),
+    [mergedPosts, postOverlay],
+  )
+
+  const filteredPosts = useMemo(
+    () => displayPosts.filter((p) => postMatchesFilters(p, filterUserIds, filterActivityIds)),
+    [displayPosts, filterUserIds, filterActivityIds],
+  )
+
+  const firstImagePostId = useMemo(() => {
+    for (const p of filteredPosts) {
+      if (p.type !== 'system' && p.imageUrl) return p.id
+    }
+    return null
+  }, [filteredPosts])
+
+  const loadMore = useCallback(async () => {
+    if (!groupId || loadMoreLoading) return
+    const cursor = getOldestMergedFeedSnapshot(mergedPosts, snapMap)
+    if (!cursor) return
+    setLoadMoreLoading(true)
+    setFeedError('')
+    try {
+      const { snapshots, hasMore } = await fetchFeedOlderPage(groupId, cursor)
+      setOlderPageSnaps((p) => [...p, snapshots])
+      setHasMoreOlder(hasMore)
+    } catch (e) {
+      setFeedError(e.message || 'Could not load older posts.')
+    } finally {
+      setLoadMoreLoading(false)
+    }
+  }, [groupId, loadMoreLoading, mergedPosts, snapMap])
+
+  const addUserFilter = (uid) => {
+    setFilterUserIds((prev) => (prev.includes(uid) ? prev : [...prev, uid]))
+  }
+
+  const addActivityFilter = (aid) => {
+    setFilterActivityIds((prev) => (prev.includes(aid) ? prev : [...prev, aid]))
+  }
+
+  const removeUserFilter = (uid) => {
+    setFilterUserIds((prev) => prev.filter((x) => x !== uid))
+  }
+
+  const removeActivityFilter = (aid) => {
+    setFilterActivityIds((prev) => prev.filter((x) => x !== aid))
+  }
+
+  const clearFilters = () => {
+    setFilterUserIds([])
+    setFilterActivityIds([])
+    setFilterMenuOpen(null)
+  }
+
+  const filterActive = filterUserIds.length > 0 || filterActivityIds.length > 0
+
+  const membersPickList = useMemo(
+    () => members.filter((m) => !filterUserIds.includes(m.id)),
+    [members, filterUserIds],
+  )
+
+  const activitiesPickList = useMemo(
+    () => activities.filter((a) => !filterActivityIds.includes(a.id)),
+    [activities, filterActivityIds],
+  )
+
+  useEffect(() => {
+    if (!filterMenuOpen) return
+    function onPointerDown(e) {
+      if (filterBarRef.current && !filterBarRef.current.contains(e.target)) {
+        setFilterMenuOpen(null)
+      }
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') setFilterMenuOpen(null)
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [filterMenuOpen])
+
+  const toggleComments = useCallback(
+    async (postId) => {
+      setCommentActionError('')
+      if (expandedPostId === postId) {
+        setExpandedPostId(null)
+        return
+      }
+      setExpandedPostId(postId)
+      if (!commentsByPostId[postId]) {
+        setCommentsLoadingId(postId)
+        try {
+          const list = await listFeedPostComments(groupId, postId)
+          setCommentsByPostId((prev) => ({ ...prev, [postId]: list }))
+        } catch (e) {
+          setCommentActionError(e.message || 'Could not load comments.')
+        } finally {
+          setCommentsLoadingId(null)
+        }
+      }
+    },
+    [commentsByPostId, expandedPostId, groupId],
+  )
+
+  const handleSubmitComment = useCallback(
+    async (postId, text) => {
+      if (!user?.uid) return
+      setCommentActionError('')
+      try {
+        await addFeedPostComment(groupId, postId, {
+          userId: user.uid,
+          displayName: member?.displayName || user.displayName || 'Member',
+          avatarUrl: member?.avatarUrl ?? null,
+          text,
+        })
+        const list = await listFeedPostComments(groupId, postId)
+        setCommentsByPostId((prev) => ({ ...prev, [postId]: list }))
+      } catch (e) {
+        setCommentActionError(e.message || 'Could not post comment.')
+        throw e
+      }
+    },
+    [groupId, member, user],
+  )
+
+  const handleDeleteComment = useCallback(
+    async (postId, commentId) => {
+      setCommentActionError('')
+      try {
+        await deleteFeedPostComment(groupId, postId, commentId)
+        const list = await listFeedPostComments(groupId, postId)
+        setCommentsByPostId((prev) => ({ ...prev, [postId]: list }))
+      } catch (e) {
+        setCommentActionError(e.message || 'Could not delete comment.')
+      }
+    },
+    [groupId],
+  )
+
+  const handleLike = useCallback(
+    async (post) => {
+      if (!user?.uid || !groupId) return
+      const likes = Array.isArray(post.likes) ? post.likes : []
+      const nextLiked = !likes.includes(user.uid)
+      setLikeBusyId(post.id)
+      setFeedError('')
+      try {
+        await setFeedPostLiked(groupId, post.id, user.uid, nextLiked)
+        const fresh = await getFeedPost(groupId, post.id)
+        if (fresh) setPostOverlay((o) => ({ ...o, [post.id]: fresh }))
+      } catch (e) {
+        setFeedError(e.message || 'Could not update like.')
+      } finally {
+        setLikeBusyId(null)
+      }
+    },
+    [groupId, user?.uid],
+  )
 
   return (
     <div
@@ -115,9 +346,7 @@ export function GroupFeedPage() {
 
       {loadingGroup && <PageLoading />}
 
-      {!loadingGroup && !group && (
-        <p className="text-sm text-tour-text-secondary">Group not found.</p>
-      )}
+      {!loadingGroup && !group && <p className="text-sm text-tour-text-secondary">Group not found.</p>}
 
       {!loadingGroup && group && !isMember && (
         <p className="text-sm text-tour-text-secondary">You are not a member of this group.</p>
@@ -129,14 +358,227 @@ export function GroupFeedPage() {
         </div>
       )}
 
-      {!loadingGroup && isMember && !feedError && posts.length === 0 && (
+      {isMember && (
+        <div className="mb-3 rounded-xl border border-black/10 bg-tour-surface px-3 py-2">
+          <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-tour-text-secondary">
+            Filter feed
+          </p>
+          <div
+            ref={filterBarRef}
+            className="flex flex-wrap items-center gap-1.5"
+          >
+            <button
+              type="button"
+              onClick={() => {
+                clearFilters()
+              }}
+              className={[
+                'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
+                !filterActive
+                  ? 'border-tour-accent bg-tour-accent-muted text-tour-accent-foreground'
+                  : 'border-black/15 bg-tour-muted text-tour-text-secondary hover:bg-black/[0.04]',
+              ].join(' ')}
+            >
+              All
+            </button>
+
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() =>
+                  setFilterMenuOpen((prev) => (prev === 'people' ? null : 'people'))
+                }
+                aria-haspopup="listbox"
+                aria-expanded={filterMenuOpen === 'people'}
+                className={[
+                  'inline-flex shrink-0 items-center gap-0.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
+                  filterMenuOpen === 'people' || filterUserIds.length > 0
+                    ? 'border-tour-accent/50 bg-tour-accent-muted/40 text-tour-accent-foreground'
+                    : 'border-black/15 bg-tour-muted text-tour-text-secondary hover:bg-black/[0.04]',
+                ].join(' ')}
+              >
+                People
+                <ChevronDownIcon
+                  className={[
+                    'opacity-80 transition-transform',
+                    filterMenuOpen === 'people' ? 'rotate-180' : '',
+                  ].join(' ')}
+                />
+              </button>
+              {filterMenuOpen === 'people' ? (
+                <ul
+                  className="absolute left-0 top-[calc(100%+6px)] z-30 max-h-48 min-w-[12rem] overflow-y-auto rounded-xl border border-black/10 bg-tour-surface py-1 shadow-lg"
+                  role="listbox"
+                >
+                  {membersPickList.length === 0 ? (
+                    <li className="px-3 py-2 text-[12px] text-tour-text-secondary">No one left to add.</li>
+                  ) : (
+                    membersPickList.map((m) => (
+                      <li key={m.id} role="option">
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-tour-text hover:bg-tour-muted"
+                          onClick={() => {
+                            addUserFilter(m.id)
+                            setFilterMenuOpen(null)
+                          }}
+                        >
+                          <Avatar
+                            avatarUrl={m.avatarUrl}
+                            displayName={m.displayName}
+                            seed={m.id}
+                            className="h-7 w-7 text-[10px]"
+                            alt=""
+                          />
+                          <span className="min-w-0 truncate">{m.displayName || 'Member'}</span>
+                        </button>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              ) : null}
+            </div>
+
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() =>
+                  setFilterMenuOpen((prev) => (prev === 'activities' ? null : 'activities'))
+                }
+                aria-haspopup="listbox"
+                aria-expanded={filterMenuOpen === 'activities'}
+                className={[
+                  'inline-flex shrink-0 items-center gap-0.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
+                  filterMenuOpen === 'activities' || filterActivityIds.length > 0
+                    ? 'border-tour-accent/50 bg-tour-accent-muted/40 text-tour-accent-foreground'
+                    : 'border-black/15 bg-tour-muted text-tour-text-secondary hover:bg-black/[0.04]',
+                ].join(' ')}
+              >
+                Activities
+                <ChevronDownIcon
+                  className={[
+                    'opacity-80 transition-transform',
+                    filterMenuOpen === 'activities' ? 'rotate-180' : '',
+                  ].join(' ')}
+                />
+              </button>
+              {filterMenuOpen === 'activities' ? (
+                <ul
+                  className="absolute left-0 top-[calc(100%+6px)] z-30 max-h-48 min-w-[12rem] overflow-y-auto rounded-xl border border-black/10 bg-tour-surface py-1 shadow-lg"
+                  role="listbox"
+                >
+                  {activitiesPickList.length === 0 ? (
+                    <li className="px-3 py-2 text-[12px] text-tour-text-secondary">
+                      No activities left to add.
+                    </li>
+                  ) : (
+                    activitiesPickList.map((a) => (
+                      <li key={a.id} role="option">
+                        <button
+                          type="button"
+                          className="w-full px-3 py-2 text-left text-[13px] text-tour-text hover:bg-tour-muted"
+                          onClick={() => {
+                            addActivityFilter(a.id)
+                            setFilterMenuOpen(null)
+                          }}
+                        >
+                          {a.name || 'Activity'}
+                        </button>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              ) : null}
+            </div>
+
+            {filterUserIds.map((uid) => {
+              const m = members.find((x) => x.id === uid)
+              const label = m ? firstName(m.displayName) : 'Member'
+              return (
+                <div
+                  key={uid}
+                  className="inline-flex max-w-[min(100%,11rem)] shrink-0 items-center gap-1 rounded-full border border-tour-accent bg-tour-accent-muted pl-1.5 pr-0.5 text-[11px] font-medium text-tour-accent-foreground"
+                >
+                  {m ? (
+                    <Avatar
+                      avatarUrl={m.avatarUrl}
+                      displayName={m.displayName}
+                      seed={m.id}
+                      className="h-5 w-5 text-[8px]"
+                      alt=""
+                    />
+                  ) : null}
+                  <span className="min-w-0 truncate">{label}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeUserFilter(uid)}
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-red-600 hover:bg-red-500/10"
+                    aria-label={`Remove ${label} from filter`}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path
+                        d="M6 6l12 12M18 6L6 18"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              )
+            })}
+
+            {filterActivityIds.map((aid) => {
+              const a = activities.find((x) => x.id === aid)
+              const label = a?.name || 'Activity'
+              return (
+                <div
+                  key={aid}
+                  className="inline-flex max-w-[min(100%,12rem)] shrink-0 items-center gap-1 rounded-full border border-tour-accent bg-tour-accent-muted pl-2 pr-0.5 text-[11px] font-medium text-tour-accent-foreground"
+                >
+                  <span className="min-w-0 truncate">{label}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeActivityFilter(aid)}
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-red-600 hover:bg-red-500/10"
+                    aria-label={`Remove ${label} from filter`}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path
+                        d="M6 6l12 12M18 6L6 18"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {!loadingGroup && isMember && !feedError && mergedPosts.length === 0 && (
         <p className="rounded-xl border border-black/10 bg-tour-surface p-4 text-sm text-tour-text-secondary">
           No posts yet. Approved task completions appear here.
         </p>
       )}
 
+      {filterActive && mergedPosts.length > 0 && filteredPosts.length === 0 && (
+        <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-950">
+          No posts match these filters in what you&apos;ve loaded. Try clearing filters or load more posts.
+        </p>
+      )}
+
+      {filterActive && filteredPosts.length > 0 && filteredPosts.length < mergedPosts.length && (
+        <p className="mb-3 text-[12px] text-tour-text-secondary">
+          Showing {filteredPosts.length} of {mergedPosts.length} loaded posts. Load more to widen the pool.
+        </p>
+      )}
+
       <div className="flex flex-col gap-2">
-        {posts.map((post) => {
+        {filteredPosts.map((post) => {
           if (post.type === 'system') {
             return (
               <article
@@ -148,73 +590,40 @@ export function GroupFeedPage() {
             )
           }
 
-          const headerBody = (
-            <>
-              <Avatar
-                avatarUrl={post.avatarUrl}
-                displayName={post.displayName}
-                seed={post.userId}
-                className="h-8 w-8 text-[12px]"
-                alt=""
-              />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-medium text-tour-text">
-                  {post.displayName || 'Member'}
-                </p>
-                <p className="text-[11px] text-tour-text-secondary">
-                  {formatFeedTime(post.timestamp)}
-                </p>
-              </div>
-              {post.type === 'task_completion' && (
-                <MedalBadge tier={medalTierForPost(post.medal)} className="shrink-0" />
-              )}
-            </>
-          )
-          const rowClass = 'flex items-center gap-2 px-3 py-2.5'
-          const header = post.userId ? (
-            <Link
-              to={`/group/${groupId}/profile/${post.userId}`}
-              className={`${rowClass} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tour-accent focus-visible:ring-inset`}
-            >
-              {headerBody}
-            </Link>
-          ) : (
-            <div className={rowClass}>{headerBody}</div>
-          )
-
           return (
-            <article
+            <FeedPostCard
               key={post.id}
-              className="overflow-hidden rounded-xl border border-black/10 bg-tour-surface"
-            >
-              {header}
-
-              {post.imageUrl ? (
-                <div className="relative h-[400px] w-full overflow-hidden bg-[#EAF3DE] sm:h-[600px]">
-                  <img
-                    src={post.imageUrl}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div className="flex h-[400px] w-full items-center justify-center bg-[#EAF3DE] sm:h-[600px]">
-                  <span className="text-[11px] text-[#3B6D11]">Photo</span>
-                </div>
-              )}
-
-              <div className="px-3 py-2.5">
-                <p className="mb-1 text-[13px] text-tour-text">
-                  Completed &quot;{post.taskName || 'Task'}&quot; in {post.activityName || 'Activity'}
-                </p>
-                {post.description ? (
-                  <p className="text-[12px] leading-snug text-tour-text-secondary">{post.description}</p>
-                ) : null}
-              </div>
-            </article>
+              post={post}
+              groupId={groupId}
+              isHeroImage={post.id === firstImagePostId}
+              currentUserId={user?.uid}
+              isGroupOwner={isGroupOwner}
+              expanded={expandedPostId === post.id}
+              onToggleComments={() => toggleComments(post.id)}
+              comments={commentsByPostId[post.id] || []}
+              commentsLoading={commentsLoadingId === post.id}
+              onSubmitComment={(text) => handleSubmitComment(post.id, text)}
+              onDeleteComment={(cid) => handleDeleteComment(post.id, cid)}
+              commentError={expandedPostId === post.id ? commentActionError : ''}
+              onLikeToggle={() => handleLike(post)}
+              likeBusy={likeBusyId === post.id}
+            />
           )
         })}
       </div>
+
+      {isMember && hasMoreOlder && (
+        <div className="mt-4 flex justify-center">
+          <button
+            type="button"
+            disabled={loadMoreLoading}
+            onClick={() => loadMore()}
+            className="rounded-lg border border-black/15 bg-tour-surface px-4 py-2 text-[13px] font-medium text-tour-text hover:bg-tour-muted disabled:opacity-60"
+          >
+            {loadMoreLoading ? 'Loading…' : 'Load more'}
+          </button>
+        </div>
+      )}
 
       {showCompleteFab && (
         <Link

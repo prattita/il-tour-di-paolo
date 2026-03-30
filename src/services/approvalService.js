@@ -112,6 +112,8 @@ export async function approvePendingSubmission(groupId, pendingId, pending) {
       description: pending.description ?? null,
       type: 'task_completion',
       timestamp: serverTimestamp(),
+      likes: [],
+      commentCount: 0,
     })
 
     const memberUpdate = { progress }

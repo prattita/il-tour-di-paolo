@@ -137,6 +137,7 @@ export async function addGroupActivity(groupId, activityInput, ownerDisplayName)
     type: 'system',
     message: `${who} added a new activity: ${name}`,
     timestamp: serverTimestamp(),
+    commentCount: 0,
   })
   await batch.commit()
   return { activityId: activityRef.id }
