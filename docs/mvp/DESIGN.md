@@ -422,6 +422,7 @@ batch.commit()
 ### 7.8 User Profile
 - Medal summary at top: Gold N/N · Silver N/N · Bronze N/N (N/N = earned of total activities)
 - Per-activity breakdown (MVP): activity name, tasks completed (e.g. "2 of 3 tasks"), medal badge (or — if none yet)
+- **Phase Two:** On this screen only, members can open the **profile photo larger** (fullscreen lightbox): tap another member’s avatar, or **View photo** on your own profile (`docs/phase-two/expandProfileImage-onepager.md`). Avatars elsewhere (feed, shell, etc.) do not expand.
 - **Stretch:** optional progress bar per activity (mockups may show for inspiration only; see §2)
 
 ### 7.9 Group Settings (Owner Only)

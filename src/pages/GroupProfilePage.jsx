@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Avatar } from '../components/Avatar'
+import { FeedPhotoLightbox } from '../components/FeedPhotoLightbox'
 import { useAuth } from '../context/useAuth'
 import { MedalBadge } from '../components/MedalBadge'
 import { subscribeActivities, subscribeGroupMember } from '../services/activityService'
@@ -59,6 +60,9 @@ export function GroupProfilePage() {
   const [listError, setListError] = useState('')
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [avatarError, setAvatarError] = useState('')
+  const [avatarLightboxOpen, setAvatarLightboxOpen] = useState(false)
+  /** Hero URL failed to load — hide self “View photo” and avoid empty lightbox. */
+  const [profileHeroPhotoFailed, setProfileHeroPhotoFailed] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -103,6 +107,14 @@ export function GroupProfilePage() {
     }
   }, [groupId, userId, subjectInGroup])
 
+  useEffect(() => {
+    setProfileHeroPhotoFailed(false)
+  }, [subjectMember?.avatarUrl])
+
+  useEffect(() => {
+    if (!subjectMember?.avatarUrl) setAvatarLightboxOpen(false)
+  }, [subjectMember?.avatarUrl])
+
   const total = activities.length
   const counts = useMemo(
     () => inclusiveMedalCounts(activities, subjectMember?.progress),
@@ -111,6 +123,12 @@ export function GroupProfilePage() {
 
   const displayName = subjectMember?.displayName
   const isSelf = Boolean(user?.uid && userId && user.uid === userId)
+  const canExpandProfilePhoto = Boolean(
+    subjectMember?.avatarUrl && !profileHeroPhotoFailed && !avatarUploading,
+  )
+  const profilePhotoAlt = displayName
+    ? `Profile photo of ${displayName}`
+    : 'Profile photo'
 
   async function handleAvatarFile(ev) {
     const file = ev.target.files?.[0]
@@ -177,6 +195,7 @@ export function GroupProfilePage() {
                     seed={userId}
                     className="h-16 w-16 text-[16px]"
                     alt=""
+                    onPhotoLoadError={() => setProfileHeroPhotoFailed(true)}
                   />
                   <span
                     className="pointer-events-none absolute bottom-0 right-0 z-10 flex h-8 w-8 items-center justify-center rounded-full border-[3px] border-tour-surface bg-tour-accent text-white shadow-md"
@@ -205,6 +224,13 @@ export function GroupProfilePage() {
                   seed={userId}
                   className="h-12 w-12 text-[14px] shrink-0"
                   alt=""
+                  {...(subjectMember?.avatarUrl
+                    ? {
+                        onImageClick: () => setAvatarLightboxOpen(true),
+                        imageExpandAriaLabel: 'View profile photo larger',
+                        onPhotoLoadError: () => setProfileHeroPhotoFailed(true),
+                      }
+                    : {})}
                 />
               )}
               <div className="min-w-0 flex-1">
@@ -212,12 +238,32 @@ export function GroupProfilePage() {
                   {displayName || 'Member'}
                 </h1>
                 {isSelf && (
-                  <p className="mt-0.5 text-[11px] text-tour-text-secondary">You</p>
+                  <>
+                    <p className="mt-0.5 text-[11px] text-tour-text-secondary">You</p>
+                    {canExpandProfilePhoto && (
+                      <button
+                        type="button"
+                        onClick={() => setAvatarLightboxOpen(true)}
+                        className="mt-1 block text-left text-[12px] font-medium text-tour-accent underline decoration-tour-accent/35 underline-offset-2 hover:decoration-tour-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tour-accent/40 rounded-sm"
+                      >
+                        View photo
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
             {isSelf && avatarError && (
               <p className="mt-2 text-[12px] text-red-800">{avatarError}</p>
+            )}
+            {subjectMember?.avatarUrl && (
+              <FeedPhotoLightbox
+                isOpen={avatarLightboxOpen}
+                photos={[{ url: subjectMember.avatarUrl }]}
+                onClose={() => setAvatarLightboxOpen(false)}
+                getImgProps={() => ({ alt: profilePhotoAlt })}
+                overlayAriaLabel="Profile photo. Tap outside, Done, or press Escape to close."
+              />
             )}
           </section>
 

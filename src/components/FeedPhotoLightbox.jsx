@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 import { FeedPhotoCommitTransition } from './FeedPhotoCommitTransition'
 import { FeedPhotoWarmStrip } from './FeedPhotoWarmStrip'
 
@@ -38,14 +39,27 @@ export function FeedPhotoExpandButton({ onClick, inline = false }) {
  *   photos: Array<{ url: string }>,
  *   initialIndex?: number,
  *   onClose: () => void,
+ *   getImgProps?: (index: number) => Record<string, unknown>,
+ *   overlayAriaLabel?: string,
  * }} props
  */
 const SWIPE_DOWN_PX = 64
 
-export function FeedPhotoLightbox({ isOpen, photos, initialIndex = 0, onClose }) {
+export function FeedPhotoLightbox({
+  isOpen,
+  photos,
+  initialIndex = 0,
+  onClose,
+  getImgProps = undefined,
+  overlayAriaLabel = 'Full image view. Tap the photo or swipe down to close.',
+}) {
   const [index, setIndex] = useState(initialIndex)
   const touchStartY = useRef(null)
+  const dialogRef = useRef(null)
   const photoUrls = useMemo(() => photos.map((p) => p.url), [photos])
+
+  const trapActive = Boolean(isOpen && photos.length > 0 && photos[index])
+  useFocusTrap(dialogRef, trapActive)
 
   useEffect(() => {
     if (!isOpen) return
@@ -85,10 +99,11 @@ export function FeedPhotoLightbox({ isOpen, photos, initialIndex = 0, onClose })
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-50 bg-black/90"
       role="dialog"
       aria-modal
-      aria-label="Full image view. Tap the photo or swipe down to close."
+      aria-label={overlayAriaLabel}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -98,7 +113,12 @@ export function FeedPhotoLightbox({ isOpen, photos, initialIndex = 0, onClose })
       >
         <FeedPhotoWarmStrip urls={photoUrls} variant="contain" />
         <div className="relative z-[1] flex h-full min-h-0 w-full min-w-0 flex-1 items-center justify-center">
-          <FeedPhotoCommitTransition urls={photoUrls} index={index} variant="contain" />
+          <FeedPhotoCommitTransition
+            urls={photoUrls}
+            index={index}
+            variant="contain"
+            getImgProps={getImgProps}
+          />
         </div>
 
         {hasMany && (
