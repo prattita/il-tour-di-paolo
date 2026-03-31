@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { FeedPhotoCommitTransition } from './FeedPhotoCommitTransition'
 import { FeedPhotoExpandButton, FeedPhotoLightbox } from './FeedPhotoLightbox'
 
 const SWIPE_PX = 48
@@ -24,6 +25,26 @@ export function FeedPhotoCarousel({ photos, isHeroImage }) {
   }, [photos.length])
 
   const current = photos[index]
+  const photoUrls = useMemo(() => photos.map((p) => p.url), [photos])
+  const prefetchSiblings = photos.length > 1
+
+  /**
+   * Warm every slide URL (including index 0). After you leave slide 0, that `<img>` unmounts;
+   * prefetching only 1..n made backward navigation cold again (decode/network), same jank as the first forward hop.
+   */
+  useEffect(() => {
+    if (photos.length < 2) return
+    const imgs = photos.map((p) => {
+      const img = new Image()
+      img.src = p.url
+      return img
+    })
+    return () => {
+      for (const img of imgs) {
+        img.src = ''
+      }
+    }
+  }, [photos])
 
   const onTouchStart = (e) => {
     touchStartX.current = e.touches[0].clientX
@@ -47,13 +68,17 @@ export function FeedPhotoCarousel({ photos, isHeroImage }) {
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
-        <img
-          src={current.url}
-          alt=""
-          className="h-full w-full object-cover"
-          decoding="async"
-          fetchPriority={isHeroImage && index === 0 ? 'high' : undefined}
-          loading={isHeroImage && index === 0 ? 'eager' : 'lazy'}
+        <FeedPhotoCommitTransition
+          key={photoUrls.join('|')}
+          urls={photoUrls}
+          index={index}
+          variant="cover"
+          getImgProps={(i) => ({
+            decoding: 'async',
+            fetchPriority:
+              isHeroImage && i === 0 ? 'high' : prefetchSiblings && i > 0 ? 'low' : undefined,
+            loading: prefetchSiblings || (isHeroImage && i === 0) ? 'eager' : 'lazy',
+          })}
         />
         <div className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white">
           {index + 1}/{photos.length}

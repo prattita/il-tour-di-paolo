@@ -158,6 +158,17 @@ After the core carousel works, you can swap or combine these. Suggested: impleme
 
 **Approvals / owner preview:** Use the **same variant** as the feed, or a fixed **C + D** if owners need maximum clarity (no A/B test on a thin queue).
 
+### Slide / transition animation
+
+**Tier 1 — Commit animation (shipped):** When the carousel or full-screen lightbox advances to another photo (`setIndex` / committed swipe), the incoming image uses a **short opacity + horizontal nudge** (two stacked layers so the frame doesn’t flash). **`prefers-reduced-motion: reduce`** shortens to a quick opacity fade with no slide. Implementation: `src/components/FeedPhotoCommitTransition.jsx`, keyframes `.feed-photo-commit-anim` in `src/index.css`, used from **`FeedPhotoCarousel`** and **`FeedPhotoLightbox`**.
+
+**Tier 2 — Interactive drag (out of scope):** Finger- or pointer-following drag with a scrolling track, variant **F**, or a slider library remains **not planned** for this phase — too much scroll/gesture QA for the payoff.
+
+| Tier | What users see | Scope | Notes |
+| --- | --- | --- | --- |
+| **1 — Commit animation** | After swipe threshold, tap zone, dot, or arrow: incoming slide **fades in** with a small **translateX** in the direction of travel. | Feed carousel + lightbox | **Done.** Same path on phone and desktop. |
+| **2 — Interactive drag** | Image follows the finger during drag; spring/snapping on release. | Touch / optional mouse | **Out of scope** — defer unless product explicitly prioritizes native-gallery drag. |
+
 ---
 
 ## Fixed Aspect Ratio per Post
