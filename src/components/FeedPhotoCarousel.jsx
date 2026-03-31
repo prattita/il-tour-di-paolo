@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { FeedPhotoCommitTransition } from './FeedPhotoCommitTransition'
 import { FeedPhotoExpandButton, FeedPhotoLightbox } from './FeedPhotoLightbox'
+import { FeedPhotoWarmStrip } from './FeedPhotoWarmStrip'
 
 const SWIPE_PX = 48
 const CAROUSEL_HEIGHT_CLASS = 'h-[550px] sm:h-[700px]'
@@ -28,24 +29,6 @@ export function FeedPhotoCarousel({ photos, isHeroImage }) {
   const photoUrls = useMemo(() => photos.map((p) => p.url), [photos])
   const prefetchSiblings = photos.length > 1
 
-  /**
-   * Warm every slide URL (including index 0). After you leave slide 0, that `<img>` unmounts;
-   * prefetching only 1..n made backward navigation cold again (decode/network), same jank as the first forward hop.
-   */
-  useEffect(() => {
-    if (photos.length < 2) return
-    const imgs = photos.map((p) => {
-      const img = new Image()
-      img.src = p.url
-      return img
-    })
-    return () => {
-      for (const img of imgs) {
-        img.src = ''
-      }
-    }
-  }, [photos])
-
   const onTouchStart = (e) => {
     touchStartX.current = e.touches[0].clientX
   }
@@ -68,30 +51,33 @@ export function FeedPhotoCarousel({ photos, isHeroImage }) {
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
-        <FeedPhotoCommitTransition
-          key={photoUrls.join('|')}
-          urls={photoUrls}
-          index={index}
-          variant="cover"
-          getImgProps={(i) => ({
-            decoding: 'async',
-            fetchPriority:
-              isHeroImage && i === 0 ? 'high' : prefetchSiblings && i > 0 ? 'low' : undefined,
-            loading: prefetchSiblings || (isHeroImage && i === 0) ? 'eager' : 'lazy',
-          })}
-        />
-        <div className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white">
+        <FeedPhotoWarmStrip urls={photoUrls} variant="cover" isHeroImage={isHeroImage} />
+        <div className="relative z-[1] h-full w-full">
+          <FeedPhotoCommitTransition
+            key={photoUrls.join('|')}
+            urls={photoUrls}
+            index={index}
+            variant="cover"
+            getImgProps={(i) => ({
+              decoding: 'async',
+              fetchPriority:
+                isHeroImage && i === 0 ? 'high' : prefetchSiblings && i > 0 ? 'low' : undefined,
+              loading: prefetchSiblings || (isHeroImage && i === 0) ? 'eager' : 'lazy',
+            })}
+          />
+        </div>
+        <div className="pointer-events-none absolute right-3 top-3 z-[2] rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white">
           {index + 1}/{photos.length}
         </div>
         <button
           type="button"
-          className="absolute inset-y-0 left-0 w-1/3 cursor-pointer bg-transparent"
+          className="absolute inset-y-0 left-0 z-[2] w-1/3 cursor-pointer bg-transparent"
           onClick={goPrev}
           aria-label="Previous photo"
         />
         <button
           type="button"
-          className="absolute inset-y-0 right-0 w-1/3 cursor-pointer bg-transparent"
+          className="absolute inset-y-0 right-0 z-[2] w-1/3 cursor-pointer bg-transparent"
           onClick={goNext}
           aria-label="Next photo"
         />
@@ -100,7 +86,7 @@ export function FeedPhotoCarousel({ photos, isHeroImage }) {
           onClick={goPrev}
           aria-label="Previous photo"
           disabled={index === 0}
-          className="absolute left-3 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white/90 text-tour-text shadow-sm transition hover:bg-white disabled:cursor-default disabled:opacity-40 md:flex"
+          className="absolute left-3 top-1/2 z-[2] hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white/90 text-tour-text shadow-sm transition hover:bg-white disabled:cursor-default disabled:opacity-40 md:flex"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
@@ -117,7 +103,7 @@ export function FeedPhotoCarousel({ photos, isHeroImage }) {
           onClick={goNext}
           aria-label="Next photo"
           disabled={index === photos.length - 1}
-          className="absolute right-3 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white/90 text-tour-text shadow-sm transition hover:bg-white disabled:cursor-default disabled:opacity-40 md:flex"
+          className="absolute right-3 top-1/2 z-[2] hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white/90 text-tour-text shadow-sm transition hover:bg-white disabled:cursor-default disabled:opacity-40 md:flex"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path

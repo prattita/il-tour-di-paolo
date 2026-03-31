@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { FeedPhotoCommitTransition } from './FeedPhotoCommitTransition'
+import { FeedPhotoWarmStrip } from './FeedPhotoWarmStrip'
 
 /** Expand control for feed media. Default: fixed bottom-right on the media frame. Use `inline` when placed in a bottom bar (e.g. carousel). */
 export function FeedPhotoExpandButton({ onClick, inline = false }) {
@@ -45,20 +46,6 @@ export function FeedPhotoLightbox({ isOpen, photos, initialIndex = 0, onClose })
   const [index, setIndex] = useState(initialIndex)
   const touchStartY = useRef(null)
   const photoUrls = useMemo(() => photos.map((p) => p.url), [photos])
-
-  useEffect(() => {
-    if (!isOpen || photos.length < 2) return
-    const imgs = photos.map((p) => {
-      const img = new Image()
-      img.src = p.url
-      return img
-    })
-    return () => {
-      for (const img of imgs) {
-        img.src = ''
-      }
-    }
-  }, [isOpen, photos])
 
   useEffect(() => {
     if (!isOpen) return
@@ -109,7 +96,10 @@ export function FeedPhotoLightbox({ isOpen, photos, initialIndex = 0, onClose })
         className="relative z-10 flex h-full w-full cursor-default items-center justify-center p-4"
         onClick={onDismissLayerClick}
       >
-        <FeedPhotoCommitTransition urls={photoUrls} index={index} variant="contain" />
+        <FeedPhotoWarmStrip urls={photoUrls} variant="contain" />
+        <div className="relative z-[1] flex h-full min-h-0 w-full min-w-0 flex-1 items-center justify-center">
+          <FeedPhotoCommitTransition urls={photoUrls} index={index} variant="contain" />
+        </div>
 
         {hasMany && (
           <>
@@ -121,7 +111,7 @@ export function FeedPhotoLightbox({ isOpen, photos, initialIndex = 0, onClose })
               }}
               disabled={index === 0}
               aria-label="Previous photo"
-              className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white/90 text-tour-text shadow-sm transition hover:bg-white disabled:cursor-default disabled:opacity-40"
+              className="absolute left-3 top-1/2 z-[2] flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white/90 text-tour-text shadow-sm transition hover:bg-white disabled:cursor-default disabled:opacity-40"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <path
@@ -141,7 +131,7 @@ export function FeedPhotoLightbox({ isOpen, photos, initialIndex = 0, onClose })
               }}
               disabled={index === photos.length - 1}
               aria-label="Next photo"
-              className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white/90 text-tour-text shadow-sm transition hover:bg-white disabled:cursor-default disabled:opacity-40"
+              className="absolute right-3 top-1/2 z-[2] flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white/90 text-tour-text shadow-sm transition hover:bg-white disabled:cursor-default disabled:opacity-40"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <path
@@ -163,7 +153,7 @@ export function FeedPhotoLightbox({ isOpen, photos, initialIndex = 0, onClose })
             onClose()
           }}
           aria-label="Close"
-          className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/90 text-tour-text shadow-sm transition hover:bg-white"
+          className="absolute right-3 top-3 z-[2] flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/90 text-tour-text shadow-sm transition hover:bg-white"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
@@ -177,7 +167,7 @@ export function FeedPhotoLightbox({ isOpen, photos, initialIndex = 0, onClose })
         </button>
 
         {hasMany && (
-          <div className="pointer-events-none absolute right-3 top-16 rounded-full bg-black/55 px-2 py-0.5 text-xs font-medium text-white">
+          <div className="pointer-events-none absolute right-3 top-16 z-[2] rounded-full bg-black/55 px-2 py-0.5 text-xs font-medium text-white">
             {index + 1}/{photos.length}
           </div>
         )}

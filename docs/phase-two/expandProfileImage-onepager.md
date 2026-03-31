@@ -27,7 +27,7 @@ Let users **open a profile photo at a larger size** (tap avatar → fullscreen o
 
 - **Image editing:** crop, rotate, filters — separate from “view large.”
 - **Replacing** the Phase One **change photo** flow (green camera control stays on profile).
-- **Feed post photo** lightbox (task completion image) — can share the same **component** later, but this doc targets **avatar** first.
+- **Different UX for task-completion photos** — those already use **`FeedPhotoLightbox`** in the feed; avatars should use the **same** component for consistency (see **Implementation** below). This doc’s **first wiring target** is the **group profile** avatar.
 
 ---
 
@@ -37,20 +37,47 @@ Let users **open a profile photo at a larger size** (tap avatar → fullscreen o
 
 ---
 
-## Implementation sketch
+## Implementation — reuse **`FeedPhotoLightbox`**
 
-1. **`AvatarLightbox`** (or generic **`ImageLightbox`**) — controlled open state, `src` + `alt` (e.g. display name), portal or fixed overlay at `z-50+`.
-2. **Profile page:** when `avatarUrl` and not in error state, wrap avatar (or use `onClick` on the **non-self** view only if you want zoom for others; for **self**, avoid fighting the file `label` — e.g. long-press / secondary “View” or tap **outside** the change-photo label; simplest v1: **lightbox only for viewing other members’ profiles**, or add a small “View” text link under “You”).
-3. **Reuse:** same overlay component if you later open **feed** or **approval** avatars.
+The feed already ships **`FeedPhotoLightbox`** (`src/components/FeedPhotoLightbox.jsx`): scrim, close (X + **Done** on narrow viewports), **Escape**, backdrop dismiss, swipe-down-to-close, body scroll lock, `role="dialog"` + **`aria-modal`**. For a profile photo, pass a **one-element** `photos` array; carousel chrome (prev/next, counter) only appears when `photos.length > 1`.
 
-**Open product choice (pick at implementation):** self-profile with **both** “change photo” and “view large” — recommend **secondary affordance** (link or icon) so the primary label stays “change photo” without accidental file picker.
+**Example:**
+
+```javascript
+<FeedPhotoLightbox
+  isOpen={lightboxOpen}
+  photos={[{ url: avatarUrl }]}
+  onClose={() => setLightboxOpen(false)}
+/>
+```
+
+**Do not reuse `FeedPhotoExpandButton`** for avatars — it is styled for a **bottom-right control on rectangular feed media**, not for circular profile pictures. Use **tap on the avatar** or a **separate “View” / icon affordance** (especially on self-profile).
+
+**`alt` / meaningful labels:** `FeedPhotoLightbox` renders images via **`FeedPhotoCommitTransition`**, which supports an optional **`getImgProps(index)`** hook, but the lightbox **does not forward that prop yet**. Feed photos use empty `alt`. For profile, consider a small extension (e.g. optional `getImgProps` or `imageAlt` on `FeedPhotoLightbox`) so the large image has **`alt`** = display name (or equivalent).
+
+**`prefers-reduced-motion`:** Already handled inside **`FeedPhotoCommitTransition`** via **`usePrefersReducedMotion`**.
+
+**Accessibility follow-up (shared with feed):** This spec asks for **focus move into the lightbox** and **restore focus on close**. `FeedPhotoLightbox` does not yet implement focus trapping / return focus; implementing that **once** on the shared component benefits **both** feed and profile.
+
+---
+
+### Profile wiring
+
+1. When **`avatarUrl`** is present and the image is not in an error state, open the lightbox from tap (and/or secondary control per product choice).
+2. For **viewing others**, tapping the avatar is straightforward.
+3. For **self**, avoid competing with the **change photo** file input: prefer **lightbox only for others** in v1, or a **secondary “View”** link/control so the primary action stays “change photo.”
+
+**Open product choice (pick at implementation):** self-profile with **both** “change photo” and “view large” — recommend **secondary affordance** (link or icon).
+
+**Reuse elsewhere:** Same **`FeedPhotoLightbox`** can open **approval-queue** avatars or other **`avatarUrl`** surfaces without a second overlay implementation.
 
 ---
 
 ## Checklist
 
-- [ ] Lightbox component (scrim, image, close, focus trap, Escape)
-- [ ] Wire on **group profile** for at least **other members**; decide **self** UX (link vs icon vs defer)
+- [ ] Wire **`FeedPhotoLightbox`** on **group profile** (`photos={[{ url: avatarUrl }]}`); decide **self** UX (link vs icon vs defer to “others only”)
+- [ ] Optional: extend **`FeedPhotoLightbox`** to pass **`getImgProps`** (or `imageAlt`) for a meaningful **`alt`** on profile opens
+- [ ] Optional: **focus trap** + **return focus** on `FeedPhotoLightbox` (improves feed + profile together)
 - [ ] Optional: pinch/zoom on touch
 - [ ] Document in DESIGN.md §6 / profile note when shipped
 
