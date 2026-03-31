@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from 'react'
+import { FeedPhotoExpandButton, FeedPhotoLightbox } from './FeedPhotoLightbox'
 
 const SWIPE_PX = 48
-const CAROUSEL_HEIGHT_CLASS = 'h-[600px] sm:h-[700px]'
+const CAROUSEL_HEIGHT_CLASS = 'h-[550px] sm:h-[700px]'
 
 /**
  * @param {{
@@ -11,6 +12,7 @@ const CAROUSEL_HEIGHT_CLASS = 'h-[600px] sm:h-[700px]'
  */
 export function FeedPhotoCarousel({ photos, isHeroImage }) {
   const [index, setIndex] = useState(0)
+  const [fullOpen, setFullOpen] = useState(false)
   const touchStartX = useRef(null)
 
   const goPrev = useCallback(() => {
@@ -103,24 +105,38 @@ export function FeedPhotoCarousel({ photos, isHeroImage }) {
           </svg>
         </button>
       </div>
-      <div className="absolute inset-x-0 bottom-2 flex justify-center">
-        <div className="flex items-center gap-1.5" role="tablist" aria-label="Photos">
-          {photos.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              role="tab"
-              aria-selected={i === index}
-              className={[
-                'h-2.5 w-2.5 rounded-full border border-black/15 shadow-sm transition-colors',
-                i === index ? 'bg-tour-accent' : 'bg-white/90 hover:bg-white',
-              ].join(' ')}
-              onClick={() => setIndex(i)}
-              aria-label={`Photo ${i + 1} of ${photos.length}`}
-            />
-          ))}
+      <div className="pointer-events-none absolute bottom-3 left-0 right-0 z-10 flex items-center px-3">
+        <div className="w-10 shrink-0" aria-hidden />
+        <div className="flex min-w-0 flex-1 justify-center">
+          <div className="pointer-events-auto flex items-center gap-1.5" role="tablist" aria-label="Photos">
+            {photos.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                role="tab"
+                aria-selected={i === index}
+                className={[
+                  'h-2.5 w-2.5 rounded-full border border-black/15 shadow-sm transition-colors',
+                  i === index ? 'bg-tour-accent' : 'bg-white/90 hover:bg-white',
+                ].join(' ')}
+                onClick={() => setIndex(i)}
+                aria-label={`Photo ${i + 1} of ${photos.length}`}
+              />
+            ))}
+          </div>
+        </div>
+        <div className="pointer-events-auto flex w-10 shrink-0 justify-end">
+          <FeedPhotoExpandButton inline onClick={() => setFullOpen(true)} />
         </div>
       </div>
+      {fullOpen && (
+        <FeedPhotoLightbox
+          isOpen={fullOpen}
+          photos={photos}
+          initialIndex={index}
+          onClose={() => setFullOpen(false)}
+        />
+      )}
     </div>
   )
 }

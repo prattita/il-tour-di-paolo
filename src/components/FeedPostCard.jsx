@@ -5,6 +5,7 @@ import { MedalBadge } from './MedalBadge'
 import { normalizeDocPhotos } from '../lib/feedPhotos'
 import { formatFeedTime, medalTierForPost } from '../lib/feedDisplay'
 import { FeedPhotoCarousel } from './FeedPhotoCarousel'
+import { FeedPhotoExpandButton, FeedPhotoLightbox } from './FeedPhotoLightbox'
 import { MAX_COMMENT_CHARS } from '../services/feedInteractionsService'
 
 function HeartIcon({ filled }) {
@@ -57,6 +58,7 @@ export function FeedPostCard({
   likeBusy,
 }) {
   const [draft, setDraft] = useState('')
+  const [fullOpen, setFullOpen] = useState(false)
 
   const likes = Array.isArray(post.likes) ? post.likes : []
   const liked = Boolean(currentUserId && likes.includes(currentUserId))
@@ -121,6 +123,7 @@ export function FeedPostCard({
             fetchPriority={isHeroImage ? 'high' : undefined}
             loading={isHeroImage ? 'eager' : 'lazy'}
           />
+          <FeedPhotoExpandButton onClick={() => setFullOpen(true)} />
         </div>
       ) : (
         <div className="flex h-[550px] w-full items-center justify-center bg-[#EAF3DE] sm:h-[700px]">
@@ -231,6 +234,14 @@ export function FeedPostCard({
           </div>
         )}
       </div>
+      {fullOpen && (
+        <FeedPhotoLightbox
+          isOpen={fullOpen}
+          photos={photos}
+          initialIndex={0}
+          onClose={() => setFullOpen(false)}
+        />
+      )}
     </article>
   )
 }
