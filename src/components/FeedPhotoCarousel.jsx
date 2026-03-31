@@ -1,0 +1,126 @@
+import { useCallback, useRef, useState } from 'react'
+
+const SWIPE_PX = 48
+const CAROUSEL_HEIGHT_CLASS = 'h-[600px] sm:h-[700px]'
+
+/**
+ * @param {{
+ *   photos: Array<{ url: string, width: number, height: number }>,
+ *   isHeroImage: boolean,
+ * }} props
+ */
+export function FeedPhotoCarousel({ photos, isHeroImage }) {
+  const [index, setIndex] = useState(0)
+  const touchStartX = useRef(null)
+
+  const goPrev = useCallback(() => {
+    setIndex((i) => Math.max(0, i - 1))
+  }, [])
+
+  const goNext = useCallback(() => {
+    setIndex((i) => Math.min(photos.length - 1, i + 1))
+  }, [photos.length])
+
+  const current = photos[index]
+
+  const onTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX
+  }
+
+  const onTouchEnd = (e) => {
+    if (touchStartX.current == null) return
+    const x = e.changedTouches[0].clientX
+    const dx = x - touchStartX.current
+    touchStartX.current = null
+    if (dx < -SWIPE_PX) goNext()
+    else if (dx > SWIPE_PX) goPrev()
+  }
+
+  if (!current) return null
+
+  return (
+    <div className="relative bg-[#EAF3DE]">
+      <div
+        className={`relative mx-auto w-full overflow-hidden ${CAROUSEL_HEIGHT_CLASS}`}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
+        <img
+          src={current.url}
+          alt=""
+          className="h-full w-full object-cover"
+          decoding="async"
+          fetchPriority={isHeroImage && index === 0 ? 'high' : undefined}
+          loading={isHeroImage && index === 0 ? 'eager' : 'lazy'}
+        />
+        <div className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white">
+          {index + 1}/{photos.length}
+        </div>
+        <button
+          type="button"
+          className="absolute inset-y-0 left-0 w-1/3 cursor-pointer bg-transparent"
+          onClick={goPrev}
+          aria-label="Previous photo"
+        />
+        <button
+          type="button"
+          className="absolute inset-y-0 right-0 w-1/3 cursor-pointer bg-transparent"
+          onClick={goNext}
+          aria-label="Next photo"
+        />
+        <button
+          type="button"
+          onClick={goPrev}
+          aria-label="Previous photo"
+          disabled={index === 0}
+          className="absolute left-3 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white/90 text-tour-text shadow-sm transition hover:bg-white disabled:cursor-default disabled:opacity-40 md:flex"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path
+              d="M15 18l-6-6 6-6"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          type="button"
+          onClick={goNext}
+          aria-label="Next photo"
+          disabled={index === photos.length - 1}
+          className="absolute right-3 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white/90 text-tour-text shadow-sm transition hover:bg-white disabled:cursor-default disabled:opacity-40 md:flex"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path
+              d="M9 6l6 6-6 6"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      </div>
+      <div className="absolute inset-x-0 bottom-2 flex justify-center">
+        <div className="flex items-center gap-1.5" role="tablist" aria-label="Photos">
+          {photos.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              role="tab"
+              aria-selected={i === index}
+              className={[
+                'h-2.5 w-2.5 rounded-full border border-black/15 shadow-sm transition-colors',
+                i === index ? 'bg-tour-accent' : 'bg-white/90 hover:bg-white',
+              ].join(' ')}
+              onClick={() => setIndex(i)}
+              aria-label={`Photo ${i + 1} of ${photos.length}`}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}

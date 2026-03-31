@@ -1,7 +1,12 @@
 import { deleteDoc, doc, getDoc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore'
 import { getFirebaseDb } from '../lib/firebase'
+import { getImageDimensionsFromFile } from '../lib/imageDimensions'
+import { pendingPhotoStoragePaths } from '../lib/feedPhotos'
 import { getGroupMember } from './activityService'
-import { deleteSubmissionPhotoByPath, uploadPendingPhoto } from './storageService'
+import {
+  deleteSubmissionPhotosByPaths,
+  uploadPendingPhotoSlot,
+} from './storageService'
 
 function requireDb() {
   const db = getFirebaseDb()
@@ -10,6 +15,9 @@ function requireDb() {
   }
   return db
 }
+
+export const MIN_SUBMISSION_PHOTOS = 1
+export const MAX_SUBMISSION_PHOTOS = 3
 
 /** Composite pending doc id — must match Firestore rules. */
 export function makePendingDocId(userId, activityId) {
@@ -38,7 +46,9 @@ export function subscribePendingSubmission(groupId, userId, activityId, onData, 
 }
 
 /**
- * Upload image, then create pending doc. Fails if pending already exists for this user+activity.
+ * Upload 1–3 images, then create pending doc. Fails if pending already exists for this user+activity.
+ * @param {object} params
+ * @param {File[]} params.imageFiles — 1–3 images, ordered
  */
 export async function createPendingSubmission({
   groupId,
@@ -48,9 +58,17 @@ export async function createPendingSubmission({
   activityName,
   taskId,
   taskName,
-  imageFile,
+  imageFiles,
   description,
 }) {
+  const files = Array.isArray(imageFiles) ? imageFiles.filter((f) => f instanceof File) : []
+  if (files.length < MIN_SUBMISSION_PHOTOS) {
+    throw new Error('Please add at least one photo.')
+  }
+  if (files.length > MAX_SUBMISSION_PHOTOS) {
+    throw new Error(`You can add at most ${MAX_SUBMISSION_PHOTOS} photos.`)
+  }
+
   const db = requireDb()
   const pendingId = makePendingDocId(userId, activityId)
   const pendingRef = doc(db, `groups/${groupId}/pending/${pendingId}`)
@@ -60,14 +78,14 @@ export async function createPendingSubmission({
     throw new Error('You already have a submission awaiting review for this activity.')
   }
 
-  const photoId =
-    globalThis.crypto?.randomUUID?.() ||
-    `p_${Date.now()}_${Math.random().toString(16).slice(2)}`
-  const { imageUrl, imagePath } = await uploadPendingPhoto(
-    pendingId,
-    photoId,
-    imageFile,
-  )
+  const photos = []
+  for (let i = 0; i < files.length; i++) {
+    const slot = i + 1
+    const file = files[i]
+    const { imageUrl, imagePath } = await uploadPendingPhotoSlot(pendingId, slot, file)
+    const { width, height } = await getImageDimensionsFromFile(file)
+    photos.push({ url: imageUrl, path: imagePath, width, height })
+  }
 
   const member = await getGroupMember(groupId, userId)
   const avatarUrl = member?.avatarUrl ?? null
@@ -80,8 +98,7 @@ export async function createPendingSubmission({
     activityName,
     taskId,
     taskName,
-    imageUrl,
-    imagePath,
+    photos,
     description: description?.trim() || null,
     submittedAt: serverTimestamp(),
   })
@@ -101,6 +118,5 @@ export async function withdrawPendingSubmission(groupId, userId, pendingId, pend
   const db = requireDb()
   const pendingRef = doc(db, `groups/${groupId}/pending/${pendingId}`)
   await deleteDoc(pendingRef)
-  const fallbackPath = `images/${pendingId}/photo`
-  await deleteSubmissionPhotoByPath(pending.imagePath || fallbackPath)
+  await deleteSubmissionPhotosByPaths(pendingPhotoStoragePaths(pending))
 }

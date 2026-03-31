@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { useGroupCompletionPickerData } from '../hooks/useGroupCompletionPickerData'
 import { hasAnyEligibleCompletionActivity } from '../lib/completionEligibility'
+import { docHasPhoto } from '../lib/feedPhotos'
 import { FeedPostCard } from '../components/FeedPostCard'
 import { PageLoading } from '../components/PageLoading'
 import { Avatar } from '../components/Avatar'
@@ -181,7 +182,7 @@ export function GroupFeedPage() {
 
   const firstImagePostId = useMemo(() => {
     for (const p of filteredPosts) {
-      if (p.type !== 'system' && p.imageUrl) return p.id
+      if (p.type !== 'system' && docHasPhoto(p)) return p.id
     }
     return null
   }, [filteredPosts])

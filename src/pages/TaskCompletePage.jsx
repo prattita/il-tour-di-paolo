@@ -9,7 +9,7 @@ import {
   sortActivitiesByName,
 } from '../lib/completionEligibility'
 import { getTaskStatus } from '../lib/taskStatus'
-import { createPendingSubmission } from '../services/pendingService'
+import { createPendingSubmission, MAX_SUBMISSION_PHOTOS } from '../services/pendingService'
 import { PageLoading } from '../components/PageLoading'
 
 const selectClass =
@@ -35,7 +35,7 @@ export function TaskCompletePage() {
   const [selectedActivityId, setSelectedActivityId] = useState('')
   const [selectedTaskId, setSelectedTaskId] = useState('')
 
-  const [imageFile, setImageFile] = useState(null)
+  const [imageFiles, setImageFiles] = useState([])
   const [description, setDescription] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
@@ -67,7 +67,7 @@ export function TaskCompletePage() {
   }, [wantsLockedRoute, activityIdParam, taskIdParam])
 
   useEffect(() => {
-    setImageFile(null)
+    setImageFiles([])
     setDescription('')
     setSubmitError('')
   }, [selectedActivityId, selectedTaskId])
@@ -139,11 +139,27 @@ export function TaskCompletePage() {
 
   const showUploadForm = Boolean(displayActivity && displayTask && (lockedOk || (pickerTask && selectedTaskId)))
 
+  function addImageFiles(fileList) {
+    const incoming = Array.from(fileList || []).filter((f) => f?.type?.startsWith('image/'))
+    setImageFiles((prev) => {
+      const next = [...prev]
+      for (const f of incoming) {
+        if (next.length >= MAX_SUBMISSION_PHOTOS) break
+        next.push(f)
+      }
+      return next
+    })
+  }
+
+  function removeImageAt(idx) {
+    setImageFiles((prev) => prev.filter((_, i) => i !== idx))
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setSubmitError('')
-    if (!imageFile) {
-      setSubmitError('Please attach an image.')
+    if (imageFiles.length < 1) {
+      setSubmitError('Please add at least one photo.')
       return
     }
     if (!user?.uid || !displayActivity || !displayTask || !groupId) return
@@ -158,7 +174,7 @@ export function TaskCompletePage() {
         activityName: displayActivity.name,
         taskId: displayTask.id,
         taskName: displayTask.name,
-        imageFile,
+        imageFiles,
         description,
       })
       navigate(`/group/${groupId}/activities`, { replace: true, state: { submitted: true } })
@@ -302,6 +318,9 @@ export function TaskCompletePage() {
               <div>
                 <p className="form-label mb-1 text-[12px] text-tour-text-secondary">
                   Photo proof <span className="text-[#A32D2D]">required</span>
+                  {imageFiles.length > 0 ? (
+                    <span className="text-tour-text-tertiary"> · up to {MAX_SUBMISSION_PHOTOS}</span>
+                  ) : null}
                 </p>
                 <label className="flex cursor-pointer flex-col items-center gap-1.5 rounded-lg border border-dashed border-black/18 bg-tour-muted px-3 py-6">
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-tour-accent-muted text-tour-accent">
@@ -315,7 +334,9 @@ export function TaskCompletePage() {
                       />
                     </svg>
                   </span>
-                  <span className="text-[13px] font-medium text-tour-text">Upload photo</span>
+                  <span className="text-[13px] font-medium text-tour-text">
+                    {imageFiles.length === 0 ? 'Upload photo' : 'Add another photo'}
+                  </span>
                   <span className="text-center text-[11px] text-tour-text-secondary">
                     Tap to choose from camera or library
                   </span>
@@ -323,12 +344,37 @@ export function TaskCompletePage() {
                     type="file"
                     accept="image/*"
                     className="sr-only"
-                    onChange={(ev) => setImageFile(ev.target.files?.[0] ?? null)}
+                    multiple
+                    onChange={(ev) => {
+                      addImageFiles(ev.target.files)
+                      ev.target.value = ''
+                    }}
                   />
                 </label>
-                {imageFile && (
-                  <p className="mt-2 text-[11px] text-tour-text-secondary">{imageFile.name}</p>
-                )}
+                {imageFiles.length > 0 ? (
+                  <ul className="mt-3 space-y-2">
+                    {imageFiles.map((f, idx) => (
+                      <li
+                        key={`${f.name}-${idx}`}
+                        className="flex items-center justify-between gap-2 rounded-lg border border-black/10 bg-tour-muted px-2.5 py-2 text-[12px]"
+                      >
+                        <span className="min-w-0 truncate text-tour-text">{f.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeImageAt(idx)}
+                          className="shrink-0 text-[11px] font-medium text-red-700 hover:underline"
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {imageFiles.length > 0 && imageFiles.length < MAX_SUBMISSION_PHOTOS ? (
+                  <p className="mt-2 text-[11px] text-tour-text-secondary">
+                    You can add up to {MAX_SUBMISSION_PHOTOS} photos (tap the upload area again).
+                  </p>
+                ) : null}
               </div>
 
               <div>
@@ -353,9 +399,9 @@ export function TaskCompletePage() {
 
               <button
                 type="submit"
-                disabled={submitting || !imageFile}
+                disabled={submitting || imageFiles.length < 1}
                 className={`w-full rounded-lg py-2.5 text-center text-[14px] font-medium ${
-                  submitting || !imageFile
+                  submitting || imageFiles.length < 1
                     ? 'border border-black/10 bg-tour-muted text-tour-text-secondary'
                     : 'bg-tour-accent text-white hover:opacity-95'
                 }`}

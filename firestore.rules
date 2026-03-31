@@ -16,6 +16,25 @@ service cloud.firestore {
         && request.auth.uid == groupDoc(groupId).data.ownerId;
     }
 
+    /** Multi-photo pending submission (Phase One Task 5): 1–3 items with url, path, dimensions. */
+    function validPendingPhotoItem(p) {
+      return p is map
+        && p.keys().hasAll(['url', 'path', 'width', 'height'])
+        && p.url is string
+        && p.path is string
+        && p.width is int
+        && p.height is int;
+    }
+
+    function validPendingPhotosArray(photos) {
+      return photos is list
+        && photos.size() >= 1
+        && photos.size() <= 3
+        && validPendingPhotoItem(photos[0])
+        && (photos.size() < 2 || validPendingPhotoItem(photos[1]))
+        && (photos.size() < 3 || validPendingPhotoItem(photos[2]));
+    }
+
     /** Group state after earlier ops in the same transaction/batch (required for self-join). */
     function groupAfterBatch(groupId) {
       return getAfter(/databases/$(database)/documents/groups/$(groupId));
@@ -101,6 +120,7 @@ service cloud.firestore {
           && request.resource.data.userId == request.auth.uid
           && request.auth.uid in groupDoc(groupId).data.memberIds
           && pendingId == request.auth.uid + '_' + request.resource.data.activityId
+          && validPendingPhotosArray(request.resource.data.photos)
           && (
             request.resource.data.avatarUrl == null
             || request.resource.data.avatarUrl is string

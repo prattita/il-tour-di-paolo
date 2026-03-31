@@ -12,7 +12,8 @@ import {
 import { getFirebaseDb } from '../lib/firebase'
 import { medalTierFromTasksCompleted } from '../lib/medalTier'
 import { makePendingDocId } from './pendingService'
-import { deleteSubmissionPhotoByPath } from './storageService'
+import { pendingPhotoStoragePaths } from '../lib/feedPhotos'
+import { deleteSubmissionPhotosByPaths } from './storageService'
 
 function requireDb() {
   const db = getFirebaseDb()
@@ -63,6 +64,30 @@ export async function approvePendingSubmission(groupId, pendingId, pending) {
     throw new Error('Invalid pending submission.')
   }
 
+  const fromPhotos =
+    Array.isArray(pending.photos) && pending.photos.length > 0 ? pending.photos : null
+  const fromLegacy =
+    typeof pending.imageUrl === 'string' && pending.imageUrl.length > 0
+      ? [
+          {
+            url: pending.imageUrl,
+            path: typeof pending.imagePath === 'string' ? pending.imagePath : '',
+            width:
+              typeof pending.imageWidth === 'number' && pending.imageWidth > 0
+                ? pending.imageWidth
+                : 4,
+            height:
+              typeof pending.imageHeight === 'number' && pending.imageHeight > 0
+                ? pending.imageHeight
+                : 3,
+          },
+        ]
+      : null
+  const photos = fromPhotos || fromLegacy
+  if (!photos || photos.length === 0) {
+    throw new Error('This submission has no photos to approve.')
+  }
+
   const feedPostRef = doc(collection(db, `groups/${groupId}/feed`))
 
   const memberRef = doc(db, `groups/${groupId}/members/${pending.userId}`)
@@ -108,7 +133,7 @@ export async function approvePendingSubmission(groupId, pendingId, pending) {
       taskId: pending.taskId,
       taskName: pending.taskName,
       medal,
-      imageUrl: pending.imageUrl,
+      photos,
       description: pending.description ?? null,
       type: 'task_completion',
       timestamp: serverTimestamp(),
@@ -146,6 +171,5 @@ export async function rejectPendingSubmission(groupId, pendingId, pending) {
   })
   batch.delete(pendingDocRef)
   await batch.commit()
-  const fallbackPath = `images/${pendingId}/photo`
-  await deleteSubmissionPhotoByPath(pending.imagePath || fallbackPath)
+  await deleteSubmissionPhotosByPaths(pendingPhotoStoragePaths(pending))
 }

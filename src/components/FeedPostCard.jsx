@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Avatar } from './Avatar'
 import { MedalBadge } from './MedalBadge'
+import { normalizeDocPhotos } from '../lib/feedPhotos'
 import { formatFeedTime, medalTierForPost } from '../lib/feedDisplay'
+import { FeedPhotoCarousel } from './FeedPhotoCarousel'
 import { MAX_COMMENT_CHARS } from '../services/feedInteractionsService'
 
 function HeartIcon({ filled }) {
@@ -63,6 +65,8 @@ export function FeedPostCard({
   const serverCommentCount = typeof post.commentCount === 'number' ? post.commentCount : 0
   const commentLabelCount = Math.max(serverCommentCount, comments.length)
 
+  const photos = normalizeDocPhotos(post)
+
   const headerBody = (
     <>
       <Avatar
@@ -105,10 +109,12 @@ export function FeedPostCard({
     <article className="overflow-hidden rounded-xl border border-black/10 bg-tour-surface">
       {header}
 
-      {post.imageUrl ? (
-        <div className="relative h-[500px] w-full overflow-hidden bg-[#EAF3DE] sm:h-[700px]">
+      {photos.length > 1 ? (
+        <FeedPhotoCarousel photos={photos} isHeroImage={isHeroImage} />
+      ) : photos.length === 1 ? (
+        <div className="relative h-[550px] w-full overflow-hidden bg-[#EAF3DE] sm:h-[700px]">
           <img
-            src={post.imageUrl}
+            src={photos[0].url}
             alt=""
             className="h-full w-full object-cover"
             decoding="async"
@@ -117,7 +123,7 @@ export function FeedPostCard({
           />
         </div>
       ) : (
-        <div className="flex h-[400px] w-full items-center justify-center bg-[#EAF3DE] sm:h-[600px]">
+        <div className="flex h-[550px] w-full items-center justify-center bg-[#EAF3DE] sm:h-[700px]">
           <span className="text-[11px] text-[#3B6D11]">Photo</span>
         </div>
       )}

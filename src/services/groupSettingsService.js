@@ -10,9 +10,10 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore'
+import { pendingPhotoStoragePaths } from '../lib/feedPhotos'
 import { getFirebaseDb } from '../lib/firebase'
 import { buildActivityDocument, generateUniqueInviteCode, getGroup } from './groupService'
-import { deleteSubmissionPhotoByPath } from './storageService'
+import { deleteSubmissionPhotosByPaths } from './storageService'
 
 function requireDb() {
   const db = getFirebaseDb()
@@ -85,8 +86,7 @@ export async function removeGroupMember(groupId, memberUserId, ownerId) {
   const pendings = pendingsSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
 
   for (const p of pendings) {
-    const fallbackPath = `images/${p.id}/photo`
-    await deleteSubmissionPhotoByPath(p.imagePath || fallbackPath)
+    await deleteSubmissionPhotosByPaths(pendingPhotoStoragePaths(p))
   }
 
   for (let i = 0; i < pendings.length; i += BATCH_LIMIT) {

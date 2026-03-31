@@ -8,7 +8,9 @@ import {
   subscribePendingQueue,
 } from '../services/approvalService'
 import { getGroup } from '../services/groupService'
+import { FeedPhotoCarousel } from '../components/FeedPhotoCarousel'
 import { PageLoading } from '../components/PageLoading'
+import { normalizeDocPhotos } from '../lib/feedPhotos'
 
 function formatSubmittedAt(value) {
   if (!value) return '—'
@@ -149,18 +151,22 @@ export function GroupApprovalsPage() {
       )}
 
       <div className="flex flex-col gap-3">
-        {queue.map((pending) => (
+        {queue.map((pending) => {
+          const pendingPhotos = normalizeDocPhotos(pending)
+          return (
           <article
             key={pending.id}
             className="overflow-hidden rounded-xl border border-black/10 bg-tour-surface"
           >
-            {pending.imageUrl && (
+            {pendingPhotos.length > 1 ? (
+              <FeedPhotoCarousel photos={pendingPhotos} isHeroImage={false} />
+            ) : pendingPhotos.length === 1 ? (
               <img
-                src={pending.imageUrl}
+                src={pendingPhotos[0].url}
                 alt=""
                 className="aspect-[4/3] w-full object-cover"
               />
-            )}
+            ) : null}
             <div className="space-y-2 px-3.5 py-3">
               <div className="flex items-start gap-2.5 text-[13px]">
                 <Avatar
@@ -205,7 +211,8 @@ export function GroupApprovalsPage() {
               </div>
             </div>
           </article>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
