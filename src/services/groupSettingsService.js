@@ -2,6 +2,7 @@ import {
   arrayRemove,
   collection,
   doc,
+  getDoc,
   getDocs,
   increment,
   query,
@@ -101,11 +102,41 @@ export async function removeGroupMember(groupId, memberUserId, ownerId) {
   const memberRef = doc(db, `groups/${groupId}/members/${memberUserId}`)
   const groupRef = doc(db, 'groups', groupId)
 
+  const enrollmentRef = doc(db, `groups/${groupId}/enrollments/${memberUserId}`)
   const batch = writeBatch(db)
   batch.delete(memberRef)
+  batch.delete(enrollmentRef)
   batch.update(groupRef, { memberIds: arrayRemove(memberUserId) })
   await batch.commit()
 }
+
+/**
+ * One-time idempotent repair: legacy activity docs missing `isAdvanced` / `prerequisiteActivityId`.
+ * Owner-only; call from settings after deploy. Required for member `where('isAdvanced', '==', false)` queries.
+ */
+export async function ensureActivityAdvancedDefaults(groupId) {
+  const db = requireDb()
+  const snap = await getDocs(collection(db, `groups/${groupId}/activities`))
+  let batch = writeBatch(db)
+  let ops = 0
+  for (const d of snap.docs) {
+    const data = d.data()
+    const patch = {}
+    if (!('isAdvanced' in data)) patch.isAdvanced = false
+    if (!('prerequisiteActivityId' in data)) patch.prerequisiteActivityId = null
+    if (Object.keys(patch).length > 0) {
+      batch.update(d.ref, patch)
+      ops += 1
+      if (ops >= BATCH_LIMIT) {
+        await batch.commit()
+        batch = writeBatch(db)
+        ops = 0
+      }
+    }
+  }
+  if (ops > 0) await batch.commit()
+}
+
 
 /**
  * Create a new activity, bump activityCount, system feed line.
@@ -124,6 +155,21 @@ export async function addGroupActivity(groupId, activityInput, ownerDisplayName)
   }
 
   const sortOrder = count
+
+  if (activityInput.isAdvanced === true) {
+    const pid = activityInput.prerequisiteActivityId?.trim()
+    if (!pid) {
+      throw new Error('Choose a standard activity as the prerequisite for this advanced activity.')
+    }
+    const prereqSnap = await getDoc(doc(db, `groups/${groupId}/activities`, pid))
+    if (!prereqSnap.exists()) {
+      throw new Error('Prerequisite activity not found.')
+    }
+    if (prereqSnap.data()?.isAdvanced === true) {
+      throw new Error('Prerequisite must be a standard activity.')
+    }
+  }
+
   const activityPayload = buildActivityDocument(activityInput, sortOrder)
   const activityRef = doc(collection(db, `groups/${groupId}/activities`))
   const groupRef = doc(db, 'groups', groupId)

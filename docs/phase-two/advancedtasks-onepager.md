@@ -1,6 +1,6 @@
 # Advanced Activities — Feature Spec
  
-> Status: Post-MVP (planned)
+> Status: **Phase Two — shipped** (implementation in repo; deploy rules + indexes)
 > Last updated: March 2026
 > Parent doc: DESIGN.md
 > Author: Paolo
@@ -313,36 +313,60 @@ async function approveSubmission(groupId, pendingDoc, memberDoc, activities) {
 ---
  
 ## Implementation Checklist
- 
+
+Track deployment and QA here; code lives under `src/` and `firestore.rules`.
+
 ### Data model
-- [ ] Add `isAdvanced: boolean` and `prerequisiteActivityId: string | null` to activity creation form and service
-- [ ] Backfill existing activities: `isAdvanced: false`, `prerequisiteActivityId: null` (one-off script or Firestore Console batch)
-- [ ] Create `enrollments/{userId}` subcollection structure (no schema migration needed — created on first enrollment)
- 
+- [x] Add `isAdvanced: boolean` and `prerequisiteActivityId: string | null` — `buildActivityDocument` / `groupService.js`, Group Settings add + edit, `addGroupActivity` validation
+- [x] Backfill legacy activity docs — `ensureActivityAdvancedDefaults(groupId)` in `groupSettingsService.js` (auto-run when owner opens Group settings)
+- [x] `enrollments/{userId}` — created on first gold unlock (`approvalService` transaction)
+
 ### Security rules
-- [ ] Update `activities` read rule to gate advanced activity visibility on enrollment doc
-- [ ] Add `enrollments/{userId}` rules block (read: self + owner; write: owner only; delete: false)
-- [ ] Test rules in Firebase emulator: member cannot read advanced activity before enrollment; can read after; owner always can read
- 
+- [x] `activities` read gate — owner all; members standard **or** enrolled advanced; legacy without `isAdvanced` treated as standard (`activityIsStandard`)
+- [x] `enrollments/{userId}` — **read:** any group member (see **Implementation status** below); **write:** owner; **delete:** owner (member removal)
+- [ ] Emulator / CI: run `npm run test:rules` (needs Java) — coverage in `tests/firestore.feed-rules.test.js` → `describe('… advanced')`
+
 ### Owner UI
-- [ ] "Add activity" form: add **Advanced activity** toggle + prerequisite dropdown
-- [ ] Activity list (owner view): show **Advanced** badge on advanced activities
-- [ ] Owner edit form: allow toggling `isAdvanced` and changing `prerequisiteActivityId` only while `isLocked === false` (same editing rules as other fields)
- 
+- [x] Add activity: **Advanced** checkbox + prerequisite `<select>` (standard activities only)
+- [x] **Advanced** badge — Group settings activity list + Group Info (owner-only context)
+- [x] Edit activity: advanced fields only while `isLocked === false` (`updateActivityDocument`)
+
 ### Approval flow
-- [ ] Extend approval batch: on gold medal, query activities for matching `prerequisiteActivityId`, write enrollment doc with `arrayUnion`
-- [ ] Test: approve 3rd task → enrollment doc created → member can now read the advanced activity
- 
+- [x] On gold medal — `runTransaction` in `approvePendingSubmission` writes `enrollments` with `arrayUnion` + `merge` (full `activities` list passed from `GroupApprovalsPage`)
+- [ ] Manual QA: approve 3rd task on prerequisite → enrollment doc → member sees advanced activity + unlock banner
+
 ### Member UI
-- [ ] Activities tab: filter out advanced activities the member is not enrolled in
-- [ ] Unlock banner: detect new enrollments not yet in `localStorage`; show once; dismiss stores id in `seenAdvancedActivityIds`
-- [ ] Enrolled advanced activities: render identically to standard activities (no badge)
-- [ ] Profile screen: fetch `enrollments/{userId}` doc; build `childMap` from activity list; render enrolled advanced activities indented under their prerequisite parent
- 
-### Edge cases
-- [ ] Member removal: add enrollment doc deletion to the removal batch in `groupSettingsService`
-- [ ] Document the "retroactive gold" edge case in `KNOWN_CONCERNS.md`
- 
+- [x] Activities / picker / group info — `subscribeMemberVisibleActivities` or `subscribeActivitiesForViewer` (owner sees all)
+- [x] Unlock banner — Activities tab; localStorage key `adv-unlock-seen-{groupId}-{activityId}`
+- [x] No **Advanced** badge on member-facing activity rows (badge is owner-only surfaces)
+- [x] Profile — `subscribeActivitiesForProfile` + `buildProfileActivityRows` (nested under prerequisite; chains supported)
+
+### Product / edge cases
+- [x] Member removal — `removeGroupMember` deletes `enrollments/{removedUid}`
+- [x] Retroactive gold / late-added advanced — documented in `docs/KNOWN_CONCERNS.md` (**Advanced activities**)
+- [x] **Standings** — `subscribeStandardActivitiesOnly` (advanced medals excluded from ranking denominator; same bar for everyone)
+
+---
+
+## Implementation status (repo)
+
+Use this section to reconcile the spec with reality without re-reading the codebase.
+
+| Topic | Shipped behavior |
+|---|---|
+| **Enrollment reads** | Any **group member** may read `enrollments/{anyMemberUid}` so profile and shared UI work. *Spec sketch above said self + owner only — widened on purpose.* |
+| **Enrollment delete** | **Owner** may delete (member removal). *Spec said `delete: false` — exception for cleanup.* |
+| **Member activity queries** | Not one `onSnapshot` on all `activities` — **`subscribeMemberVisibleActivities`** (`isAdvanced == false` query + enrollment + per-advanced doc listeners). |
+| **Approval write** | **`runTransaction`** + `arrayUnion`, not a standalone `writeBatch` pseudocode-only path. |
+| **Indexes** | **None required** for member standard-activity queries: `where('isAdvanced', '==', false)` only, then **client sort** by `sortOrder` (`activityService.js`). Avoids composite-index deploy for ~10 activities. |
+| **Manual deploy** | After deploy, owners should open **Group settings** once per group (or rely on backfill) so legacy activity docs get `isAdvanced: false`. |
+
+---
+
+## Checklist hygiene (for agents / maintainers)
+
+When you change behavior that a onepager describes, **update that doc’s checklist** (and this **Implementation status** table if rules diverge). For other phase-two specs: `expandProfileImage-onepager.md` and `notifications-onepager.md` keep their own checklists — update those files when those features move.
+
 ---
  
 ## Rejected Alternatives

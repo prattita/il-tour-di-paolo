@@ -3,9 +3,14 @@ import { useParams } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { UserTracker } from '../components/UserTracker'
 import { PageLoading } from '../components/PageLoading'
-import { subscribeActivities, subscribeGroupMembers } from '../services/activityService'
+import {
+  subscribeGroupEnrollments,
+  subscribeGroupMembers,
+  subscribeStandardActivitiesOnly,
+} from '../services/activityService'
 import { getGroup } from '../services/groupService'
 import { rankMembersForStandings } from '../lib/standingsRank'
+import { inclusiveMedalCounts } from '../lib/medalTier'
 
 export function GroupStandingsPage() {
   const { groupId } = useParams()
@@ -13,6 +18,7 @@ export function GroupStandingsPage() {
   const [group, setGroup] = useState(null)
   const [members, setMembers] = useState([])
   const [activities, setActivities] = useState([])
+  const [enrollmentsByUserId, setEnrollmentsByUserId] = useState({})
   const [loadingGroup, setLoadingGroup] = useState(true)
   const [listError, setListError] = useState('')
 
@@ -46,21 +52,50 @@ export function GroupStandingsPage() {
       (list) => setMembers(list),
       (e) => setListError(e.message || 'Failed to load members.'),
     )
-    const unsubA = subscribeActivities(
+    const unsubA = subscribeStandardActivitiesOnly(
       groupId,
       (list) => setActivities(list),
       (e) => setListError(e.message || 'Failed to load activities.'),
     )
+    const unsubE = subscribeGroupEnrollments(
+      groupId,
+      (byUserId) => setEnrollmentsByUserId(byUserId),
+      (e) => setListError(e.message || 'Failed to load enrollments.'),
+    )
     return () => {
       unsubM()
       unsubA()
+      unsubE()
     }
   }, [groupId, isMember])
 
-  const ranked = useMemo(
-    () => rankMembersForStandings(members, activities),
-    [members, activities],
-  )
+  const perMemberSummary = useMemo(() => {
+    const standardIds = activities.map((a) => a.id)
+    const out = {}
+    for (const m of members) {
+      const enrolled = enrollmentsByUserId[m.id] || []
+      const visibleIds = [...new Set([...standardIds, ...enrolled])]
+      const pseudoActivities = visibleIds.map((id) => ({ id }))
+      out[m.id] = {
+        total: pseudoActivities.length,
+        counts: inclusiveMedalCounts(pseudoActivities, m.progress),
+        activities: pseudoActivities,
+      }
+    }
+    return out
+  }, [members, activities, enrollmentsByUserId])
+
+  const ranked = useMemo(() => {
+    const membersWithScope = members.map((m) => ({
+      ...m,
+      _visibleActivitiesForStandings: perMemberSummary[m.id]?.activities || [],
+    }))
+    return rankMembersForStandings(
+      membersWithScope,
+      null,
+      (member) => member._visibleActivitiesForStandings || [],
+    )
+  }, [members, perMemberSummary])
 
   return (
     <div className="text-tour-text">
@@ -104,7 +139,9 @@ export function GroupStandingsPage() {
                     rank={i + 1}
                     variant="full"
                     isCurrentUser={user?.uid === m.id}
-                    activities={activities}
+                    activities={[]}
+                    totalOverride={perMemberSummary[m.id]?.total ?? 0}
+                    countsOverride={perMemberSummary[m.id]?.counts}
                     groupId={groupId}
                   />
                 </li>

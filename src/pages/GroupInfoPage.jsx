@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Avatar } from '../components/Avatar'
 import { useAuth } from '../context/useAuth'
-import { subscribeActivities, subscribeGroupMembers } from '../services/activityService'
+import {
+  subscribeActivities,
+  subscribeActivitiesForViewer,
+  subscribeGroupMembers,
+} from '../services/activityService'
 import { getGroup } from '../services/groupService'
 
 export function GroupInfoPage() {
@@ -38,24 +42,29 @@ export function GroupInfoPage() {
 
   const isMember = Boolean(user?.uid && group?.memberIds?.includes(user.uid))
   const isOwner = Boolean(user?.uid && group?.ownerId === user.uid)
+  const activityNameById = Object.fromEntries(activities.map((a) => [a.id, a.name || 'Activity']))
 
   useEffect(() => {
-    if (!groupId || !isMember) return
+    if (!groupId || !isMember || !user?.uid) return
     const unsubM = subscribeGroupMembers(
       groupId,
       (list) => setMembers(list),
       () => setMembers([]),
     )
-    const unsubA = subscribeActivities(
-      groupId,
-      (list) => setActivities(list),
-      () => setActivities([]),
-    )
+    const unsubA = isOwner
+      ? subscribeActivities(groupId, (list) => setActivities(list), () => setActivities([]))
+      : subscribeActivitiesForViewer(
+          groupId,
+          user.uid,
+          group?.ownerId,
+          (list) => setActivities(list),
+          () => setActivities([]),
+        )
     return () => {
       unsubM()
       unsubA()
     }
-  }, [groupId, isMember])
+  }, [groupId, isMember, isOwner, user?.uid, group?.ownerId])
 
   function toggleActivityExpanded(id) {
     setExpandedActivityIds((prev) => {
@@ -158,15 +167,40 @@ export function GroupInfoPage() {
           <ul className="mt-3 space-y-2">
             {activities.map((a) => {
               const open = expandedActivityIds.has(a.id)
+              const advanced = a.isAdvanced === true
               return (
-                <li key={a.id} className="overflow-hidden rounded-lg border border-black/10">
+                <li
+                  key={a.id}
+                  className={[
+                    'overflow-hidden rounded-lg border',
+                    advanced ? 'border-violet-200 bg-violet-50/40' : 'border-black/10',
+                  ].join(' ')}
+                >
                   <button
                     type="button"
                     aria-expanded={open}
                     onClick={() => toggleActivityExpanded(a.id)}
-                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-black/[0.03]"
+                    className={[
+                      'flex w-full items-center gap-2 px-3 py-2.5 text-left',
+                      advanced ? 'hover:bg-violet-100/50' : 'hover:bg-black/[0.03]',
+                    ].join(' ')}
                   >
-                    <span className="min-w-0 flex-1 text-[13px] font-medium text-tour-text">{a.name}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="text-[13px] font-medium text-tour-text">
+                        {a.name}
+                        {advanced ? (
+                          <span className="ml-2 align-middle rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800">
+                            Advanced
+                          </span>
+                        ) : null}
+                      </span>
+                      {advanced && a.prerequisiteActivityId ? (
+                        <span className="mt-0.5 block text-[11px] font-normal text-violet-800/85">
+                          Advanced track of:{' '}
+                          {activityNameById[a.prerequisiteActivityId] || 'prerequisite activity'}
+                        </span>
+                      ) : null}
+                    </span>
                     <span className="shrink-0 text-[11px] text-tour-text-secondary" aria-hidden>
                       {open ? '▲' : '▼'}
                     </span>

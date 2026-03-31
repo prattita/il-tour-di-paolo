@@ -13,12 +13,25 @@ const SUMMARY_BADGE_W = 'w-[3.25rem]'
  *   variant: 'full' | 'compact',
  *   isCurrentUser?: boolean,
  *   activities: Array<{ id: string }>,
+ *   totalOverride?: number,
+ *   countsOverride?: { gold: number, silver: number, bronze: number },
  *   groupId: string,
  * }} props
  */
-export function UserTracker({ member, rank, variant, isCurrentUser = false, activities, groupId }) {
-  const total = activities?.length ?? 0
-  const counts = inclusiveMedalCounts(activities || [], member?.progress)
+export function UserTracker({
+  member,
+  rank,
+  variant,
+  isCurrentUser = false,
+  activities,
+  totalOverride,
+  countsOverride,
+  groupId,
+}) {
+  const computedTotal = activities?.length ?? 0
+  const computedCounts = inclusiveMedalCounts(activities || [], member?.progress)
+  const total = Number.isFinite(totalOverride) ? totalOverride : computedTotal
+  const counts = countsOverride || computedCounts
   const profilePath = `/group/${groupId}/profile/${member.id}`
   const name = member.displayName || 'Member'
 

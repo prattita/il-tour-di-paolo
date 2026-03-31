@@ -12,12 +12,16 @@ export function joinedAtMillis(member) {
 /**
  * Deterministic medal standings: gold → silver → bronze (inclusive counts, same as profile),
  * then earlier `joinedAt` wins.
+ *
+ * `activitiesForMember` lets callers rank with a per-member visibility scope.
  */
-export function rankMembersForStandings(members, activities) {
+export function rankMembersForStandings(members, activities, activitiesForMember) {
   const acts = activities || []
   return [...members].sort((a, b) => {
-    const ma = inclusiveMedalCounts(acts, a.progress)
-    const mb = inclusiveMedalCounts(acts, b.progress)
+    const actsA = typeof activitiesForMember === 'function' ? activitiesForMember(a) || [] : acts
+    const actsB = typeof activitiesForMember === 'function' ? activitiesForMember(b) || [] : acts
+    const ma = inclusiveMedalCounts(actsA, a.progress)
+    const mb = inclusiveMedalCounts(actsB, b.progress)
     if (mb.gold !== ma.gold) return mb.gold - ma.gold
     if (mb.silver !== ma.silver) return mb.silver - ma.silver
     if (mb.bronze !== ma.bronze) return mb.bronze - ma.bronze

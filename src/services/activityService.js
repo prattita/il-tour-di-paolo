@@ -1,4 +1,5 @@
 import {
+  arrayUnion,
   collection,
   doc,
   getDoc,
@@ -6,7 +7,10 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
+  serverTimestamp,
   updateDoc,
+  where,
 } from 'firebase/firestore'
 import { getFirebaseDb } from '../lib/firebase'
 
@@ -16,6 +20,16 @@ function requireDb() {
     throw new Error('Firestore is not available. Check Firebase configuration.')
   }
   return db
+}
+
+/** Avoid Firestore composite index (`isAdvanced` + `sortOrder`) — family-scale list size. */
+function sortActivitiesBySortOrderThenName(list) {
+  return [...list].sort((a, b) => {
+    const sa = Number(a.sortOrder) || 0
+    const sb = Number(b.sortOrder) || 0
+    if (sa !== sb) return sa - sb
+    return (a.name || '').localeCompare(b.name || '')
+  })
 }
 
 /**
@@ -41,6 +55,306 @@ export function subscribeActivities(groupId, onData, onError) {
     },
     onError,
   )
+}
+
+/**
+ * Activities visible to a non-owner member: standard (`isAdvanced == false`) plus enrolled advanced
+ * docs (real-time). Does not query the full collection (rules would reject unreadable advanced rows).
+ *
+ * @param {string} groupId
+ * @param {string} memberUserId — whose enrollment + activity visibility (profile subject or current user)
+ */
+export function subscribeMemberVisibleActivities(groupId, memberUserId, onData, onError) {
+  const db = requireDb()
+  let standardActs = []
+  const advancedById = new Map()
+  let enrolledIds = []
+  const advancedUnsubs = []
+
+  function sortMerged(list) {
+    return [...list].sort((a, b) => {
+      const sa = Number(a.sortOrder) || 0
+      const sb = Number(b.sortOrder) || 0
+      if (sa !== sb) return sa - sb
+      return (a.name || '').localeCompare(b.name || '')
+    })
+  }
+
+  function emit() {
+    const advancedList = enrolledIds.map((id) => advancedById.get(id)).filter(Boolean)
+    onData(sortMerged([...standardActs, ...advancedList]))
+  }
+
+  function refreshAdvancedListeners() {
+    for (const u of advancedUnsubs) u()
+    advancedUnsubs.length = 0
+    advancedById.clear()
+    for (const aid of enrolledIds) {
+      const aref = doc(db, `groups/${groupId}/activities`, aid)
+      const unsub = onSnapshot(
+        aref,
+        (s) => {
+          if (s.exists()) advancedById.set(aid, { id: s.id, ...s.data() })
+          else advancedById.delete(aid)
+          emit()
+        },
+        onError,
+      )
+      advancedUnsubs.push(unsub)
+    }
+  }
+
+  const qStd = query(collection(db, `groups/${groupId}/activities`), where('isAdvanced', '==', false))
+
+  const unsubStd = onSnapshot(
+    qStd,
+    (snap) => {
+      standardActs = sortActivitiesBySortOrderThenName(
+        snap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      )
+      emit()
+    },
+    onError,
+  )
+
+  const enrRef = doc(db, `groups/${groupId}/enrollments`, memberUserId)
+  const unsubEnr = onSnapshot(
+    enrRef,
+    (snap) => {
+      enrolledIds = snap.exists() ? [...(snap.data().enrolledActivityIds || [])] : []
+      refreshAdvancedListeners()
+      emit()
+    },
+    onError,
+  )
+
+  return () => {
+    unsubStd()
+    unsubEnr()
+    for (const u of advancedUnsubs) u()
+  }
+}
+
+/**
+ * Owner sees all activities; everyone else sees {@link subscribeMemberVisibleActivities} for themselves.
+ */
+export function subscribeActivitiesForViewer(groupId, viewerUid, groupOwnerId, onData, onError) {
+  return subscribeActivitiesForScope(
+    groupId,
+    viewerUid,
+    viewerUid,
+    groupOwnerId,
+    onData,
+    onError,
+  )
+}
+
+/**
+ * Profile always uses the subject member's visible set (standard + enrolled advanced),
+ * including when the subject is the owner.
+ */
+export function subscribeActivitiesForProfile(
+  groupId,
+  profileUserId,
+  viewerUid,
+  groupOwnerId,
+  onData,
+  onError,
+) {
+  return subscribeMemberVisibleActivities(groupId, profileUserId, onData, onError)
+}
+
+/**
+ * Shared activity visibility for UI scopes.
+ * - Group owner viewing their own scope sees all activities.
+ * - Everyone else sees member-visible activities for `subjectUserId`.
+ */
+function subscribeActivitiesForScope(
+  groupId,
+  subjectUserId,
+  viewerUid,
+  groupOwnerId,
+  onData,
+  onError,
+) {
+  const ownerViewingOwnScope = Boolean(
+    viewerUid && groupOwnerId && viewerUid === groupOwnerId && subjectUserId === viewerUid,
+  )
+  if (ownerViewingOwnScope) return subscribeActivities(groupId, onData, onError)
+  return subscribeMemberVisibleActivities(groupId, subjectUserId, onData, onError)
+}
+
+/** Standard activities only (`isAdvanced == false`). */
+export function subscribeStandardActivitiesOnly(groupId, onData, onError) {
+  const db = requireDb()
+  const qStd = query(collection(db, `groups/${groupId}/activities`), where('isAdvanced', '==', false))
+  return onSnapshot(
+    qStd,
+    (snap) => {
+      onData(
+        sortActivitiesBySortOrderThenName(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      )
+    },
+    onError,
+  )
+}
+
+export function subscribeEnrollmentActivityIds(groupId, userId, onData, onError) {
+  const db = requireDb()
+  const ref = doc(db, `groups/${groupId}/enrollments`, userId)
+  return onSnapshot(
+    ref,
+    (snap) => {
+      onData(snap.exists() ? [...(snap.data().enrolledActivityIds || [])] : [])
+    },
+    onError,
+  )
+}
+
+/**
+ * Advanced activities the member is currently eligible to join (gold prerequisite reached),
+ * excluding already-enrolled activities.
+ */
+export function subscribeEligibleAdvancedActivities(groupId, userId, onData, onError) {
+  const db = requireDb()
+  const candidatesById = new Map()
+  const candidateUnsubs = []
+  let enrolledIds = []
+  let goldPrereqIds = []
+
+  function emit() {
+    const enrolled = new Set(enrolledIds)
+    const list = [...candidatesById.values()].filter((a) => !enrolled.has(a.id))
+    onData(sortActivitiesBySortOrderThenName(list))
+  }
+
+  function refreshCandidateQueries() {
+    for (const u of candidateUnsubs) u()
+    candidateUnsubs.length = 0
+    candidatesById.clear()
+    for (const prereqId of goldPrereqIds) {
+      const q = query(
+        collection(db, `groups/${groupId}/activities`),
+        where('prerequisiteActivityId', '==', prereqId),
+      )
+      const unsub = onSnapshot(
+        q,
+        (snap) => {
+          for (const d of snap.docs) {
+            const data = d.data()
+            if (data?.isAdvanced === true) {
+              candidatesById.set(d.id, { id: d.id, ...data })
+            }
+          }
+          emit()
+        },
+        onError,
+      )
+      candidateUnsubs.push(unsub)
+    }
+    emit()
+  }
+
+  const unsubEnrollment = subscribeEnrollmentActivityIds(
+    groupId,
+    userId,
+    (ids) => {
+      enrolledIds = [...ids]
+      emit()
+    },
+    onError,
+  )
+
+  const unsubMember = subscribeGroupMember(
+    groupId,
+    userId,
+    (member) => {
+      const progress = member?.progress || {}
+      goldPrereqIds = Object.entries(progress)
+        .filter(([, p]) => Number(p?.tasksCompleted || 0) >= 3)
+        .map(([activityId]) => activityId)
+      refreshCandidateQueries()
+    },
+    onError,
+  )
+
+  return () => {
+    unsubEnrollment()
+    unsubMember()
+    for (const u of candidateUnsubs) u()
+  }
+}
+
+/** Explicit manual enrollment into an advanced activity; no unenroll path. */
+export async function joinAdvancedActivity(groupId, userId, activityId) {
+  const db = requireDb()
+  const memberRef = doc(db, `groups/${groupId}/members/${userId}`)
+  const activityRef = doc(db, `groups/${groupId}/activities/${activityId}`)
+  const enrollmentRef = doc(db, `groups/${groupId}/enrollments/${userId}`)
+
+  await runTransaction(db, async (tx) => {
+    const [memberSnap, activitySnap] = await Promise.all([tx.get(memberRef), tx.get(activityRef)])
+    if (!memberSnap.exists()) throw new Error('Member not found.')
+    if (!activitySnap.exists()) throw new Error('Activity not found.')
+    const activity = activitySnap.data() || {}
+    if (activity.isAdvanced !== true) throw new Error('This activity is not advanced.')
+    const prereqId =
+      typeof activity.prerequisiteActivityId === 'string' ? activity.prerequisiteActivityId : ''
+    if (!prereqId) throw new Error('This advanced activity is missing a prerequisite.')
+
+    const tasksCompleted = Number(memberSnap.data()?.progress?.[prereqId]?.tasksCompleted || 0)
+    if (tasksCompleted < 3) {
+      throw new Error('You must earn Gold on the prerequisite activity first.')
+    }
+
+    tx.set(
+      enrollmentRef,
+      {
+        userId,
+        enrolledActivityIds: arrayUnion(activityId),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    )
+  })
+}
+
+/**
+ * Profile / unlock UI: ordered rows — standard activities at top level, then nested enrolled advanced (supports chains).
+ */
+export function buildProfileActivityRows(activities) {
+  const byId = new Map((activities || []).map((a) => [a.id, a]))
+  const childMap = {}
+  for (const a of activities || []) {
+    if (a.isAdvanced !== true) continue
+    if (!byId.has(a.id)) continue
+    const pid = a.prerequisiteActivityId
+    if (!pid || typeof pid !== 'string') continue
+    if (!childMap[pid]) childMap[pid] = []
+    childMap[pid].push(a)
+  }
+  for (const pid of Object.keys(childMap)) {
+    childMap[pid].sort((x, y) => (Number(x.sortOrder) || 0) - (Number(y.sortOrder) || 0))
+  }
+
+  const rows = []
+  function walkChildren(parentId, depth) {
+    for (const child of childMap[parentId] || []) {
+      rows.push({ activity: child, depth })
+      walkChildren(child.id, depth + 1)
+    }
+  }
+
+  const topLevel = (activities || [])
+    .filter((a) => !a.isAdvanced)
+    .sort((a, b) => (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0))
+
+  for (const a of topLevel) {
+    rows.push({ activity: a, depth: 0 })
+    walkChildren(a.id, 1)
+  }
+
+  return rows
 }
 
 /**
@@ -83,13 +397,35 @@ export function subscribeGroupMembers(groupId, onData, onError) {
   )
 }
 
+/** Enrollment snapshot for all group members: { [userId]: enrolledActivityIds[] }. */
+export function subscribeGroupEnrollments(groupId, onData, onError) {
+  const db = requireDb()
+  return onSnapshot(
+    collection(db, `groups/${groupId}/enrollments`),
+    (snap) => {
+      const byUserId = {}
+      for (const d of snap.docs) {
+        const data = d.data() || {}
+        byUserId[d.id] = Array.isArray(data.enrolledActivityIds) ? [...data.enrolledActivityIds] : []
+      }
+      onData(byUserId)
+    },
+    onError,
+  )
+}
+
 const TASK_IDS = ['task-1', 'task-2', 'task-3']
 
 /**
  * Owner-only: update activity name/description and task labels. Task ids and count stay fixed.
  * `isLocked` only blocks changing task structure; names remain editable per DESIGN §8.
+ * Advanced flags (`isAdvanced`, `prerequisiteActivityId`) may change only while `isLocked == false`.
  */
-export async function updateActivityDocument(groupId, activityId, { name, description, tasks }) {
+export async function updateActivityDocument(
+  groupId,
+  activityId,
+  { name, description, tasks, isAdvanced, prerequisiteActivityId } = {},
+) {
   const db = requireDb()
   const ref = doc(db, `groups/${groupId}/activities`, activityId)
   const snap = await getDoc(ref)
@@ -110,9 +446,40 @@ export async function updateActivityDocument(groupId, activityId, { name, descri
     return { id, name: taskName, description: taskDescription }
   })
 
-  await updateDoc(ref, {
+  const patch = {
     name: activityName,
     description: description?.trim() || null,
     tasks: nextTasks,
-  })
+  }
+
+  const locked = snap.data().isLocked === true
+  const advProvided = isAdvanced !== undefined || prerequisiteActivityId !== undefined
+  if (advProvided) {
+    if (locked) {
+      throw new Error('Cannot change advanced settings after this activity has approved progress.')
+    }
+    const nextIsAdvanced = isAdvanced === true
+    if (nextIsAdvanced) {
+      const pid =
+        typeof prerequisiteActivityId === 'string' ? prerequisiteActivityId.trim() : ''
+      if (!pid) {
+        throw new Error('Advanced activities require a prerequisite activity.')
+      }
+      if (pid === activityId) {
+        throw new Error('An activity cannot be its own prerequisite.')
+      }
+      const prereqSnap = await getDoc(doc(db, `groups/${groupId}/activities`, pid))
+      if (!prereqSnap.exists()) throw new Error('Prerequisite activity not found.')
+      if (prereqSnap.data()?.isAdvanced === true) {
+        throw new Error('Prerequisite must be a standard activity.')
+      }
+      patch.isAdvanced = true
+      patch.prerequisiteActivityId = pid
+    } else {
+      patch.isAdvanced = false
+      patch.prerequisiteActivityId = null
+    }
+  }
+
+  await updateDoc(ref, patch)
 }

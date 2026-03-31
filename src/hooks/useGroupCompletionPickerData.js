@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getGroup } from '../services/groupService'
-import { subscribeActivities, subscribeGroupMember } from '../services/activityService'
+import { subscribeActivitiesForViewer, subscribeGroupMember } from '../services/activityService'
 import { subscribePendingSubmission } from '../services/pendingService'
 
 /**
@@ -53,8 +53,10 @@ export function useGroupCompletionPickerData(groupId, userId) {
       return
     }
     setActivitiesHydrated(false)
-    const unsub = subscribeActivities(
+    const unsub = subscribeActivitiesForViewer(
       groupId,
+      userId,
+      group?.ownerId,
       (list) => {
         setActivities(list)
         setActivitiesHydrated(true)
@@ -62,7 +64,7 @@ export function useGroupCompletionPickerData(groupId, userId) {
       (e) => setError(e.message || 'Activities listener failed.'),
     )
     return () => unsub()
-  }, [groupId, isMember])
+  }, [groupId, isMember, userId, group?.ownerId])
 
   useEffect(() => {
     if (!groupId || !userId || !isMember) {

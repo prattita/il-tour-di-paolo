@@ -4,7 +4,11 @@ import { Avatar } from '../components/Avatar'
 import { FeedPhotoLightbox } from '../components/FeedPhotoLightbox'
 import { useAuth } from '../context/useAuth'
 import { MedalBadge } from '../components/MedalBadge'
-import { subscribeActivities, subscribeGroupMember } from '../services/activityService'
+import {
+  buildProfileActivityRows,
+  subscribeActivitiesForProfile,
+  subscribeGroupMember,
+} from '../services/activityService'
 import { uploadUserAvatarAndSyncGroups } from '../services/avatarService'
 import { getGroup } from '../services/groupService'
 import { inclusiveMedalCounts, medalTierFromTasksCompleted } from '../lib/medalTier'
@@ -96,8 +100,11 @@ export function GroupProfilePage() {
       (m) => setSubjectMember(m),
       (e) => setListError(e.message || 'Failed to load profile.'),
     )
-    const unsubActs = subscribeActivities(
+    const unsubActs = subscribeActivitiesForProfile(
       groupId,
+      userId,
+      user?.uid,
+      group?.ownerId,
       (list) => setActivities(list),
       (e) => setListError(e.message || 'Failed to load activities.'),
     )
@@ -105,7 +112,7 @@ export function GroupProfilePage() {
       unsubMember()
       unsubActs()
     }
-  }, [groupId, userId, subjectInGroup])
+  }, [groupId, userId, subjectInGroup, user?.uid, group?.ownerId])
 
   useEffect(() => {
     setProfileHeroPhotoFailed(false)
@@ -120,6 +127,8 @@ export function GroupProfilePage() {
     () => inclusiveMedalCounts(activities, subjectMember?.progress),
     [activities, subjectMember?.progress],
   )
+
+  const profileActivityRows = useMemo(() => buildProfileActivityRows(activities), [activities])
 
   const displayName = subjectMember?.displayName
   const isSelf = Boolean(user?.uid && userId && user.uid === userId)
@@ -307,23 +316,36 @@ export function GroupProfilePage() {
               <p className="mt-2 text-sm text-tour-text-secondary">No activities yet.</p>
             ) : (
               <ul className="mt-3 divide-y divide-black/10">
-                {activities.map((activity) => {
-                  const progress = subjectMember?.progress?.[activity.id]
-                  const tasksDone = progress?.tasksCompleted ?? 0
+                {profileActivityRows.map(({ activity, depth }) => {
+                  const actProgress = subjectMember?.progress?.[activity.id]
+                  const tasksDone = actProgress?.tasksCompleted ?? 0
                   const tier = medalTierFromTasksCompleted(tasksDone)
+                  const pad = depth > 0 ? { paddingLeft: `${depth * 0.75}rem` } : undefined
+                  const nestedContentIndent = depth > 0 ? 'pl-4' : ''
                   return (
                     <li
                       key={activity.id}
+                      style={pad}
                       className="grid grid-cols-1 gap-2 py-3 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_140px_7.25rem] sm:items-center sm:gap-x-4 sm:gap-y-0"
                     >
                       <div className="min-w-0 sm:col-start-1 sm:row-start-1">
-                        <p className="text-[13px] font-medium text-tour-text">{activity.name}</p>
-                        <p className="mt-0.5 text-[12px] text-tour-text-secondary">
+                        <p className="text-[13px] font-medium text-tour-text">
+                          {depth > 0 ? <span className="mr-1 text-tour-text-secondary">└</span> : null}
+                          {activity.name}
+                          {activity.isAdvanced === true ? (
+                            <span className="ml-2 align-middle rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800">
+                              Advanced
+                            </span>
+                          ) : null}
+                        </p>
+                        <p className={`mt-0.5 text-[12px] text-tour-text-secondary ${nestedContentIndent}`.trim()}>
                           {tasksDone} of 3 tasks
                         </p>
                       </div>
                       <div className="flex items-center gap-3 sm:contents">
-                        <div className="min-w-0 flex-1 sm:col-start-2 sm:row-start-1 sm:w-[140px] sm:flex-none sm:shrink-0">
+                        <div
+                          className={`min-w-0 flex-1 ${nestedContentIndent} sm:col-start-2 sm:row-start-1 sm:w-[140px] sm:flex-none sm:shrink-0 sm:pl-0`.trim()}
+                        >
                           <ActivityProgressBar tasksCompleted={tasksDone} />
                         </div>
                         <div className="flex shrink-0 justify-end sm:col-start-3 sm:row-start-1 sm:justify-self-end">

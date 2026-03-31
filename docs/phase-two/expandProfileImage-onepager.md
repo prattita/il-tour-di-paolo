@@ -97,6 +97,8 @@ All of the following applies **only** on **`GroupProfilePage`** (or equivalent p
 - [ ] **Pinch / zoom** on touch — polish only.
 - [x] **DESIGN.md** §7.8 — one-line note that the profile screen supports **view larger** for the profile photo (profile route only).
 
+**Doc maintenance:** Whenever you change `FeedPhotoLightbox`, `useFocusTrap`, `Avatar` expand props, or profile-only wiring, update the checkboxes above so this file stays the source of truth.
+
 ---
 
 ## Reference: Focus trap and restore focus

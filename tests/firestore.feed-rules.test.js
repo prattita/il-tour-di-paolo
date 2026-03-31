@@ -304,3 +304,95 @@ describe('groups/{groupId}/feed/{postId}/comments', () => {
     )
   })
 })
+
+describe('groups/{groupId}/activities and enrollments — advanced', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore()
+      await setDoc(doc(db, 'groups', GROUP_ID, 'activities', 'act_std'), {
+        name: 'Standard',
+        sortOrder: 0,
+        isAdvanced: false,
+        prerequisiteActivityId: null,
+      })
+      await setDoc(doc(db, 'groups', GROUP_ID, 'activities', 'act_adv'), {
+        name: 'Advanced',
+        sortOrder: 1,
+        isAdvanced: true,
+        prerequisiteActivityId: 'act_std',
+      })
+    })
+  })
+
+  it('member can read standard activity', async () => {
+    await assertSucceeds(
+      getDoc(doc(authedDb(MEMBER_UID), 'groups', GROUP_ID, 'activities', 'act_std')),
+    )
+  })
+
+  it('member cannot read advanced without enrollment', async () => {
+    await assertFails(
+      getDoc(doc(authedDb(MEMBER_UID), 'groups', GROUP_ID, 'activities', 'act_adv')),
+    )
+  })
+
+  it('member can read advanced when enrolled', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore()
+      await setDoc(doc(db, 'groups', GROUP_ID, 'enrollments', MEMBER_UID), {
+        userId: MEMBER_UID,
+        enrolledActivityIds: ['act_adv'],
+        updatedAt: Timestamp.fromMillis(1),
+      })
+    })
+    await assertSucceeds(
+      getDoc(doc(authedDb(MEMBER_UID), 'groups', GROUP_ID, 'activities', 'act_adv')),
+    )
+  })
+
+  it('owner can always read advanced activity', async () => {
+    await assertSucceeds(
+      getDoc(doc(authedDb(OWNER_UID), 'groups', GROUP_ID, 'activities', 'act_adv')),
+    )
+  })
+
+  it('member can read another member enrollment doc', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore()
+      await setDoc(doc(db, 'groups', GROUP_ID, 'enrollments', MEMBER2_UID), {
+        userId: MEMBER2_UID,
+        enrolledActivityIds: [],
+        updatedAt: Timestamp.fromMillis(1),
+      })
+    })
+    await assertSucceeds(
+      getDoc(doc(authedDb(MEMBER_UID), 'groups', GROUP_ID, 'enrollments', MEMBER2_UID)),
+    )
+  })
+
+  it('non-member cannot read enrollment', async () => {
+    await assertFails(
+      getDoc(doc(authedDb(STRANGER_UID), 'groups', GROUP_ID, 'enrollments', MEMBER_UID)),
+    )
+  })
+
+  it('member cannot write enrollment', async () => {
+    await assertFails(
+      setDoc(doc(authedDb(MEMBER_UID), 'groups', GROUP_ID, 'enrollments', MEMBER_UID), {
+        userId: MEMBER_UID,
+        enrolledActivityIds: ['act_adv'],
+        updatedAt: Timestamp.fromMillis(1),
+      }),
+    )
+  })
+
+  it('owner can create enrollment doc', async () => {
+    await assertSucceeds(
+      setDoc(doc(authedDb(OWNER_UID), 'groups', GROUP_ID, 'enrollments', MEMBER_UID), {
+        userId: MEMBER_UID,
+        enrolledActivityIds: ['act_adv'],
+        updatedAt: Timestamp.fromMillis(1),
+      }),
+    )
+  })
+})

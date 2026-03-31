@@ -11,13 +11,14 @@ import {
 import { getGroup } from '../services/groupService'
 import {
   addGroupActivity,
+  ensureActivityAdvancedDefaults,
   regenerateGroupInviteCode,
   removeGroupMember,
   updateGroupDetails,
 } from '../services/groupSettingsService'
 
 function emptyAddActivity() {
-  return { name: '', description: '', tasks: ['', '', ''] }
+  return { name: '', description: '', tasks: ['', '', ''], isAdvanced: false, prerequisiteActivityId: '' }
 }
 
 export function GroupSettingsPage() {
@@ -100,6 +101,11 @@ export function GroupSettingsPage() {
       (e) => setCountError(e.message || 'Could not load pending count.'),
     )
     return () => unsub()
+  }, [groupId, isOwner])
+
+  useEffect(() => {
+    if (!groupId || !isOwner) return
+    ensureActivityAdvancedDefaults(groupId).catch(() => {})
   }, [groupId, isOwner])
 
   useEffect(() => {
@@ -218,6 +224,8 @@ export function GroupSettingsPage() {
       name: activity.name || '',
       description: activity.description || '',
       taskNames: names,
+      isAdvanced: activity.isAdvanced === true,
+      prerequisiteActivityId: activity.prerequisiteActivityId || '',
     })
   }
 
@@ -243,6 +251,12 @@ export function GroupSettingsPage() {
         name: editForm.name,
         description: editForm.description,
         tasks: tasksPayload,
+        ...(activitySnap?.isLocked
+          ? {}
+          : {
+              isAdvanced: editForm.isAdvanced === true,
+              prerequisiteActivityId: editForm.prerequisiteActivityId,
+            }),
       })
       closeEditActivity()
     } catch (err) {
@@ -463,6 +477,45 @@ export function GroupSettingsPage() {
                       </label>
                     ))}
                   </div>
+                  <label className="flex items-start gap-2 text-[12px] font-medium text-tour-text-secondary">
+                    <input
+                      type="checkbox"
+                      checked={addForm.isAdvanced === true}
+                      onChange={(e) =>
+                        setAddForm((f) => ({
+                          ...f,
+                          isAdvanced: e.target.checked,
+                          prerequisiteActivityId: e.target.checked ? f.prerequisiteActivityId : '',
+                        }))
+                      }
+                      className="mt-0.5"
+                    />
+                    <span>
+                      Advanced activity (hidden until a member earns Gold on a prerequisite)
+                    </span>
+                  </label>
+                  {addForm.isAdvanced && (
+                    <label className="block text-[12px] font-medium text-tour-text-secondary">
+                      Prerequisite (standard activity)
+                      <select
+                        value={addForm.prerequisiteActivityId}
+                        onChange={(e) =>
+                          setAddForm((f) => ({ ...f, prerequisiteActivityId: e.target.value }))
+                        }
+                        className="mt-1 w-full rounded-lg border border-black/18 bg-tour-surface px-3 py-2 text-[13px] text-tour-text"
+                        required={addForm.isAdvanced}
+                      >
+                        <option value="">— Select —</option>
+                        {activities
+                          .filter((x) => !x.isAdvanced)
+                          .map((x) => (
+                            <option key={x.id} value={x.id}>
+                              {x.name}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                  )}
                   {addError && <p className="text-[12px] text-red-700">{addError}</p>}
                   <button
                     type="submit"
@@ -532,6 +585,56 @@ export function GroupSettingsPage() {
                             </label>
                           ))}
                         </div>
+                        {(() => {
+                          const snap = activities.find((x) => x.id === editingActivity)
+                          if (snap?.isLocked) return null
+                          return (
+                            <>
+                              <label className="flex items-start gap-2 text-[12px] font-medium text-tour-text-secondary">
+                                <input
+                                  type="checkbox"
+                                  checked={editForm.isAdvanced === true}
+                                  onChange={(e) =>
+                                    setEditForm((f) => ({
+                                      ...f,
+                                      isAdvanced: e.target.checked,
+                                      prerequisiteActivityId: e.target.checked
+                                        ? f.prerequisiteActivityId
+                                        : '',
+                                    }))
+                                  }
+                                  className="mt-0.5"
+                                />
+                                <span>Advanced activity</span>
+                              </label>
+                              {editForm.isAdvanced && (
+                                <label className="block text-[12px] font-medium text-tour-text-secondary">
+                                  Prerequisite (standard activity)
+                                  <select
+                                    value={editForm.prerequisiteActivityId || ''}
+                                    onChange={(e) =>
+                                      setEditForm((f) => ({
+                                        ...f,
+                                        prerequisiteActivityId: e.target.value,
+                                      }))
+                                    }
+                                    className="mt-1 w-full rounded-lg border border-black/18 bg-tour-surface px-3 py-2 text-[13px] text-tour-text"
+                                    required
+                                  >
+                                    <option value="">— Select —</option>
+                                    {activities
+                                      .filter((x) => !x.isAdvanced && x.id !== editingActivity)
+                                      .map((x) => (
+                                        <option key={x.id} value={x.id}>
+                                          {x.name}
+                                        </option>
+                                      ))}
+                                  </select>
+                                </label>
+                              )}
+                            </>
+                          )
+                        })()}
                         {editError && <p className="text-[12px] text-red-700">{editError}</p>}
                         <div className="flex flex-wrap gap-2">
                           <button
@@ -553,7 +656,14 @@ export function GroupSettingsPage() {
                     ) : (
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
-                          <p className="text-[13px] font-medium text-tour-text">{a.name}</p>
+                          <p className="text-[13px] font-medium text-tour-text">
+                            {a.name}
+                            {a.isAdvanced === true ? (
+                              <span className="ml-2 align-middle rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800">
+                                Advanced
+                              </span>
+                            ) : null}
+                          </p>
                           <p className="mt-0.5 text-[11px] leading-snug text-tour-text-secondary">
                             {a.isLocked ? (
                               <>

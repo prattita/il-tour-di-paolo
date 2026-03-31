@@ -16,6 +16,47 @@ service cloud.firestore {
         && request.auth.uid == groupDoc(groupId).data.ownerId;
     }
 
+    /** Treat missing `isAdvanced` as standard (legacy activity docs). */
+    function activityIsStandard(data) {
+      return !('isAdvanced' in data) || data.isAdvanced == false;
+    }
+
+    function enrollmentDoc(groupId, uid) {
+      return /databases/$(database)/documents/groups/$(groupId)/enrollments/$(uid);
+    }
+
+    function memberDoc(groupId, uid) {
+      return /databases/$(database)/documents/groups/$(groupId)/members/$(uid);
+    }
+
+    function memberHasGoldOnActivity(groupId, uid, activityId) {
+      let p = memberDoc(groupId, uid);
+      return exists(p)
+        && get(p).data.keys().hasAny(['progress'])
+        && get(p).data.progress is map
+        && get(p).data.progress.keys().hasAny([activityId])
+        && get(p).data.progress[activityId] is map
+        && get(p).data.progress[activityId].keys().hasAny(['tasksCompleted'])
+        && get(p).data.progress[activityId].tasksCompleted is int
+        && get(p).data.progress[activityId].tasksCompleted >= 3;
+    }
+
+    /** Member has been enrolled in this advanced activity id. */
+    function memberEnrolledInAdvanced(groupId, activityId) {
+      let p = enrollmentDoc(groupId, request.auth.uid);
+      return exists(p)
+        && get(p).data.keys().hasAny(['enrolledActivityIds'])
+        && get(p).data.enrolledActivityIds is list
+        && get(p).data.enrolledActivityIds.hasAny([activityId]);
+    }
+
+    function memberEligibleForAdvanced(groupId, activityData, uid) {
+      return activityData.isAdvanced == true
+        && activityData.keys().hasAny(['prerequisiteActivityId'])
+        && activityData.prerequisiteActivityId is string
+        && memberHasGoldOnActivity(groupId, uid, activityData.prerequisiteActivityId);
+    }
+
     /** Multi-photo pending submission (Phase One Task 5): 1–3 items with url, path, dimensions. */
     function validPendingPhotoItem(p) {
       return p is map
@@ -72,8 +113,45 @@ service cloud.firestore {
       allow delete: if false;
 
       match /activities/{activityId} {
-        allow read: if isGroupMember(groupId);
+        // Owner sees all activities. Members: standard, enrolled advanced, or advanced they are
+        // eligible to join (gold on prerequisite).
+        allow read: if isGroupOwner(groupId)
+          || (
+            isGroupMember(groupId)
+            && (
+              activityIsStandard(resource.data)
+              || (
+                resource.data.isAdvanced == true
+                && (
+                  memberEnrolledInAdvanced(groupId, activityId)
+                  || memberEligibleForAdvanced(groupId, resource.data, request.auth.uid)
+                )
+              )
+            )
+          );
+
         allow write: if isGroupOwner(groupId);
+      }
+
+      match /enrollments/{userId} {
+        // In-group visibility for profile / activity list; no sensitive PII.
+        allow read: if isGroupMember(groupId);
+
+        // Owner can manage enrollments; members may self-enroll through app UI.
+        allow create, update: if (
+            isGroupOwner(groupId)
+            || (
+              request.auth != null
+              && request.auth.uid == userId
+              && isGroupMember(groupId)
+            )
+          )
+          && request.resource.data.userId == userId
+          && request.resource.data.userId is string
+          && request.resource.data.enrolledActivityIds is list
+          && request.resource.data.updatedAt is timestamp;
+
+        allow delete: if isGroupOwner(groupId);
       }
 
       match /members/{memberId} {

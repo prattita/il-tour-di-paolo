@@ -1,6 +1,6 @@
 # Notifications — Feature Spec
  
-> Status: Post-MVP (Phase 2)
+> Status: Post-MVP (Phase 2) — **not implemented**; checklist below is tracking only
 > Last updated: March 2026
 > Parent doc: DESIGN.md
  
@@ -255,7 +255,9 @@ No additional rules needed — notification fields live on `users/{userId}` whic
 ---
  
 ## Implementation Checklist
- 
+
+> **Tracking:** Mark `[x]` when an item is shipped in the repo. After any notifications work, update this section (and the **Status** line in the header) so progress stays visible without reading code.
+
 ### Infrastructure
 - [ ] Create Resend account, generate API key, add to Firebase Functions environment config
 - [ ] Generate VAPID keys in Firebase Console

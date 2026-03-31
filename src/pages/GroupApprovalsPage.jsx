@@ -83,7 +83,10 @@ export function GroupApprovalsPage() {
       }, APPROVAL_DEADLINE_MS)
     })
     try {
-      await Promise.race([approvePendingSubmission(groupId, pending.id, pending), deadline])
+      await Promise.race([
+        approvePendingSubmission(groupId, pending.id, pending),
+        deadline,
+      ])
     } catch (e) {
       setActionError(e?.message || e?.code || 'Approve failed.')
       console.error('[approve]', e)

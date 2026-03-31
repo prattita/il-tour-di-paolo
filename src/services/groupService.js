@@ -44,6 +44,14 @@ export function buildActivityDocument(input, sortOrder) {
   const taskA = input.tasks?.[0]?.trim() || `Task 1`
   const taskB = input.tasks?.[1]?.trim() || `Task 2`
   const taskC = input.tasks?.[2]?.trim() || `Task 3`
+  const isAdvanced = input.isAdvanced === true
+  const prereq =
+    typeof input.prerequisiteActivityId === 'string' && input.prerequisiteActivityId.length > 0
+      ? input.prerequisiteActivityId
+      : null
+  if (isAdvanced && !prereq) {
+    throw new Error('Advanced activities require a prerequisite activity.')
+  }
   return {
     name: input.name.trim(),
     description: input.description?.trim() || null,
@@ -59,6 +67,8 @@ export function buildActivityDocument(input, sortOrder) {
     },
     sortOrder,
     isLocked: false,
+    isAdvanced,
+    prerequisiteActivityId: isAdvanced ? prereq : null,
     createdAt: serverTimestamp(),
   }
 }
