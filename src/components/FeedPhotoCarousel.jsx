@@ -4,7 +4,7 @@ import { FeedPhotoExpandButton, FeedPhotoLightbox } from './FeedPhotoLightbox'
 import { FeedPhotoWarmStrip } from './FeedPhotoWarmStrip'
 
 const SWIPE_PX = 48
-const CAROUSEL_HEIGHT_CLASS = 'h-[550px] sm:h-[700px]'
+const CAROUSEL_HEIGHT_CLASS = 'h-[500px] sm:h-[700px]'
 
 /**
  * @param {{

@@ -23,7 +23,7 @@ function ownerBadge() {
   )
 }
 
-function GroupNavPanel({ groupId, user, meMember, isOwner, onNavigate }) {
+function GroupNavPanel({ groupId, user, meMember, isOwner, onNavigate, settingsNavState }) {
   const profilePath = `/group/${groupId}/profile/${user?.uid || ''}`
 
   const handleNav = () => {
@@ -103,6 +103,13 @@ function GroupNavPanel({ groupId, user, meMember, isOwner, onNavigate }) {
         >
           Home (all groups)
         </NavLink>
+        <NavLink
+          to="/settings"
+          state={settingsNavState}
+          className="block rounded-lg py-2 pl-3.5 pr-3 text-[12px] text-tour-text-secondary hover:bg-black/[0.04]"
+        >
+          Settings
+        </NavLink>
         <button
           type="button"
           onClick={() => {
@@ -165,6 +172,11 @@ export function GroupLayout() {
   const headerDisplayName = meMember?.displayName || user?.displayName
   const headerAvatarUrl = meMember?.avatarUrl ?? null
 
+  const settingsNavState = useMemo(
+    () => ({ settingsBack: `${location.pathname}${location.search}` }),
+    [location.pathname, location.search],
+  )
+
   const title = useMemo(() => {
     const p = location.pathname
     if (p.includes('/activities')) return 'Activities'
@@ -189,7 +201,13 @@ export function GroupLayout() {
           <p className="truncate text-[13px] font-medium text-tour-text">{group?.name || '…'}</p>
         </div>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <GroupNavPanel groupId={groupId} user={user} meMember={meMember} isOwner={isOwner} />
+          <GroupNavPanel
+            groupId={groupId}
+            user={user}
+            meMember={meMember}
+            isOwner={isOwner}
+            settingsNavState={settingsNavState}
+          />
         </div>
       </aside>
 
@@ -214,6 +232,7 @@ export function GroupLayout() {
                 user={user}
                 meMember={meMember}
                 isOwner={isOwner}
+                settingsNavState={settingsNavState}
                 onNavigate={() => setMenuOpen(false)}
               />
             </div>

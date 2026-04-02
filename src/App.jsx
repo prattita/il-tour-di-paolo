@@ -16,6 +16,7 @@ import { GroupProfilePage } from './pages/GroupProfilePage'
 import { GroupApprovalsPage } from './pages/GroupApprovalsPage'
 import { GroupSettingsPage } from './pages/GroupSettingsPage'
 import { GroupStandingsPage } from './pages/GroupStandingsPage'
+import { SettingsPage } from './pages/SettingsPage'
 
 export default function App() {
   return (
@@ -35,6 +36,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <HomePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
               </ProtectedRoute>
             }
           />

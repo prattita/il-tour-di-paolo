@@ -68,7 +68,7 @@ export function HomePage() {
     <div className="min-h-dvh bg-tour-muted text-tour-text">
       <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col px-4 py-6 sm:px-5 sm:py-8">
         <header className="mb-6 shrink-0 rounded-xl border border-black/10 bg-tour-surface px-4 py-4 sm:px-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <div className="min-w-0">
               <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
                 Il Tour di Paolo
@@ -81,13 +81,22 @@ export function HomePage() {
                 </span>
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="min-h-11 shrink-0 rounded-lg px-3 py-2 text-left text-[13px] font-medium text-[#A32D2D] hover:bg-red-50"
-            >
-              Sign out
-            </button>
+            <div className="flex shrink-0 items-center gap-2 sm:justify-end">
+              <Link
+                to="/settings"
+                state={{ settingsBack: '/' }}
+                className="inline-flex min-h-11 items-center justify-center rounded-lg px-4 py-2 text-[13px] font-medium text-tour-text hover:bg-black/[0.04]"
+              >
+                Settings
+              </Link>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="inline-flex min-h-11 items-center justify-center rounded-lg px-4 py-2 text-[13px] font-medium text-[#A32D2D] hover:bg-red-50"
+              >
+                Sign out
+              </button>
+            </div>
           </div>
         </header>
 

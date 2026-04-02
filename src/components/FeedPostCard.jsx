@@ -126,7 +126,7 @@ export function FeedPostCard({
           <FeedPhotoExpandButton onClick={() => setFullOpen(true)} />
         </div>
       ) : (
-        <div className="flex h-[550px] w-full items-center justify-center bg-[#EAF3DE] sm:h-[700px]">
+        <div className="flex h-[500px] w-full items-center justify-center bg-[#EAF3DE] sm:h-[700px]">
           <span className="text-[11px] text-[#3B6D11]">Photo</span>
         </div>
       )}

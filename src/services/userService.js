@@ -1,4 +1,4 @@
-import { arrayRemove, doc, getDoc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore'
+import { arrayRemove, doc, getDoc, onSnapshot, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { getFirebaseDb } from '../lib/firebase'
 
 /**
@@ -25,6 +25,23 @@ export async function ensureUserProfile(uid, { email, displayName, avatarUrl = n
     groupIds: [],
     createdAt: serverTimestamp(),
   })
+}
+
+/** Real-time `users/{uid}` for global UI (e.g. account settings avatar). */
+export function subscribeUserProfile(uid, onData, onError) {
+  const db = getFirebaseDb()
+  if (!db) {
+    onError?.(new Error('Firestore is not available.'))
+    return () => {}
+  }
+  const ref = doc(db, 'users', uid)
+  return onSnapshot(
+    ref,
+    (snap) => {
+      onData(snap.exists() ? { id: snap.id, ...snap.data() } : null)
+    },
+    (e) => onError?.(e),
+  )
 }
 
 export async function getUserGroupIds(uid) {
