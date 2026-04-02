@@ -3,6 +3,8 @@ import { Link, useLocation } from 'react-router-dom'
 import { Avatar } from '../components/Avatar'
 import { FeedPhotoLightbox } from '../components/FeedPhotoLightbox'
 import { useAuth } from '../context/useAuth'
+import { useTranslation } from '../hooks/useTranslation'
+import { SUPPORTED_LANGUAGES } from '../i18n/storage.js'
 import { uploadUserAvatarAndSyncGroups } from '../services/avatarService'
 import { subscribeUserProfile } from '../services/userService'
 
@@ -32,6 +34,7 @@ function CameraGlyph({ className = 'h-3.5 w-3.5' }) {
 
 export function SettingsPage() {
   const location = useLocation()
+  const { t, language, changeLanguage } = useTranslation()
   const { user } = useAuth()
   const [userProfile, setUserProfile] = useState(null)
   const [profileLoading, setProfileLoading] = useState(true)
@@ -81,11 +84,12 @@ export function SettingsPage() {
     return safeSettingsBackPath(raw) || '/'
   }, [location.state])
 
-  const backLabel = useMemo(() => {
-    if (backTo === '/') return '← Back to home'
-    if (backTo.startsWith('/group/')) return '← Back to group'
-    return '← Back'
-  }, [backTo])
+  const backLabel =
+    backTo === '/'
+      ? t('settings.backToHome')
+      : backTo.startsWith('/group/')
+        ? t('settings.backToGroup')
+        : t('settings.back')
 
   async function handleAvatarFile(ev) {
     const file = ev.target.files?.[0]
@@ -107,11 +111,11 @@ export function SettingsPage() {
       <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col px-4 py-6 sm:px-5 sm:py-8">
         <header className="mb-6 shrink-0 rounded-xl border border-black/10 bg-tour-surface px-4 py-4 sm:px-5">
           <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
-            Il Tour di Paolo
+            {t('common.brandLine')}
           </p>
-          <h1 className="mt-1 text-lg font-semibold text-tour-text sm:text-xl">Account settings</h1>
+          <h1 className="mt-1 text-lg font-semibold text-tour-text sm:text-xl">{t('settings.pageTitle')}</h1>
           <p className="mt-2 text-sm text-tour-text-secondary">
-            Signed in as{' '}
+            {t('settings.signedInAs')}{' '}
             <span className="font-medium text-tour-text">
               {user?.displayName || user?.email || user?.uid}
             </span>
@@ -124,6 +128,34 @@ export function SettingsPage() {
           </Link>
         </header>
 
+        <section className="mb-4 rounded-xl border border-black/10 bg-tour-surface px-3.5 py-3 sm:px-4 sm:py-4">
+          <h2 className="text-[12px] font-medium uppercase tracking-wide text-tour-text-secondary">
+            {t('language.sectionTitle')}
+          </h2>
+          <p className="mt-2 text-sm text-tour-text-secondary">{t('language.sectionHint')}</p>
+          <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label={t('language.sectionTitle')}>
+            {SUPPORTED_LANGUAGES.map((code) => {
+              const active = language === code
+              return (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => changeLanguage(code)}
+                  aria-pressed={active}
+                  className={[
+                    'rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors',
+                    active
+                      ? 'border-tour-accent bg-tour-accent-muted text-tour-accent-foreground'
+                      : 'border-black/15 bg-tour-muted/50 text-tour-text hover:bg-black/[0.06]',
+                  ].join(' ')}
+                >
+                  {t(`langName.${code}`)}
+                </button>
+              )
+            })}
+          </div>
+        </section>
+
         {profileError && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
             {profileError}
@@ -131,26 +163,24 @@ export function SettingsPage() {
         )}
 
         {profileLoading && (
-          <p className="text-sm text-tour-text-secondary">Loading your profile…</p>
+          <p className="text-sm text-tour-text-secondary">{t('settings.loadingProfile')}</p>
         )}
 
         {!profileLoading && !userProfile && !profileError && (
-          <p className="text-sm text-tour-text-secondary">Could not load your account profile.</p>
+          <p className="text-sm text-tour-text-secondary">{t('settings.profileLoadError')}</p>
         )}
 
         {!profileLoading && userProfile && (
           <>
             <section className="rounded-xl border border-black/10 bg-tour-surface px-3.5 py-3 sm:px-4 sm:py-4">
               <h2 className="text-[12px] font-medium uppercase tracking-wide text-tour-text-secondary">
-                Profile photo
+                {t('settings.profilePhoto')}
               </h2>
-              <p className="mt-1 text-[12px] text-tour-text-secondary">
-                Same photo as in your group profiles. Changing it here updates all your groups.
-              </p>
+              <p className="mt-1 text-[12px] text-tour-text-secondary">{t('settings.profilePhotoHint')}</p>
               <div className="mt-4 flex items-start gap-3">
                 <label
                   htmlFor={SETTINGS_AVATAR_INPUT_ID}
-                  aria-label="Change profile photo"
+                  aria-label={t('settings.changePhotoAria')}
                   className={`relative isolate inline-flex shrink-0 cursor-pointer ${avatarUploading ? 'pointer-events-none opacity-70' : ''}`}
                 >
                   <Avatar
@@ -190,7 +220,7 @@ export function SettingsPage() {
                       onClick={() => setLightboxOpen(true)}
                       className="mt-2 block text-left text-[12px] font-medium text-tour-accent underline decoration-tour-accent/35 underline-offset-2 hover:decoration-tour-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tour-accent/40 rounded-sm"
                     >
-                      View photo
+                      {t('settings.viewPhoto')}
                     </button>
                   )}
                 </div>
@@ -209,21 +239,9 @@ export function SettingsPage() {
 
             <section className="mt-4 rounded-xl border border-black/10 bg-tour-surface px-3.5 py-3 sm:px-4 sm:py-4">
               <h2 className="text-[12px] font-medium uppercase tracking-wide text-tour-text-secondary">
-                Notifications
+                {t('settings.notificationsTitle')}
               </h2>
-              <p className="mt-2 text-sm text-tour-text-secondary">
-                Notification preferences are not wired yet. This section will hold toggles for push
-                and in-app alerts when notifications ship.
-              </p>
-            </section>
-
-            <section className="mt-4 rounded-xl border border-black/10 bg-tour-surface px-3.5 py-3 sm:px-4 sm:py-4">
-              <h2 className="text-[12px] font-medium uppercase tracking-wide text-tour-text-secondary">
-                Language
-              </h2>
-              <p className="mt-2 text-sm text-tour-text-secondary">
-                Language and locale options will be added when the app supports multiple languages.
-              </p>
+              <p className="mt-2 text-sm text-tour-text-secondary">{t('settings.notificationsHint')}</p>
             </section>
           </>
         )}

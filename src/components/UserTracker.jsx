@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useTranslation } from '../hooks/useTranslation'
 import { Avatar } from './Avatar'
 import { MedalBadge } from './MedalBadge'
 import { inclusiveMedalCounts } from '../lib/medalTier'
@@ -28,12 +29,13 @@ export function UserTracker({
   countsOverride,
   groupId,
 }) {
+  const { t } = useTranslation()
   const computedTotal = activities?.length ?? 0
   const computedCounts = inclusiveMedalCounts(activities || [], member?.progress)
   const total = Number.isFinite(totalOverride) ? totalOverride : computedTotal
   const counts = countsOverride || computedCounts
   const profilePath = `/group/${groupId}/profile/${member.id}`
-  const name = member.displayName || 'Member'
+  const name = member.displayName || t('groupShell.displayNameFallback')
 
   if (variant === 'compact') {
     return (
@@ -85,7 +87,9 @@ export function UserTracker({
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-medium text-tour-text">{name}</p>
           {total === 0 ? (
-            <p className="mt-1 text-[12px] text-tour-text-secondary">No activities yet.</p>
+            <p className="mt-1 text-[12px] text-tour-text-secondary">
+              {t('standings.noActivitiesForMember')}
+            </p>
           ) : (
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
               <span className="inline-flex items-center gap-1">

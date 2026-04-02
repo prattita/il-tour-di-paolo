@@ -29,8 +29,13 @@ export function rankMembersForStandings(members, activities, activitiesForMember
   })
 }
 
-/** English ordinal for rank display (1 → "1st"). */
-export function formatStandingsOrdinal(n) {
+/**
+ * Rank ordinal for standings (UI language).
+ * `en`: 1st, 2nd… · `es` / `it`: 1º, 2º…
+ */
+export function formatStandingsOrdinal(n, lang = 'en') {
+  if (lang === 'es') return `${n}º`
+  if (lang === 'it') return `${n}°`
   const k = n % 100
   if (k >= 11 && k <= 13) return `${n}th`
   switch (n % 10) {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { useTranslation } from '../hooks/useTranslation'
 import { useGroupCompletionPickerData } from '../hooks/useGroupCompletionPickerData'
 import { hasAnyEligibleCompletionActivity } from '../lib/completionEligibility'
 import { docHasPhoto } from '../lib/feedPhotos'
@@ -25,6 +26,18 @@ import {
 } from '../services/feedService'
 import { getGroup } from '../services/groupService'
 
+function systemFeedDisplayText(post, t) {
+  if (
+    post.systemKind === 'activity_added' &&
+    typeof post.systemActivityName === 'string' &&
+    post.systemActivityName.trim()
+  ) {
+    const actor = (post.systemActorDisplayName || '').trim() || t('groupShell.roleOwner')
+    return t('feed.systemActivityAdded', { actor, activity: post.systemActivityName.trim() })
+  }
+  return post.message || t('feed.systemPostFallback')
+}
+
 function postMatchesFilters(post, userIds, activityIds) {
   if (post.type === 'system') {
     if (userIds.length > 0) return false
@@ -34,12 +47,6 @@ function postMatchesFilters(post, userIds, activityIds) {
   if (userIds.length > 0 && !userIds.includes(post.userId)) return false
   if (activityIds.length > 0 && !activityIds.includes(post.activityId)) return false
   return true
-}
-
-function firstName(displayName) {
-  if (!displayName || typeof displayName !== 'string') return 'Member'
-  const part = displayName.trim().split(/\s+/)[0]
-  return part || 'Member'
 }
 
 function ChevronDownIcon({ className }) {
@@ -57,6 +64,7 @@ function ChevronDownIcon({ className }) {
 }
 
 export function GroupFeedPage() {
+  const { t } = useTranslation()
   const { groupId } = useParams()
   const { user } = useAuth()
   const [group, setGroup] = useState(null)
@@ -153,10 +161,10 @@ export function GroupFeedPage() {
           return next
         })
       },
-      (e) => setFeedError(e.message || 'Could not load feed.'),
+      (e) => setFeedError(e.message || t('feed.errorLoadFeed')),
     )
     return () => unsub()
-  }, [groupId, isMember])
+  }, [groupId, isMember, t])
 
   useEffect(() => {
     if (olderPageSnaps.length > 0) return
@@ -198,11 +206,11 @@ export function GroupFeedPage() {
       setOlderPageSnaps((p) => [...p, snapshots])
       setHasMoreOlder(hasMore)
     } catch (e) {
-      setFeedError(e.message || 'Could not load older posts.')
+      setFeedError(e.message || t('feed.errorLoadOlder'))
     } finally {
       setLoadMoreLoading(false)
     }
-  }, [groupId, loadMoreLoading, mergedPosts, snapMap])
+  }, [groupId, loadMoreLoading, mergedPosts, snapMap, t])
 
   const addUserFilter = (uid) => {
     setFilterUserIds((prev) => (prev.includes(uid) ? prev : [...prev, uid]))
@@ -227,6 +235,15 @@ export function GroupFeedPage() {
   }
 
   const filterActive = filterUserIds.length > 0 || filterActivityIds.length > 0
+
+  const displayFirstName = useCallback(
+    (displayName) => {
+      if (!displayName || typeof displayName !== 'string') return t('groupShell.displayNameFallback')
+      const part = displayName.trim().split(/\s+/)[0]
+      return part || t('groupShell.displayNameFallback')
+    },
+    [t],
+  )
 
   const membersPickList = useMemo(
     () => members.filter((m) => !filterUserIds.includes(m.id)),
@@ -270,13 +287,13 @@ export function GroupFeedPage() {
           const list = await listFeedPostComments(groupId, postId)
           setCommentsByPostId((prev) => ({ ...prev, [postId]: list }))
         } catch (e) {
-          setCommentActionError(e.message || 'Could not load comments.')
+          setCommentActionError(e.message || t('feed.errorLoadComments'))
         } finally {
           setCommentsLoadingId(null)
         }
       }
     },
-    [commentsByPostId, expandedPostId, groupId],
+    [commentsByPostId, expandedPostId, groupId, t],
   )
 
   const handleSubmitComment = useCallback(
@@ -293,11 +310,11 @@ export function GroupFeedPage() {
         const list = await listFeedPostComments(groupId, postId)
         setCommentsByPostId((prev) => ({ ...prev, [postId]: list }))
       } catch (e) {
-        setCommentActionError(e.message || 'Could not post comment.')
+        setCommentActionError(e.message || t('feed.errorPostComment'))
         throw e
       }
     },
-    [groupId, member, user],
+    [groupId, member, user, t],
   )
 
   const handleDeleteComment = useCallback(
@@ -308,10 +325,10 @@ export function GroupFeedPage() {
         const list = await listFeedPostComments(groupId, postId)
         setCommentsByPostId((prev) => ({ ...prev, [postId]: list }))
       } catch (e) {
-        setCommentActionError(e.message || 'Could not delete comment.')
+        setCommentActionError(e.message || t('feed.errorDeleteComment'))
       }
     },
-    [groupId],
+    [groupId, t],
   )
 
   const handleLike = useCallback(
@@ -326,12 +343,12 @@ export function GroupFeedPage() {
         const fresh = await getFeedPost(groupId, post.id)
         if (fresh) setPostOverlay((o) => ({ ...o, [post.id]: fresh }))
       } catch (e) {
-        setFeedError(e.message || 'Could not update like.')
+        setFeedError(e.message || t('feed.errorLike'))
       } finally {
         setLikeBusyId(null)
       }
     },
-    [groupId, user?.uid],
+    [groupId, user?.uid, t],
   )
 
   return (
@@ -340,17 +357,21 @@ export function GroupFeedPage() {
     >
       <div className="mb-4 border-b border-black/10 pb-3 lg:hidden">
         <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
-          Il Tour di Paolo
+          {t('common.brandLine')}
         </p>
-        <p className="text-[15px] font-medium text-tour-text">{group?.name || 'Group'}</p>
+        <p className="text-[15px] font-medium text-tour-text">
+          {group?.name || t('groupShell.titleGroup')}
+        </p>
       </div>
 
       {loadingGroup && <PageLoading />}
 
-      {!loadingGroup && !group && <p className="text-sm text-tour-text-secondary">Group not found.</p>}
+      {!loadingGroup && !group && (
+        <p className="text-sm text-tour-text-secondary">{t('feed.groupNotFound')}</p>
+      )}
 
       {!loadingGroup && group && !isMember && (
-        <p className="text-sm text-tour-text-secondary">You are not a member of this group.</p>
+        <p className="text-sm text-tour-text-secondary">{t('feed.notMember')}</p>
       )}
 
       {feedError && (
@@ -362,7 +383,7 @@ export function GroupFeedPage() {
       {isMember && (
         <div className="mb-3 rounded-xl border border-black/10 bg-tour-surface px-3 py-2">
           <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-tour-text-secondary">
-            Filter feed
+            {t('feed.filterHeading')}
           </p>
           <div
             ref={filterBarRef}
@@ -380,7 +401,7 @@ export function GroupFeedPage() {
                   : 'border-black/15 bg-tour-muted text-tour-text-secondary hover:bg-black/[0.04]',
               ].join(' ')}
             >
-              All
+              {t('feed.filterAll')}
             </button>
 
             <div className="relative">
@@ -398,7 +419,7 @@ export function GroupFeedPage() {
                     : 'border-black/15 bg-tour-muted text-tour-text-secondary hover:bg-black/[0.04]',
                 ].join(' ')}
               >
-                People
+                {t('feed.filterPeople')}
                 <ChevronDownIcon
                   className={[
                     'opacity-80 transition-transform',
@@ -412,7 +433,9 @@ export function GroupFeedPage() {
                   role="listbox"
                 >
                   {membersPickList.length === 0 ? (
-                    <li className="px-3 py-2 text-[12px] text-tour-text-secondary">No one left to add.</li>
+                    <li className="px-3 py-2 text-[12px] text-tour-text-secondary">
+                      {t('feed.filterPeopleNoResults')}
+                    </li>
                   ) : (
                     membersPickList.map((m) => (
                       <li key={m.id} role="option">
@@ -431,7 +454,9 @@ export function GroupFeedPage() {
                             className="h-7 w-7 text-[10px]"
                             alt=""
                           />
-                          <span className="min-w-0 truncate">{m.displayName || 'Member'}</span>
+                          <span className="min-w-0 truncate">
+                            {m.displayName || t('groupShell.displayNameFallback')}
+                          </span>
                         </button>
                       </li>
                     ))
@@ -455,7 +480,7 @@ export function GroupFeedPage() {
                     : 'border-black/15 bg-tour-muted text-tour-text-secondary hover:bg-black/[0.04]',
                 ].join(' ')}
               >
-                Activities
+                {t('feed.filterActivities')}
                 <ChevronDownIcon
                   className={[
                     'opacity-80 transition-transform',
@@ -470,7 +495,7 @@ export function GroupFeedPage() {
                 >
                   {activitiesPickList.length === 0 ? (
                     <li className="px-3 py-2 text-[12px] text-tour-text-secondary">
-                      No activities left to add.
+                      {t('feed.filterActivitiesNoResults')}
                     </li>
                   ) : (
                     activitiesPickList.map((a) => (
@@ -483,7 +508,7 @@ export function GroupFeedPage() {
                             setFilterMenuOpen(null)
                           }}
                         >
-                          {a.name || 'Activity'}
+                          {a.name || t('feed.activityFallback')}
                         </button>
                       </li>
                     ))
@@ -494,7 +519,7 @@ export function GroupFeedPage() {
 
             {filterUserIds.map((uid) => {
               const m = members.find((x) => x.id === uid)
-              const label = m ? firstName(m.displayName) : 'Member'
+              const label = m ? displayFirstName(m.displayName) : t('groupShell.displayNameFallback')
               return (
                 <div
                   key={uid}
@@ -514,7 +539,7 @@ export function GroupFeedPage() {
                     type="button"
                     onClick={() => removeUserFilter(uid)}
                     className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-red-600 hover:bg-red-500/10"
-                    aria-label={`Remove ${label} from filter`}
+                    aria-label={t('feed.removeFromFilterAria', { name: label })}
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
                       <path
@@ -531,7 +556,7 @@ export function GroupFeedPage() {
 
             {filterActivityIds.map((aid) => {
               const a = activities.find((x) => x.id === aid)
-              const label = a?.name || 'Activity'
+              const label = a?.name || t('feed.activityFallback')
               return (
                 <div
                   key={aid}
@@ -542,7 +567,7 @@ export function GroupFeedPage() {
                     type="button"
                     onClick={() => removeActivityFilter(aid)}
                     className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-red-600 hover:bg-red-500/10"
-                    aria-label={`Remove ${label} from filter`}
+                    aria-label={t('feed.removeFromFilterAria', { name: label })}
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
                       <path
@@ -562,19 +587,22 @@ export function GroupFeedPage() {
 
       {!loadingGroup && isMember && !feedError && mergedPosts.length === 0 && (
         <p className="rounded-xl border border-black/10 bg-tour-surface p-4 text-sm text-tour-text-secondary">
-          No posts yet. Approved task completions appear here.
+          {t('feed.emptyState')}
         </p>
       )}
 
       {filterActive && mergedPosts.length > 0 && filteredPosts.length === 0 && (
         <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-950">
-          No posts match these filters in what you&apos;ve loaded. Try clearing filters or load more posts.
+          {t('feed.filterNoMatch')}
         </p>
       )}
 
       {filterActive && filteredPosts.length > 0 && filteredPosts.length < mergedPosts.length && (
         <p className="mb-3 text-[12px] text-tour-text-secondary">
-          Showing {filteredPosts.length} of {mergedPosts.length} loaded posts. Load more to widen the pool.
+          {t('feed.filterShowingPartial', {
+            shown: filteredPosts.length,
+            total: mergedPosts.length,
+          })}
         </p>
       )}
 
@@ -586,7 +614,7 @@ export function GroupFeedPage() {
                 key={post.id}
                 className="rounded-lg border border-black/10 bg-tour-muted px-3 py-2 text-center text-[12px] leading-snug text-tour-text-secondary"
               >
-                {post.message || 'Update'}
+                {systemFeedDisplayText(post, t)}
               </article>
             )
           }
@@ -621,7 +649,7 @@ export function GroupFeedPage() {
             onClick={() => loadMore()}
             className="rounded-lg border border-black/15 bg-tour-surface px-4 py-2 text-[13px] font-medium text-tour-text hover:bg-tour-muted disabled:opacity-60"
           >
-            {loadMoreLoading ? 'Loading…' : 'Load more'}
+            {loadMoreLoading ? t('feed.loadingShort') : t('feed.loadMore')}
           </button>
         </div>
       )}
@@ -630,7 +658,7 @@ export function GroupFeedPage() {
         <Link
           to={`/group/${groupId}/complete`}
           className="fixed bottom-[max(1rem,env(safe-area-inset-bottom,0px))] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-tour-accent text-white shadow-lg hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-tour-accent focus-visible:ring-offset-2"
-          aria-label="Complete a task"
+          aria-label={t('feed.completeTaskAria')}
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path

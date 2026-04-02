@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { useTranslation } from '../hooks/useTranslation'
+import { translateGroupServiceError } from '../i18n/groupServiceErrors'
 import { createGroup } from '../services/groupService'
 
 function makeEmptyActivity() {
@@ -12,6 +14,7 @@ function makeEmptyActivity() {
 }
 
 export function CreateGroupPage() {
+  const { t } = useTranslation()
   const { user } = useAuth()
   const navigate = useNavigate()
   const [name, setName] = useState('')
@@ -53,7 +56,7 @@ export function CreateGroupPage() {
       })
       navigate(`/group/${result.groupId}/feed`, { replace: true })
     } catch (err) {
-      setError(err.message || 'Failed to create group.')
+      setError(translateGroupServiceError(err, t, 'errors.createGroupFailed'))
     } finally {
       setPending(false)
     }
@@ -68,26 +71,25 @@ export function CreateGroupPage() {
         <header className="mb-6 flex flex-wrap items-start justify-between gap-4 rounded-xl border border-black/10 bg-tour-surface p-4 sm:p-5">
           <div className="min-w-0">
             <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
-              Il Tour di Paolo
+              {t('common.brandLine')}
             </p>
-            <h1 className="mt-1 text-xl font-semibold text-tour-text sm:text-2xl">Create group</h1>
-            <p className="mt-2 text-sm text-tour-text-secondary">
-              Start with zero or more activities. You can edit and add activities later in group
-              settings.
-            </p>
+            <h1 className="mt-1 text-xl font-semibold text-tour-text sm:text-2xl">
+              {t('groupNew.pageTitle')}
+            </h1>
+            <p className="mt-2 text-sm text-tour-text-secondary">{t('groupNew.subtitle')}</p>
           </div>
           <Link
             to="/"
             className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-black/10 bg-tour-muted px-4 py-2.5 text-sm font-medium text-tour-text hover:bg-black/[0.04]"
           >
-            Back to welcome
+            {t('groupNew.backToWelcome')}
           </Link>
         </header>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <section className="rounded-xl border border-black/10 bg-tour-surface p-4">
             <label htmlFor="groupName" className="mb-1 block text-sm font-medium text-tour-text">
-              Group name
+              {t('groupNew.groupNameLabel')}
             </label>
             <input
               id="groupName"
@@ -99,7 +101,7 @@ export function CreateGroupPage() {
             />
 
             <label htmlFor="groupDescription" className="mb-1 mt-4 block text-sm font-medium text-tour-text">
-              Description (optional)
+              {t('groupNew.descriptionLabel')}
             </label>
             <textarea
               id="groupDescription"
@@ -113,26 +115,26 @@ export function CreateGroupPage() {
           <section className="rounded-xl border border-black/10 bg-tour-surface p-4">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold text-tour-text">Activities</h2>
+                <h2 className="text-base font-semibold text-tour-text">
+                  {t('groupNew.activitiesHeading')}
+                </h2>
                 <p className="text-sm text-tour-text-secondary">
-                  Valid activities: <span className="font-medium">{validActivityCount}</span>
+                  {t('groupNew.validActivitiesCount', { count: validActivityCount })}
                 </p>
-                <p className="mt-1 text-xs text-tour-text-secondary">
-                  Medal award criteria: Bronze 1/3, Silver 2/3, Gold 3/3 tasks.
-                </p>
+                <p className="mt-1 text-xs text-tour-text-secondary">{t('groupNew.medalHint')}</p>
               </div>
               <button
                 type="button"
                 onClick={addActivity}
                 className="min-h-11 rounded-lg border border-black/10 bg-tour-muted px-4 py-2 text-sm font-medium text-tour-text hover:bg-black/[0.04]"
               >
-                Add activity
+                {t('groupNew.addActivity')}
               </button>
             </div>
 
             {activities.length === 0 && (
               <p className="rounded-lg border border-dashed border-black/18 bg-tour-muted px-3 py-3 text-sm text-tour-text-secondary">
-                No activities yet. You can create the group now and add activities later.
+                {t('groupNew.noActivitiesYet')}
               </p>
             )}
 
@@ -140,17 +142,21 @@ export function CreateGroupPage() {
               {activities.map((activity, index) => (
                 <article key={index} className="rounded-lg border border-black/10 p-3">
                   <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-tour-text">Activity {index + 1}</h3>
+                    <h3 className="text-sm font-semibold text-tour-text">
+                      {t('groupNew.activityLabel', { n: index + 1 })}
+                    </h3>
                     <button
                       type="button"
                       onClick={() => removeActivity(index)}
                       className="text-sm font-medium text-red-800 hover:text-red-900"
                     >
-                      Remove
+                      {t('groupNew.remove')}
                     </button>
                   </div>
 
-                  <label className="mb-1 block text-sm font-medium text-tour-text">Activity name</label>
+                  <label className="mb-1 block text-sm font-medium text-tour-text">
+                    {t('groupNew.activityNameLabel')}
+                  </label>
                   <input
                     type="text"
                     value={activity.name}
@@ -161,7 +167,7 @@ export function CreateGroupPage() {
                   />
 
                   <label className="mb-1 mt-3 block text-sm font-medium text-tour-text">
-                    Activity description (optional)
+                    {t('groupNew.activityDescriptionLabel')}
                   </label>
                   <input
                     type="text"
@@ -175,7 +181,7 @@ export function CreateGroupPage() {
                   <div className="mt-3 grid gap-3 md:grid-cols-3">
                     {activity.tasks.map((task, taskIndex) => (
                       <label key={taskIndex} className="block text-sm font-medium text-tour-text">
-                        Task {taskIndex + 1}
+                        {t('groupNew.taskLabel', { n: taskIndex + 1 })}
                         <input
                           type="text"
                           value={task}
@@ -208,7 +214,7 @@ export function CreateGroupPage() {
             disabled={pending}
             className="min-h-11 rounded-lg bg-tour-accent px-5 py-3 text-sm font-medium text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {pending ? 'Creating group…' : 'Create group'}
+            {pending ? t('groupNew.creating') : t('groupNew.createSubmit')}
           </button>
         </form>
       </main>

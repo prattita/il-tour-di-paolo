@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { useTranslation } from '../hooks/useTranslation'
 import { UserTracker } from '../components/UserTracker'
 import { PageLoading } from '../components/PageLoading'
 import {
@@ -13,6 +14,7 @@ import { rankMembersForStandings } from '../lib/standingsRank'
 import { inclusiveMedalCounts } from '../lib/medalTier'
 
 export function GroupStandingsPage() {
+  const { t } = useTranslation()
   const { groupId } = useParams()
   const { user } = useAuth()
   const [group, setGroup] = useState(null)
@@ -50,24 +52,24 @@ export function GroupStandingsPage() {
     const unsubM = subscribeGroupMembers(
       groupId,
       (list) => setMembers(list),
-      (e) => setListError(e.message || 'Failed to load members.'),
+      (e) => setListError(e.message || t('standings.loadMembersFailed')),
     )
     const unsubA = subscribeStandardActivitiesOnly(
       groupId,
       (list) => setActivities(list),
-      (e) => setListError(e.message || 'Failed to load activities.'),
+      (e) => setListError(e.message || t('standings.loadActivitiesFailed')),
     )
     const unsubE = subscribeGroupEnrollments(
       groupId,
       (byUserId) => setEnrollmentsByUserId(byUserId),
-      (e) => setListError(e.message || 'Failed to load enrollments.'),
+      (e) => setListError(e.message || t('standings.loadEnrollmentsFailed')),
     )
     return () => {
       unsubM()
       unsubA()
       unsubE()
     }
-  }, [groupId, isMember])
+  }, [groupId, isMember, t])
 
   const perMemberSummary = useMemo(() => {
     const standardIds = activities.map((a) => a.id)
@@ -101,19 +103,21 @@ export function GroupStandingsPage() {
     <div className="text-tour-text">
       <div className="mb-4 border-b border-black/10 pb-3 lg:hidden">
         <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
-          Il Tour di Paolo
+          {t('common.brandLine')}
         </p>
-        <p className="text-[15px] font-medium text-tour-text">{group?.name || 'Group'}</p>
+        <p className="text-[15px] font-medium text-tour-text">
+          {group?.name || t('groupShell.titleGroup')}
+        </p>
       </div>
 
       {loadingGroup && <PageLoading />}
 
       {!loadingGroup && !group && (
-        <p className="text-sm text-tour-text-secondary">Group not found.</p>
+        <p className="text-sm text-tour-text-secondary">{t('feed.groupNotFound')}</p>
       )}
 
       {!loadingGroup && group && !isMember && (
-        <p className="text-sm text-tour-text-secondary">You are not a member of this group.</p>
+        <p className="text-sm text-tour-text-secondary">{t('feed.notMember')}</p>
       )}
 
       {listError && (
@@ -125,11 +129,20 @@ export function GroupStandingsPage() {
       {!loadingGroup && isMember && !listError && (
         <>
           <p className="mb-4 text-[13px] text-tour-text-secondary">
-            {members.length} member{members.length === 1 ? '' : 's'} · {activities.length} activit
-            {activities.length === 1 ? 'y' : 'ies'}
+            {t(
+              members.length === 1 ? 'standings.memberCount_one' : 'standings.memberCount_other',
+              { count: members.length },
+            )}
+            {' · '}
+            {t(
+              activities.length === 1
+                ? 'standings.activityCount_one'
+                : 'standings.activityCount_other',
+              { count: activities.length },
+            )}
           </p>
           {ranked.length === 0 ? (
-            <p className="text-sm text-tour-text-secondary">No members to show.</p>
+            <p className="text-sm text-tour-text-secondary">{t('standings.noMembersToShow')}</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {ranked.map((m, i) => (

@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFocusTrap } from '../hooks/useFocusTrap'
+import { useTranslation } from '../hooks/useTranslation'
 import { FeedPhotoCommitTransition } from './FeedPhotoCommitTransition'
 import { FeedPhotoWarmStrip } from './FeedPhotoWarmStrip'
 
 /** Expand control for feed media. Default: fixed bottom-right on the media frame. Use `inline` when placed in a bottom bar (e.g. carousel). */
 export function FeedPhotoExpandButton({ onClick, inline = false }) {
+  const { t } = useTranslation()
   return (
     <button
       type="button"
@@ -12,7 +14,7 @@ export function FeedPhotoExpandButton({ onClick, inline = false }) {
         e.stopPropagation()
         onClick()
       }}
-      aria-label="View full image"
+      aria-label={t('feed.viewFullImage')}
       className={[
         'flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
         'bg-black/55 text-white shadow-sm backdrop-blur-[2px] hover:bg-black/65',
@@ -51,8 +53,9 @@ export function FeedPhotoLightbox({
   initialIndex = 0,
   onClose,
   getImgProps = undefined,
-  overlayAriaLabel = 'Full image view. Tap the photo or swipe down to close.',
+  overlayAriaLabel,
 }) {
+  const { t } = useTranslation()
   const [index, setIndex] = useState(initialIndex)
   const touchStartY = useRef(null)
   const dialogRef = useRef(null)
@@ -79,6 +82,7 @@ export function FeedPhotoLightbox({
 
   if (!isOpen || photos.length === 0 || !photos[index]) return null
 
+  const dialogAriaLabel = overlayAriaLabel ?? t('feed.lightboxOverlayAria')
   const hasMany = photos.length > 1
 
   function onDismissLayerClick(e) {
@@ -103,7 +107,7 @@ export function FeedPhotoLightbox({
       className="fixed inset-0 z-50 bg-black/90"
       role="dialog"
       aria-modal
-      aria-label={overlayAriaLabel}
+      aria-label={dialogAriaLabel}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -130,7 +134,7 @@ export function FeedPhotoLightbox({
                 setIndex((i) => Math.max(0, i - 1))
               }}
               disabled={index === 0}
-              aria-label="Previous photo"
+              aria-label={t('feed.ariaPrevPhoto')}
               className="absolute left-3 top-1/2 z-[2] flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white/90 text-tour-text shadow-sm transition hover:bg-white disabled:cursor-default disabled:opacity-40"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -150,7 +154,7 @@ export function FeedPhotoLightbox({
                 setIndex((i) => Math.min(photos.length - 1, i + 1))
               }}
               disabled={index === photos.length - 1}
-              aria-label="Next photo"
+              aria-label={t('feed.ariaNextPhoto')}
               className="absolute right-3 top-1/2 z-[2] flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white/90 text-tour-text shadow-sm transition hover:bg-white disabled:cursor-default disabled:opacity-40"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -172,7 +176,7 @@ export function FeedPhotoLightbox({
             e.stopPropagation()
             onClose()
           }}
-          aria-label="Close"
+          aria-label={t('feed.lightboxClose')}
           className="absolute right-3 top-3 z-[2] flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/90 text-tour-text shadow-sm transition hover:bg-white"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -198,10 +202,10 @@ export function FeedPhotoLightbox({
             e.stopPropagation()
             onClose()
           }}
-          aria-label="Close full view"
+          aria-label={t('feed.lightboxCloseFull')}
           className="absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 z-10 -translate-x-1/2 rounded-full border border-white/25 bg-white/15 px-5 py-2.5 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/25 md:hidden"
         >
-          Done
+          {t('feed.lightboxDone')}
         </button>
       </div>
     </div>

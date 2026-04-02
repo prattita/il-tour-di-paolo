@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { useTranslation } from '../hooks/useTranslation'
+import { translateGroupServiceError } from '../i18n/groupServiceErrors'
 import { joinGroupByInviteCode } from '../services/groupService'
 
 const inputClass =
   'min-h-11 w-full rounded-lg border border-black/18 bg-tour-surface px-3 py-2.5 text-tour-text shadow-sm focus:border-tour-accent focus:outline-none focus:ring-1 focus:ring-tour-accent'
 
 export function JoinGroupPage() {
+  const { t } = useTranslation()
   const { inviteCode: inviteCodeFromUrl } = useParams()
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -32,7 +35,7 @@ export function JoinGroupPage() {
       })
       navigate(`/group/${result.groupId}/feed`, { replace: true })
     } catch (err) {
-      setError(err.message || 'Failed to join group.')
+      setError(translateGroupServiceError(err, t, 'errors.joinFailed'))
     } finally {
       setPending(false)
     }
@@ -44,12 +47,12 @@ export function JoinGroupPage() {
         <div className="mx-auto w-full max-w-md">
           <header className="mb-6">
             <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
-              Il Tour di Paolo
+              {t('common.brandLine')}
             </p>
-            <h1 className="mt-1 text-xl font-semibold text-tour-text sm:text-2xl">Join group</h1>
-            <p className="mt-2 text-sm text-tour-text-secondary">
-              Enter an invite code from your group owner.
-            </p>
+            <h1 className="mt-1 text-xl font-semibold text-tour-text sm:text-2xl">
+              {t('join.pageTitle')}
+            </h1>
+            <p className="mt-2 text-sm text-tour-text-secondary">{t('join.subtitle')}</p>
           </header>
 
           <form
@@ -58,7 +61,7 @@ export function JoinGroupPage() {
           >
             <div>
               <label htmlFor="inviteCode" className="mb-1.5 block text-sm font-medium text-tour-text">
-                Invite code
+                {t('join.inviteCodeLabel')}
               </label>
               <input
                 id="inviteCode"
@@ -66,7 +69,7 @@ export function JoinGroupPage() {
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                 className={inputClass}
-                placeholder="PAOLO26"
+                placeholder={t('join.inviteCodePlaceholder')}
                 required
               />
             </div>
@@ -82,7 +85,7 @@ export function JoinGroupPage() {
               disabled={pending}
               className="min-h-11 w-full rounded-lg bg-tour-accent px-4 py-3 text-sm font-medium text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {pending ? 'Joining…' : 'Join group'}
+              {pending ? t('join.joining') : t('join.joinSubmit')}
             </button>
           </form>
 
@@ -90,7 +93,7 @@ export function JoinGroupPage() {
             to="/"
             className="mt-5 inline-flex min-h-11 items-center rounded-lg border border-black/10 bg-tour-surface px-4 py-2.5 text-sm font-medium text-tour-text hover:bg-tour-muted"
           >
-            Back to welcome
+            {t('join.backToWelcome')}
           </Link>
         </div>
       </main>

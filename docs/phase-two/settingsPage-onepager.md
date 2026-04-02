@@ -25,7 +25,7 @@ Add a **global account settings** screen that is **not tied to a single group**.
 - **Sections (stubs acceptable in first PR):**
   - **Profile photo** — same behavior as self-profile: reuse **`uploadUserAvatarAndSyncGroups`** (and same `Avatar` + file input pattern as `GroupProfilePage` for self). **Two entry points, same action** (see below).
   - **Notifications** — placeholders or toggles per [notifications-onepager.md](notifications-onepager.md) when that work lands.
-  - **Language** — placeholder for future locale / copy strategy (no requirement to wire i18n in v1).
+  - **Language** — **i18n wired** (`en` / `es` / `it` pills); see [i18n-onepager.md](i18n-onepager.md).
 - **Sign out:** optional duplicate on this page vs home only — product choice; at minimum, **home** and **group drawer** keep existing sign-out.
 
 ---

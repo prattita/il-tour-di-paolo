@@ -181,9 +181,13 @@ export async function addGroupActivity(groupId, activityInput, ownerDisplayName)
   const who = (ownerDisplayName || 'Owner').trim() || 'Owner'
   batch.set(feedRef, {
     type: 'system',
+    systemKind: 'activity_added',
+    systemActorDisplayName: who,
+    systemActivityName: name,
     message: `${who} added a new activity: ${name}`,
     timestamp: serverTimestamp(),
     commentCount: 0,
+    likes: [],
   })
   await batch.commit()
   return { activityId: activityRef.id }

@@ -1,3 +1,4 @@
+import { useTranslation } from '../hooks/useTranslation'
 import { formatStandingsOrdinal } from '../lib/standingsRank'
 import { medalBadgeSizeStyles, medalBadgeTierStyles } from './medalBadgeStyles'
 
@@ -12,7 +13,8 @@ function tierForStandingsRank(rank) {
  * Rank ordinals in the same pill surfaces as `MedalBadge` (podium → gold/silver/bronze; else neutral).
  */
 export function StandingsRankMarker({ rank, size = 'md' }) {
-  const ordinal = formatStandingsOrdinal(rank)
+  const { language } = useTranslation()
+  const ordinal = formatStandingsOrdinal(rank, language)
   const tier = tierForStandingsRank(rank)
   const surface = medalBadgeTierStyles[tier]
   const sz = size === 'sm' ? medalBadgeSizeStyles.sm : medalBadgeSizeStyles.default

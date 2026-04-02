@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
+import { useTranslation } from '../hooks/useTranslation'
 import { FeedPhotoCommitTransition } from './FeedPhotoCommitTransition'
 import { FeedPhotoExpandButton, FeedPhotoLightbox } from './FeedPhotoLightbox'
 import { FeedPhotoWarmStrip } from './FeedPhotoWarmStrip'
@@ -13,6 +14,7 @@ const CAROUSEL_HEIGHT_CLASS = 'h-[500px] sm:h-[700px]'
  * }} props
  */
 export function FeedPhotoCarousel({ photos, isHeroImage }) {
+  const { t } = useTranslation()
   const [index, setIndex] = useState(0)
   const [fullOpen, setFullOpen] = useState(false)
   const touchStartX = useRef(null)
@@ -73,18 +75,18 @@ export function FeedPhotoCarousel({ photos, isHeroImage }) {
           type="button"
           className="absolute inset-y-0 left-0 z-[2] w-1/3 cursor-pointer bg-transparent"
           onClick={goPrev}
-          aria-label="Previous photo"
+          aria-label={t('feed.ariaPrevPhoto')}
         />
         <button
           type="button"
           className="absolute inset-y-0 right-0 z-[2] w-1/3 cursor-pointer bg-transparent"
           onClick={goNext}
-          aria-label="Next photo"
+          aria-label={t('feed.ariaNextPhoto')}
         />
         <button
           type="button"
           onClick={goPrev}
-          aria-label="Previous photo"
+          aria-label={t('feed.ariaPrevPhoto')}
           disabled={index === 0}
           className="absolute left-3 top-1/2 z-[2] hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white/90 text-tour-text shadow-sm transition hover:bg-white disabled:cursor-default disabled:opacity-40 md:flex"
         >
@@ -101,7 +103,7 @@ export function FeedPhotoCarousel({ photos, isHeroImage }) {
         <button
           type="button"
           onClick={goNext}
-          aria-label="Next photo"
+          aria-label={t('feed.ariaNextPhoto')}
           disabled={index === photos.length - 1}
           className="absolute right-3 top-1/2 z-[2] hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white/90 text-tour-text shadow-sm transition hover:bg-white disabled:cursor-default disabled:opacity-40 md:flex"
         >
@@ -119,7 +121,11 @@ export function FeedPhotoCarousel({ photos, isHeroImage }) {
       <div className="pointer-events-none absolute bottom-3 left-0 right-0 z-10 flex items-center px-3">
         <div className="w-10 shrink-0" aria-hidden />
         <div className="flex min-w-0 flex-1 justify-center">
-          <div className="pointer-events-auto flex items-center gap-1.5" role="tablist" aria-label="Photos">
+          <div
+            className="pointer-events-auto flex items-center gap-1.5"
+            role="tablist"
+            aria-label={t('feed.carouselPhotosTablist')}
+          >
             {photos.map((_, i) => (
               <button
                 key={i}
@@ -131,7 +137,7 @@ export function FeedPhotoCarousel({ photos, isHeroImage }) {
                   i === index ? 'bg-tour-accent' : 'bg-white/90 hover:bg-white',
                 ].join(' ')}
                 onClick={() => setIndex(i)}
-                aria-label={`Photo ${i + 1} of ${photos.length}`}
+                aria-label={t('feed.photoIndexAria', { n: i + 1, m: photos.length })}
               />
             ))}
           </div>

@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { Avatar } from '../components/Avatar'
 import { FeedPhotoLightbox } from '../components/FeedPhotoLightbox'
 import { useAuth } from '../context/useAuth'
+import { useTranslation } from '../hooks/useTranslation'
 import { MedalBadge } from '../components/MedalBadge'
 import {
   buildProfileActivityRows,
@@ -15,6 +16,7 @@ import { inclusiveMedalCounts, medalTierFromTasksCompleted } from '../lib/medalT
 
 /** Fixed desktop width keeps bars aligned; `className` sets width (e.g. `w-full` / `w-[140px]`). */
 function ActivityProgressBar({ tasksCompleted, className = 'w-full min-w-0 sm:w-[140px] sm:shrink-0' }) {
+  const { t } = useTranslation()
   const n = Math.min(3, Math.max(0, Number(tasksCompleted) || 0))
   const pct = (n / 3) * 100
   return (
@@ -24,7 +26,7 @@ function ActivityProgressBar({ tasksCompleted, className = 'w-full min-w-0 sm:w-
       aria-valuenow={n}
       aria-valuemin={0}
       aria-valuemax={3}
-      aria-label={`${n} of 3 tasks completed`}
+      aria-label={t('profile.progressAria', { n })}
     >
       <div
         className="h-full rounded-full bg-tour-accent transition-[width] duration-300"
@@ -55,6 +57,7 @@ function CameraGlyph({ className = 'h-3.5 w-3.5' }) {
 }
 
 export function GroupProfilePage() {
+  const { t } = useTranslation()
   const { groupId, userId } = useParams()
   const { user } = useAuth()
   const [group, setGroup] = useState(null)
@@ -98,7 +101,7 @@ export function GroupProfilePage() {
       groupId,
       userId,
       (m) => setSubjectMember(m),
-      (e) => setListError(e.message || 'Failed to load profile.'),
+      (e) => setListError(e.message || t('profile.loadProfileFailed')),
     )
     const unsubActs = subscribeActivitiesForProfile(
       groupId,
@@ -106,13 +109,13 @@ export function GroupProfilePage() {
       user?.uid,
       group?.ownerId,
       (list) => setActivities(list),
-      (e) => setListError(e.message || 'Failed to load activities.'),
+      (e) => setListError(e.message || t('profile.loadActivitiesFailed')),
     )
     return () => {
       unsubMember()
       unsubActs()
     }
-  }, [groupId, userId, subjectInGroup, user?.uid, group?.ownerId])
+  }, [groupId, userId, subjectInGroup, user?.uid, group?.ownerId, t])
 
   useEffect(() => {
     setProfileHeroPhotoFailed(false)
@@ -136,8 +139,8 @@ export function GroupProfilePage() {
     subjectMember?.avatarUrl && !profileHeroPhotoFailed && !avatarUploading,
   )
   const profilePhotoAlt = displayName
-    ? `Profile photo of ${displayName}`
-    : 'Profile photo'
+    ? t('profile.photoAltNamed', { name: displayName })
+    : t('profile.photoAltGeneric')
 
   async function handleAvatarFile(ev) {
     const file = ev.target.files?.[0]
@@ -148,7 +151,7 @@ export function GroupProfilePage() {
     try {
       await uploadUserAvatarAndSyncGroups(user.uid, file)
     } catch (e) {
-      setAvatarError(e.message || 'Could not update photo.')
+      setAvatarError(e.message || t('profile.avatarUpdateFailed'))
     } finally {
       setAvatarUploading(false)
     }
@@ -158,23 +161,27 @@ export function GroupProfilePage() {
     <div className="text-tour-text">
       <div className="mb-4 border-b border-black/10 pb-3 lg:hidden">
         <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
-          Il Tour di Paolo
+          {t('common.brandLine')}
         </p>
-        <p className="text-[15px] font-medium text-tour-text">{group?.name || 'Group'}</p>
+        <p className="text-[15px] font-medium text-tour-text">
+          {group?.name || t('groupShell.titleGroup')}
+        </p>
       </div>
 
-      {loadingGroup && <p className="text-sm text-tour-text-secondary">Loading…</p>}
+      {loadingGroup && (
+        <p className="text-sm text-tour-text-secondary">{t('groupInfo.loading')}</p>
+      )}
 
       {!loadingGroup && !group && (
-        <p className="text-sm text-tour-text-secondary">Group not found.</p>
+        <p className="text-sm text-tour-text-secondary">{t('feed.groupNotFound')}</p>
       )}
 
       {!loadingGroup && group && !isMember && (
-        <p className="text-sm text-tour-text-secondary">You are not a member of this group.</p>
+        <p className="text-sm text-tour-text-secondary">{t('feed.notMember')}</p>
       )}
 
       {!loadingGroup && group && isMember && !subjectInGroup && (
-        <p className="text-sm text-tour-text-secondary">That member is not in this group.</p>
+        <p className="text-sm text-tour-text-secondary">{t('profile.subjectNotInGroup')}</p>
       )}
 
       {listError && (
@@ -184,7 +191,7 @@ export function GroupProfilePage() {
       )}
 
       {!loadingGroup && isMember && subjectInGroup && !subjectMember && !listError && (
-        <p className="text-sm text-tour-text-secondary">Member profile not found.</p>
+        <p className="text-sm text-tour-text-secondary">{t('profile.memberProfileNotFound')}</p>
       )}
 
       {!loadingGroup && isMember && subjectInGroup && subjectMember && (
@@ -194,7 +201,7 @@ export function GroupProfilePage() {
               {isSelf ? (
                 <label
                   htmlFor={PROFILE_AVATAR_INPUT_ID}
-                  aria-label="Change profile photo"
+                  aria-label={t('settings.changePhotoAria')}
                   className={`relative isolate inline-flex shrink-0 cursor-pointer ${avatarUploading ? 'pointer-events-none opacity-70' : ''}`}
                 >
                   <Avatar
@@ -236,7 +243,7 @@ export function GroupProfilePage() {
                   {...(subjectMember?.avatarUrl
                     ? {
                         onImageClick: () => setAvatarLightboxOpen(true),
-                        imageExpandAriaLabel: 'View profile photo larger',
+                        imageExpandAriaLabel: t('profile.expandPhotoAria'),
                         onPhotoLoadError: () => setProfileHeroPhotoFailed(true),
                       }
                     : {})}
@@ -244,18 +251,20 @@ export function GroupProfilePage() {
               )}
               <div className="min-w-0 flex-1">
                 <h1 className="text-[16px] font-medium text-tour-text">
-                  {displayName || 'Member'}
+                  {displayName || t('groupShell.displayNameFallback')}
                 </h1>
                 {isSelf && (
                   <>
-                    <p className="mt-0.5 text-[11px] text-tour-text-secondary">You</p>
+                    <p className="mt-0.5 text-[11px] text-tour-text-secondary">
+                      {t('profile.youBadge')}
+                    </p>
                     {canExpandProfilePhoto && (
                       <button
                         type="button"
                         onClick={() => setAvatarLightboxOpen(true)}
                         className="mt-1 block text-left text-[12px] font-medium text-tour-accent underline decoration-tour-accent/35 underline-offset-2 hover:decoration-tour-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tour-accent/40 rounded-sm"
                       >
-                        View photo
+                        {t('settings.viewPhoto')}
                       </button>
                     )}
                   </>
@@ -271,17 +280,19 @@ export function GroupProfilePage() {
                 photos={[{ url: subjectMember.avatarUrl }]}
                 onClose={() => setAvatarLightboxOpen(false)}
                 getImgProps={() => ({ alt: profilePhotoAlt })}
-                overlayAriaLabel="Profile photo. Tap outside, Done, or press Escape to close."
+                overlayAriaLabel={t('profile.avatarLightboxAria')}
               />
             )}
           </section>
 
           <section className="mb-4 rounded-xl border border-black/10 bg-tour-surface px-3.5 py-3">
             <h2 className="text-[12px] font-medium uppercase tracking-wide text-tour-text-secondary">
-              Medals
+              {t('profile.medalsHeading')}
             </h2>
             {total === 0 ? (
-              <p className="mt-2 text-sm text-tour-text-secondary">No activities in this group yet.</p>
+              <p className="mt-2 text-sm text-tour-text-secondary">
+                {t('profile.noActivitiesForMedals')}
+              </p>
             ) : (
               <>
                 <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -310,10 +321,10 @@ export function GroupProfilePage() {
 
           <section className="rounded-xl border border-black/10 bg-tour-surface px-3.5 py-3">
             <h2 className="text-[12px] font-medium uppercase tracking-wide text-tour-text-secondary">
-              By activity
+              {t('profile.byActivityHeading')}
             </h2>
             {activities.length === 0 ? (
-              <p className="mt-2 text-sm text-tour-text-secondary">No activities yet.</p>
+              <p className="mt-2 text-sm text-tour-text-secondary">{t('profile.noActivitiesShort')}</p>
             ) : (
               <ul className="mt-3 divide-y divide-black/10">
                 {profileActivityRows.map(({ activity, depth }) => {
@@ -334,12 +345,12 @@ export function GroupProfilePage() {
                           {activity.name}
                           {activity.isAdvanced === true ? (
                             <span className="ml-2 align-middle rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800">
-                              Advanced
+                              {t('activities.advancedBadge')}
                             </span>
                           ) : null}
                         </p>
                         <p className={`mt-0.5 text-[12px] text-tour-text-secondary ${nestedContentIndent}`.trim()}>
-                          {tasksDone} of 3 tasks
+                          {t('profile.tasksOfThree', { done: tasksDone })}
                         </p>
                       </div>
                       <div className="flex items-center gap-3 sm:contents">

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { useTranslation } from '../hooks/useTranslation'
 import { getGroup } from '../services/groupService'
 import {
   joinAdvancedActivity,
@@ -45,6 +46,7 @@ function TaskStatusDot({ status }) {
 }
 
 export function ActivityListPage() {
+  const { t } = useTranslation()
   const { groupId } = useParams()
   const location = useLocation()
   const { user } = useAuth()
@@ -88,23 +90,19 @@ export function ActivityListPage() {
   const handleWithdrawSubmission = useCallback(
     async (activityId, pendingDoc) => {
       if (!groupId || !user?.uid || !pendingDoc?.id) return
-      if (
-        !window.confirm(
-          'Withdraw this submission? Your photo will be removed and you can submit a task again when you are ready.',
-        )
-      ) {
+      if (!window.confirm(t('activities.withdrawConfirm'))) {
         return
       }
       setWithdrawBusyActivityId(activityId)
       try {
         await withdrawPendingSubmission(groupId, user.uid, pendingDoc.id, pendingDoc)
       } catch (e) {
-        window.alert(e.message || 'Could not withdraw submission.')
+        window.alert(e.message || t('activities.withdrawFailed'))
       } finally {
         setWithdrawBusyActivityId(null)
       }
     },
-    [groupId, user?.uid],
+    [groupId, user?.uid, t],
   )
 
   useEffect(() => {
@@ -117,7 +115,7 @@ export function ActivityListPage() {
         const g = await getGroup(groupId)
         if (active) setGroup(g)
       } catch (e) {
-        if (active) setError(e.message || 'Failed to load group.')
+        if (active) setError(e.message || t('activities.loadGroupFailed'))
       } finally {
         if (active) setLoadingGroup(false)
       }
@@ -126,7 +124,7 @@ export function ActivityListPage() {
     return () => {
       active = false
     }
-  }, [groupId])
+  }, [groupId, t])
 
   const isMember = Boolean(user?.uid && group?.memberIds?.includes(user.uid))
 
@@ -136,10 +134,10 @@ export function ActivityListPage() {
       groupId,
       user.uid,
       (list) => setActivities(list),
-      (e) => setError(e.message || 'Activities listener failed.'),
+      (e) => setError(e.message || t('activities.loadActivitiesFailed')),
     )
     return () => unsub()
-  }, [groupId, isMember, user?.uid])
+  }, [groupId, isMember, user?.uid, t])
 
   useEffect(() => {
     if (!groupId || !isMember || !user?.uid) return
@@ -147,9 +145,9 @@ export function ActivityListPage() {
       groupId,
       user.uid,
       setEligibleAdvancedActivities,
-      (e) => setError(e.message || 'Advanced activity listener failed.'),
+      (e) => setError(e.message || t('activities.loadAdvancedFailed')),
     )
-  }, [groupId, isMember, user?.uid])
+  }, [groupId, isMember, user?.uid, t])
 
   useEffect(() => {
     if (!groupId || !isMember || !user?.uid) return
@@ -163,10 +161,10 @@ export function ActivityListPage() {
       const act = activities.find((a) => a.id === id)
       if (!act || act.isAdvanced !== true) continue
       if (localStorage.getItem(`adv-unlock-seen-${groupId}-${id}`) === '1') continue
-      return { id, name: act.name || 'New activity' }
+      return { id, name: act.name || t('activities.newActivityFallback') }
     }
     return null
-  }, [enrolledIds, activities, groupId, unlockTick])
+  }, [enrolledIds, activities, groupId, unlockTick, t])
 
   useEffect(() => {
     if (!groupId || !user?.uid || !isMember) return
@@ -174,10 +172,10 @@ export function ActivityListPage() {
       groupId,
       user.uid,
       (m) => setMember(m),
-      (e) => setError(e.message || 'Member listener failed.'),
+      (e) => setError(e.message || t('activities.loadMemberFailed')),
     )
     return () => unsub()
-  }, [groupId, user?.uid, isMember])
+  }, [groupId, user?.uid, isMember, t])
 
   const activityIdsKey = useMemo(() => activities.map((a) => a.id).sort().join(','), [activities])
   const standardActivities = useMemo(
@@ -189,8 +187,8 @@ export function ActivityListPage() {
     [activities],
   )
   const activityNameById = useMemo(
-    () => Object.fromEntries(activities.map((a) => [a.id, a.name || 'Activity'])),
-    [activities],
+    () => Object.fromEntries(activities.map((a) => [a.id, a.name || t('feed.activityFallback')])),
+    [activities, t],
   )
 
   useEffect(() => {
@@ -218,12 +216,14 @@ export function ActivityListPage() {
     <div className="text-tour-text">
       <div className="mb-3 border-b border-black/10 pb-2 lg:hidden">
         <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
-          Il Tour di Paolo
+          {t('common.brandLine')}
         </p>
-        <p className="text-[15px] font-medium leading-snug text-tour-text">{group?.name || 'Group'}</p>
+        <p className="text-[15px] font-medium leading-snug text-tour-text">
+          {group?.name || t('groupShell.titleGroup')}
+        </p>
       </div>
 
-      {loadingGroup && <PageLoading label="Loading group…" />}
+      {loadingGroup && <PageLoading label={t('activities.loadingGroup')} />}
 
       {!loadingGroup && error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -232,16 +232,16 @@ export function ActivityListPage() {
       )}
 
       {!loadingGroup && !error && !group && (
-        <p className="text-sm text-tour-text-secondary">Group not found.</p>
+        <p className="text-sm text-tour-text-secondary">{t('feed.groupNotFound')}</p>
       )}
 
       {!loadingGroup && !error && group && !isMember && (
-        <p className="text-sm text-tour-text-secondary">You are not a member of this group.</p>
+        <p className="text-sm text-tour-text-secondary">{t('feed.notMember')}</p>
       )}
 
       {submitted && isMember && (
         <div className="mb-4 rounded-lg border border-tour-accent/30 bg-tour-accent-muted px-3 py-2 text-sm text-tour-accent-foreground">
-          Submission sent. Your submission will appear in the feed once the owner approves it.
+          {t('activities.submissionSentBanner')}
         </div>
       )}
 
@@ -251,16 +251,18 @@ export function ActivityListPage() {
           role="status"
         >
           <p>
-            Your submission for{' '}
-            <span className="font-medium">{rejectionBanner.taskName || 'this task'}</span> was not
-            approved. Please resubmit.
+            {t('activities.rejectionBefore')}{' '}
+            <span className="font-medium">
+              {rejectionBanner.taskName || t('activities.thisTaskFallback')}
+            </span>{' '}
+            {t('activities.rejectionAfter')}
           </p>
           <button
             type="button"
             onClick={dismissRejectionBanner}
             className="shrink-0 rounded-full border border-amber-300/80 px-3 py-1 text-[12px] font-medium text-amber-950 hover:bg-amber-100/80"
           >
-            Dismiss
+            {t('activities.dismiss')}
           </button>
         </div>
       )}
@@ -271,9 +273,9 @@ export function ActivityListPage() {
           role="status"
         >
           <p>
-            <span aria-hidden>🔓</span> You unlocked a new activity:{' '}
-            <span className="font-medium">{advancedUnlockNotice.name}</span>. You can now join it
-            from this page.
+            <span aria-hidden>🔓</span> {t('activities.advancedUnlockBefore')}{' '}
+            <span className="font-medium">{advancedUnlockNotice.name}</span>
+            {t('activities.advancedUnlockAfter')}
           </p>
           <button
             type="button"
@@ -284,11 +286,11 @@ export function ActivityListPage() {
                   '1',
                 )
               }
-              setUnlockTick((t) => t + 1)
+              setUnlockTick((n) => n + 1)
             }}
             className="shrink-0 rounded-full border border-violet-300/80 px-3 py-1 text-[12px] font-medium text-tour-text hover:bg-violet-100/80"
           >
-            Got it
+            {t('activities.gotIt')}
           </button>
         </div>
       )}
@@ -298,7 +300,7 @@ export function ActivityListPage() {
           {eligibleAdvancedActivities.length > 0 && (
             <section className="mb-3 rounded-xl border border-violet-200 bg-violet-50/70 px-3.5 py-3">
               <h2 className="text-[12px] font-medium uppercase tracking-wide text-tour-text-secondary">
-                Advanced activities you can join
+                {t('activities.advancedJoinSectionTitle')}
               </h2>
               <ul className="mt-2 space-y-2">
                 {eligibleAdvancedActivities.map((activity) => (
@@ -309,12 +311,15 @@ export function ActivityListPage() {
                     <div className="min-w-0">
                       <p className="text-[13px] font-medium text-tour-text">{activity.name}</p>
                       <p className="mt-0.5 text-[11px] text-tour-text-secondary">
-                        Optional. Once joined, you cannot unenroll.
+                        {t('activities.advancedJoinHint')}
                       </p>
                       {activity.prerequisiteActivityId ? (
                         <p className="mt-0.5 text-[11px] text-violet-800/85">
-                          Advanced track of:{' '}
-                          {activityNameById[activity.prerequisiteActivityId] || 'prerequisite activity'}
+                          {t('activities.advancedTrackOf', {
+                            name:
+                              activityNameById[activity.prerequisiteActivityId] ||
+                              t('activities.prerequisiteFallback'),
+                          })}
                         </p>
                       ) : null}
                     </div>
@@ -323,25 +328,23 @@ export function ActivityListPage() {
                       disabled={joinBusyActivityId === activity.id}
                       onClick={async () => {
                         if (!groupId || !user?.uid || joinBusyActivityId) return
-                        if (
-                          !window.confirm(
-                            `Join "${activity.name}"? Once joined, you cannot unenroll.`,
-                          )
-                        ) {
+                        if (!window.confirm(t('activities.joinConfirm', { name: activity.name }))) {
                           return
                         }
                         setJoinBusyActivityId(activity.id)
                         try {
                           await joinAdvancedActivity(groupId, user.uid, activity.id)
                         } catch (e) {
-                          window.alert(e.message || 'Could not join this advanced activity.')
+                          window.alert(e.message || t('activities.joinFailed'))
                         } finally {
                           setJoinBusyActivityId(null)
                         }
                       }}
                       className="shrink-0 rounded-full border border-violet-300 bg-tour-surface px-3 py-1.5 text-[12px] font-medium text-tour-text hover:bg-violet-100/80 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {joinBusyActivityId === activity.id ? 'Joining…' : 'Join activity'}
+                      {joinBusyActivityId === activity.id
+                        ? t('activities.joining')
+                        : t('activities.joinActivity')}
                     </button>
                   </li>
                 ))}
@@ -351,7 +354,7 @@ export function ActivityListPage() {
 
           {activities.length === 0 && (
             <p className="rounded-xl border border-black/10 bg-tour-surface p-4 text-sm text-tour-text-secondary">
-              No activities yet. The owner can add them in Group settings.
+              {t('activities.emptyList')}
             </p>
           )}
 
@@ -364,7 +367,7 @@ export function ActivityListPage() {
               const tier = medalTierFromTasksCompleted(tasksDone)
               const showAwaitingHint =
                 Boolean(pendingDoc) &&
-                tasks.some((t) => getTaskStatus(t, progress, pendingDoc) === 'blocked')
+                tasks.some((tk) => getTaskStatus(tk, progress, pendingDoc) === 'blocked')
 
               return (
                 <section
@@ -388,13 +391,18 @@ export function ActivityListPage() {
                     </p>
                   )}
                   {showAwaitingHint && (
-                    <p className="mb-2 text-[11px] text-amber-900">Awaiting approval before next task</p>
+                    <p className="mb-2 text-[11px] text-amber-900">
+                      {t('activities.awaitingApprovalHint')}
+                    </p>
                   )}
                   {pendingDoc && (
                     <div className="mb-2 rounded-lg border border-black/10 bg-tour-muted/40 px-2.5 py-2">
                       <p className="text-[11px] text-tour-text-secondary">
-                        Waiting for the owner to review your submission for{' '}
-                        <span className="font-medium text-tour-text">{pendingDoc.taskName || 'this task'}</span>.
+                        {t('activities.waitingReviewBefore')}{' '}
+                        <span className="font-medium text-tour-text">
+                          {pendingDoc.taskName || t('activities.thisTaskFallback')}
+                        </span>
+                        .
                       </p>
                       <button
                         type="button"
@@ -402,7 +410,9 @@ export function ActivityListPage() {
                         onClick={() => handleWithdrawSubmission(activity.id, pendingDoc)}
                         className="mt-2 rounded-lg border border-red-200/90 bg-tour-surface px-2.5 py-1.5 text-[11px] font-medium text-red-900 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {withdrawBusyActivityId === activity.id ? 'Withdrawing…' : 'Withdraw submission'}
+                        {withdrawBusyActivityId === activity.id
+                          ? t('activities.withdrawing')
+                          : t('activities.withdrawSubmission')}
                       </button>
                     </div>
                   )}
@@ -428,7 +438,7 @@ export function ActivityListPage() {
                               <div className="min-w-0 flex-1">
                                 <p className="text-[13px] text-tour-text">{task.name}</p>
                               </div>
-                              <span className={completePillClass}>Complete</span>
+                              <span className={completePillClass}>{t('activities.taskComplete')}</span>
                             </Link>
                           ) : (
                             <div className="flex items-center gap-2.5 py-2">
@@ -436,7 +446,9 @@ export function ActivityListPage() {
                               <div className="min-w-0 flex-1">
                                 <p className="text-[13px] text-tour-text">{task.name}</p>
                                 {status === 'pending' && (
-                                  <p className="mt-0.5 text-[11px] text-tour-text-secondary">Pending</p>
+                                  <p className="mt-0.5 text-[11px] text-tour-text-secondary">
+                                    {t('activities.taskPending')}
+                                  </p>
                                 )}
                               </div>
                               {status === 'blocked' && (
@@ -445,7 +457,7 @@ export function ActivityListPage() {
                                   disabled
                                   className="shrink-0 cursor-not-allowed rounded-full border border-black/10 px-2.5 py-1 text-[11px] font-medium text-tour-text-secondary opacity-60"
                                 >
-                                  Complete
+                                  {t('activities.taskComplete')}
                                 </button>
                               )}
                             </div>
@@ -461,7 +473,7 @@ export function ActivityListPage() {
           {enrolledAdvancedActivities.length > 0 && (
             <div className="mt-4">
               <h3 className="mb-2 text-[12px] font-medium uppercase tracking-wide text-tour-text-secondary">
-                Advanced activities
+                {t('activities.advancedSectionTitle')}
               </h3>
               <div className="flex flex-col gap-3">
                 {enrolledAdvancedActivities.map((activity) => {
@@ -472,7 +484,7 @@ export function ActivityListPage() {
                   const tier = medalTierFromTasksCompleted(tasksDone)
                   const showAwaitingHint =
                     Boolean(pendingDoc) &&
-                    tasks.some((t) => getTaskStatus(t, progress, pendingDoc) === 'blocked')
+                    tasks.some((tk) => getTaskStatus(tk, progress, pendingDoc) === 'blocked')
 
                   return (
                     <section
@@ -488,7 +500,7 @@ export function ActivityListPage() {
                         <h2 className="min-w-0 flex-1 text-[14px] font-medium leading-snug text-tour-text">
                           {activity.name}
                           <span className="ml-2 align-middle rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800">
-                            Advanced
+                            {t('activities.advancedBadge')}
                           </span>
                         </h2>
                         <MedalBadge tier={tier} className="w-[4.75rem] shrink-0" />
@@ -500,21 +512,24 @@ export function ActivityListPage() {
                       )}
                       {activity.prerequisiteActivityId ? (
                         <p className="mb-2 text-[11px] text-violet-800/85">
-                          Advanced track of:{' '}
-                          {activityNameById[activity.prerequisiteActivityId] || 'prerequisite activity'}
+                          {t('activities.advancedTrackOf', {
+                            name:
+                              activityNameById[activity.prerequisiteActivityId] ||
+                              t('activities.prerequisiteFallback'),
+                          })}
                         </p>
                       ) : null}
                       {showAwaitingHint && (
                         <p className="mb-2 text-[11px] text-amber-900">
-                          Awaiting approval before next task
+                          {t('activities.awaitingApprovalHint')}
                         </p>
                       )}
                       {pendingDoc && (
                         <div className="mb-2 rounded-lg border border-black/10 bg-tour-muted/40 px-2.5 py-2">
                           <p className="text-[11px] text-tour-text-secondary">
-                            Waiting for the owner to review your submission for{' '}
+                            {t('activities.waitingReviewBefore')}{' '}
                             <span className="font-medium text-tour-text">
-                              {pendingDoc.taskName || 'this task'}
+                              {pendingDoc.taskName || t('activities.thisTaskFallback')}
                             </span>
                             .
                           </p>
@@ -524,7 +539,9 @@ export function ActivityListPage() {
                             onClick={() => handleWithdrawSubmission(activity.id, pendingDoc)}
                             className="mt-2 rounded-lg border border-red-200/90 bg-tour-surface px-2.5 py-1.5 text-[11px] font-medium text-red-900 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            {withdrawBusyActivityId === activity.id ? 'Withdrawing…' : 'Withdraw submission'}
+                            {withdrawBusyActivityId === activity.id
+                              ? t('activities.withdrawing')
+                              : t('activities.withdrawSubmission')}
                           </button>
                         </div>
                       )}
@@ -550,7 +567,7 @@ export function ActivityListPage() {
                                   <div className="min-w-0 flex-1">
                                     <p className="text-[13px] text-tour-text">{task.name}</p>
                                   </div>
-                                  <span className={completePillClass}>Complete</span>
+                                  <span className={completePillClass}>{t('activities.taskComplete')}</span>
                                 </Link>
                               ) : (
                                 <div className="flex items-center gap-2.5 py-2">
@@ -558,7 +575,9 @@ export function ActivityListPage() {
                                   <div className="min-w-0 flex-1">
                                     <p className="text-[13px] text-tour-text">{task.name}</p>
                                     {status === 'pending' && (
-                                      <p className="mt-0.5 text-[11px] text-tour-text-secondary">Pending</p>
+                                      <p className="mt-0.5 text-[11px] text-tour-text-secondary">
+                                        {t('activities.taskPending')}
+                                      </p>
                                     )}
                                   </div>
                                   {status === 'blocked' && (
@@ -567,7 +586,7 @@ export function ActivityListPage() {
                                       disabled
                                       className="shrink-0 cursor-not-allowed rounded-full border border-black/10 px-2.5 py-1 text-[11px] font-medium text-tour-text-secondary opacity-60"
                                     >
-                                      Complete
+                                      {t('activities.taskComplete')}
                                     </button>
                                   )}
                                 </div>

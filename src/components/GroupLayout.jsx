@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { NavLink, Outlet, useLocation, useParams } from 'react-router-dom'
 import { Avatar } from './Avatar'
 import { useAuth } from '../context/useAuth'
+import { useTranslation } from '../hooks/useTranslation'
 import { signOutUser } from '../services/authService'
 import { subscribeGroupMember } from '../services/activityService'
 import { getGroup } from '../services/groupService'
@@ -15,15 +16,16 @@ function navLinkClass({ isActive }) {
   ].join(' ')
 }
 
-function ownerBadge() {
+function OwnerBadge({ label }) {
   return (
     <span className="shrink-0 rounded bg-tour-muted px-1.5 py-0.5 text-[10px] font-medium text-tour-text-secondary">
-      Owner
+      {label}
     </span>
   )
 }
 
 function GroupNavPanel({ groupId, user, meMember, isOwner, onNavigate, settingsNavState }) {
+  const { t } = useTranslation()
   const profilePath = `/group/${groupId}/profile/${user?.uid || ''}`
 
   const handleNav = () => {
@@ -56,40 +58,44 @@ function GroupNavPanel({ groupId, user, meMember, isOwner, onNavigate, settingsN
           />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-medium leading-tight text-tour-text">
-              {user?.displayName || user?.email || 'Member'}
+              {user?.displayName || user?.email || t('groupShell.displayNameFallback')}
             </p>
-            <p className="text-[11px] text-tour-text-secondary">{isOwner ? 'Owner' : 'Member'}</p>
-            <p className="mt-1.2 text-[11px] font-medium text-tour-accent-foreground">See profile</p>
+            <p className="text-[11px] text-tour-text-secondary">
+              {isOwner ? t('groupShell.roleOwner') : t('groupShell.roleMember')}
+            </p>
+            <p className="mt-1.2 text-[11px] font-medium text-tour-accent-foreground">
+              {t('groupShell.seeProfile')}
+            </p>
           </div>
         </div>
       </NavLink>
 
       <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-4 py-2 pl-5 pr-4" onClick={handleNav}>
         <NavLink to={`/group/${groupId}/feed`} className={navLinkClass}>
-          Feed
+          {t('groupShell.navFeed')}
         </NavLink>
         <NavLink to={`/group/${groupId}/activities`} className={navLinkClass}>
-          Activities
+          {t('groupShell.navActivities')}
         </NavLink>
         <NavLink to={`/group/${groupId}/info`} className={navLinkClass}>
-          Group Info
+          {t('groupShell.navGroupInfo')}
         </NavLink>
         <NavLink to={`/group/${groupId}/standings`} className={navLinkClass}>
-          Standings
+          {t('groupShell.navStandings')}
         </NavLink>
         {isOwner && (
           <>
             <div className="my-2 h-px bg-black/10" />
             <NavLink to={`/group/${groupId}/approvals`} className={navLinkClass}>
               <span className="flex w-full items-center justify-between gap-2">
-                <span>Approval Queue</span>
-                {ownerBadge()}
+                <span>{t('groupShell.navApprovalQueue')}</span>
+                <OwnerBadge label={t('groupShell.ownerTag')} />
               </span>
             </NavLink>
             <NavLink to={`/group/${groupId}/settings`} className={navLinkClass}>
               <span className="flex w-full items-center justify-between gap-2">
-                <span>Group Settings</span>
-                {ownerBadge()}
+                <span>{t('groupShell.navGroupSettings')}</span>
+                <OwnerBadge label={t('groupShell.ownerTag')} />
               </span>
             </NavLink>
           </>
@@ -101,14 +107,14 @@ function GroupNavPanel({ groupId, user, meMember, isOwner, onNavigate, settingsN
           to="/"
           className="block rounded-lg py-2 pl-3.5 pr-3 text-[12px] text-tour-text-secondary hover:bg-black/[0.04]"
         >
-          Home (all groups)
+          {t('groupShell.homeAllGroups')}
         </NavLink>
         <NavLink
           to="/settings"
           state={settingsNavState}
           className="block rounded-lg py-2 pl-3.5 pr-3 text-[12px] text-tour-text-secondary hover:bg-black/[0.04]"
         >
-          Settings
+          {t('home.settings')}
         </NavLink>
         <button
           type="button"
@@ -118,7 +124,7 @@ function GroupNavPanel({ groupId, user, meMember, isOwner, onNavigate, settingsN
           }}
           className="mt-0.5 w-full rounded-lg py-2 pl-3.5 pr-3 text-left text-[13px] text-[#A32D2D] hover:bg-red-50"
         >
-          Sign out
+          {t('home.signOut')}
         </button>
       </div>
     </div>
@@ -126,6 +132,7 @@ function GroupNavPanel({ groupId, user, meMember, isOwner, onNavigate, settingsN
 }
 
 export function GroupLayout() {
+  const { t } = useTranslation()
   const { groupId } = useParams()
   const location = useLocation()
   const { user } = useAuth()
@@ -179,15 +186,15 @@ export function GroupLayout() {
 
   const title = useMemo(() => {
     const p = location.pathname
-    if (p.includes('/activities')) return 'Activities'
-    if (p.includes('/standings')) return 'Standings'
-    if (p.includes('/info')) return 'Group Info'
-    if (p.includes('/approvals')) return 'Pending approvals'
-    if (p.includes('/settings')) return 'Group settings'
-    if (p.includes('/profile/')) return 'Profile'
-    if (p.includes('/feed')) return 'Feed'
-    return 'Group'
-  }, [location.pathname])
+    if (p.includes('/activities')) return t('groupShell.titleActivities')
+    if (p.includes('/standings')) return t('groupShell.titleStandings')
+    if (p.includes('/info')) return t('groupShell.titleGroupInfo')
+    if (p.includes('/approvals')) return t('groupShell.titlePendingApprovals')
+    if (p.includes('/settings')) return t('groupShell.titleGroupSettings')
+    if (p.includes('/profile/')) return t('groupShell.titleProfile')
+    if (p.includes('/feed')) return t('groupShell.titleFeed')
+    return t('groupShell.titleGroup')
+  }, [location.pathname, t])
 
   const profilePath = `/group/${groupId}/profile/${user?.uid || ''}`
 
@@ -196,7 +203,7 @@ export function GroupLayout() {
       <aside className="hidden h-[100dvh] min-h-0 w-56 shrink-0 flex-col border-r border-black/10 bg-tour-surface lg:flex">
         <div className="shrink-0 border-b border-black/10 px-4 py-3">
           <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
-            Il Tour di Paolo
+            {t('common.brandLine')}
           </p>
           <p className="truncate text-[13px] font-medium text-tour-text">{group?.name || '…'}</p>
         </div>
@@ -216,13 +223,13 @@ export function GroupLayout() {
           <button
             type="button"
             className="fixed inset-0 z-40 bg-black/35 lg:hidden"
-            aria-label="Close menu"
+            aria-label={t('groupShell.ariaCloseMenu')}
             onClick={() => setMenuOpen(false)}
           />
           <aside className="fixed left-0 top-0 z-50 flex h-full w-[min(220px,85vw)] flex-col border-r border-black/10 bg-tour-surface shadow-lg lg:hidden">
             <div className="shrink-0 border-b border-black/10 px-4 py-3">
               <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
-                Il Tour di Paolo
+                {t('common.brandLine')}
               </p>
               <p className="truncate text-[13px] font-medium">{group?.name || '…'}</p>
             </div>
@@ -245,7 +252,7 @@ export function GroupLayout() {
           <button
             type="button"
             className="flex h-10 w-10 shrink-0 flex-col items-center justify-center gap-1 rounded-lg hover:bg-black/[0.04] lg:hidden"
-            aria-label="Open menu"
+            aria-label={t('groupShell.ariaOpenMenu')}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen(true)}
           >
@@ -262,7 +269,7 @@ export function GroupLayout() {
           <NavLink
             to={profilePath}
             className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full hover:opacity-90"
-            title="Profile"
+            title={t('groupShell.profileLinkTitle')}
           >
             {user ? (
               <Avatar

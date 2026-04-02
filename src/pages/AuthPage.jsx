@@ -5,11 +5,13 @@ import {
   signInWithEmail,
   signInWithGoogle,
 } from '../services/authService'
+import { useTranslation } from '../hooks/useTranslation'
 
 const inputClass =
   'min-h-11 w-full rounded-lg border border-black/18 bg-tour-surface px-3 py-2.5 text-tour-text shadow-sm focus:border-tour-accent focus:outline-none focus:ring-1 focus:ring-tour-accent'
 
 export function AuthPage() {
+  const { t } = useTranslation()
   const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -30,7 +32,7 @@ export function AuthPage() {
         await signInWithEmail(email, password)
       }
     } catch (err) {
-      setError(err.message || 'Something went wrong')
+      setError(err.message || t('errors.authGeneric'))
     } finally {
       setPending(false)
     }
@@ -42,7 +44,7 @@ export function AuthPage() {
     try {
       await signInWithGoogle()
     } catch (err) {
-      setError(err.message || 'Google sign-in failed')
+      setError(err.message || t('errors.googleSignInFailed'))
     } finally {
       setPending(false)
     }
@@ -55,22 +57,21 @@ export function AuthPage() {
           <div className="rounded-xl border border-black/10 bg-tour-surface p-5 sm:p-6">
             <header className="mb-6 text-center sm:text-left">
               <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
-                Il Tour di Paolo
+                {t('common.brandLine')}
               </p>
               <h1 className="mt-1 text-xl font-semibold text-tour-text sm:text-2xl">
-                {mode === 'login' ? 'Sign in' : 'Create an account'}
+                {mode === 'login' ? t('auth.signInTitle') : t('auth.signUpTitle')}
               </h1>
               <p className="mt-2 text-sm text-tour-text-secondary">
-                {mode === 'login'
-                  ? 'Use your email or Google to continue.'
-                  : 'Set a display name your group will see.'}
+                {mode === 'login' ? t('auth.subtitleLogin') : t('auth.subtitleSignup')}
               </p>
             </header>
 
             {!firebaseReady && (
               <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-center text-sm text-amber-900">
-                Firebase is not configured. Add <code className="text-xs">VITE_FIREBASE_*</code> to{' '}
-                <code className="text-xs">.env</code> (or Vercel env).
+                {t('auth.firebaseWarningStart')}{' '}
+                <code className="text-xs">VITE_FIREBASE_*</code> {t('auth.firebaseWarningMid')}{' '}
+                <code className="text-xs">.env</code> {t('auth.firebaseWarningEnd')}
               </div>
             )}
 
@@ -87,7 +88,7 @@ export function AuthPage() {
                   setError('')
                 }}
               >
-                Log in
+                {t('auth.modeLogin')}
               </button>
               <button
                 type="button"
@@ -101,7 +102,7 @@ export function AuthPage() {
                   setError('')
                 }}
               >
-                Sign up
+                {t('auth.modeSignup')}
               </button>
             </div>
 
@@ -109,7 +110,7 @@ export function AuthPage() {
               {mode === 'signup' && (
                 <div>
                   <label htmlFor="displayName" className="mb-1.5 block text-sm font-medium text-tour-text">
-                    Display name
+                    {t('auth.displayNameLabel')}
                   </label>
                   <input
                     id="displayName"
@@ -124,7 +125,7 @@ export function AuthPage() {
               )}
               <div>
                 <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-tour-text">
-                  Email
+                  {t('auth.emailLabel')}
                 </label>
                 <input
                   id="email"
@@ -138,7 +139,7 @@ export function AuthPage() {
               </div>
               <div>
                 <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-tour-text">
-                  Password
+                  {t('auth.passwordLabel')}
                 </label>
                 <input
                   id="password"
@@ -151,9 +152,7 @@ export function AuthPage() {
                   minLength={6}
                 />
                 {mode === 'signup' && (
-                  <p className="mt-1.5 text-xs text-tour-text-secondary">
-                    At least 6 characters (Firebase default).
-                  </p>
+                  <p className="mt-1.5 text-xs text-tour-text-secondary">{t('auth.passwordHintSignup')}</p>
                 )}
               </div>
 
@@ -168,7 +167,11 @@ export function AuthPage() {
                 disabled={pending || !firebaseReady}
                 className="min-h-11 w-full rounded-lg bg-tour-accent px-4 py-3 text-sm font-medium text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {pending ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Sign in'}
+                {pending
+                  ? t('auth.pleaseWait')
+                  : mode === 'signup'
+                    ? t('auth.createAccount')
+                    : t('auth.signInSubmit')}
               </button>
             </form>
 
@@ -177,7 +180,7 @@ export function AuthPage() {
                 <div className="w-full border-t border-black/10" />
               </div>
               <div className="relative flex justify-center text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
-                <span className="bg-tour-surface px-3">or</span>
+                <span className="bg-tour-surface px-3">{t('auth.dividerOr')}</span>
               </div>
             </div>
 
@@ -188,7 +191,7 @@ export function AuthPage() {
               className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-black/10 bg-tour-muted px-4 py-3 text-sm font-medium text-tour-text hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <GoogleIcon />
-              Continue with Google
+              {t('auth.continueGoogle')}
             </button>
           </div>
         </div>

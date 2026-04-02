@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from '../hooks/useTranslation'
 import { Avatar } from './Avatar'
 import { MedalBadge } from './MedalBadge'
 import { normalizeDocPhotos } from '../lib/feedPhotos'
@@ -57,6 +58,7 @@ export function FeedPostCard({
   onLikeToggle,
   likeBusy,
 }) {
+  const { t } = useTranslation()
   const [draft, setDraft] = useState('')
   const [fullOpen, setFullOpen] = useState(false)
 
@@ -79,7 +81,9 @@ export function FeedPostCard({
         alt=""
       />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-medium text-tour-text">{post.displayName || 'Member'}</p>
+        <p className="truncate text-[13px] font-medium text-tour-text">
+          {post.displayName || t('groupShell.displayNameFallback')}
+        </p>
         <p className="text-[11px] text-tour-text-secondary">{formatFeedTime(post.timestamp)}</p>
       </div>
       {post.type === 'task_completion' && (
@@ -101,9 +105,9 @@ export function FeedPostCard({
 
   async function handleSubmit(e) {
     e.preventDefault()
-    const t = draft.trim()
-    if (!t) return
-    await onSubmitComment(t)
+    const text = draft.trim()
+    if (!text) return
+    await onSubmitComment(text)
     setDraft('')
   }
 
@@ -127,13 +131,16 @@ export function FeedPostCard({
         </div>
       ) : (
         <div className="flex h-[500px] w-full items-center justify-center bg-[#EAF3DE] sm:h-[700px]">
-          <span className="text-[11px] text-[#3B6D11]">Photo</span>
+          <span className="text-[11px] text-[#3B6D11]">{t('feed.photoPlaceholder')}</span>
         </div>
       )}
 
       <div className="px-3 py-2.5">
         <p className="mb-1 text-[13px] text-tour-text">
-          Completed &quot;{post.taskName || 'Task'}&quot; in {post.activityName || 'Activity'}
+          {t('feed.taskCompletedLine', {
+            task: post.taskName || t('feed.taskFallback'),
+            activity: post.activityName || t('feed.activityFallback'),
+          })}
         </p>
         {post.description ? (
           <p className="text-[12px] leading-snug text-tour-text-secondary">{post.description}</p>
@@ -150,7 +157,9 @@ export function FeedPostCard({
             >
               <HeartIcon filled={liked} />
               <span>
-                {likeCount} {likeCount === 1 ? 'like' : 'likes'}
+                {likeCount === 1
+                  ? t('feed.likeOne', { count: likeCount })
+                  : t('feed.likeOther', { count: likeCount })}
               </span>
             </button>
             <button
@@ -159,7 +168,9 @@ export function FeedPostCard({
               className="rounded-lg py-1 text-[12px] font-medium text-tour-accent-foreground hover:underline"
               aria-expanded={expanded}
             >
-              Comments{commentLabelCount > 0 ? ` (${commentLabelCount})` : ''}
+              {commentLabelCount > 0
+                ? t('feed.commentsWithCount', { count: commentLabelCount })
+                : t('feed.comments')}
             </button>
           </div>
         )}
@@ -167,7 +178,7 @@ export function FeedPostCard({
         {expanded && currentUserId && (
           <div className="mt-3 border-t border-black/10 pt-3">
             {commentsLoading ? (
-              <p className="text-[12px] text-tour-text-secondary">Loading comments…</p>
+              <p className="text-[12px] text-tour-text-secondary">{t('feed.loadingComments')}</p>
             ) : (
               <ul className="space-y-2">
                 {comments.map((c) => {
@@ -184,7 +195,7 @@ export function FeedPostCard({
                       />
                       <div className="min-w-0 flex-1">
                         <p className="text-[11px] font-medium text-tour-text-secondary">
-                          {c.displayName || 'Member'}
+                          {c.displayName || t('groupShell.displayNameFallback')}
                         </p>
                         <p className="mt-0.5 whitespace-pre-wrap text-[13px] leading-snug text-tour-text">
                           {c.text}
@@ -196,7 +207,7 @@ export function FeedPostCard({
                           onClick={() => onDeleteComment(c.id)}
                           className="shrink-0 text-[11px] text-red-700 hover:underline"
                         >
-                          Delete
+                          {t('feed.delete')}
                         </button>
                       )}
                     </li>
@@ -206,7 +217,7 @@ export function FeedPostCard({
             )}
             <form onSubmit={handleSubmit} className="mt-3">
               <label htmlFor={`comment-${post.id}`} className="sr-only">
-                Add a comment
+                {t('feed.commentFieldLabel')}
               </label>
               <textarea
                 id={`comment-${post.id}`}
@@ -214,7 +225,7 @@ export function FeedPostCard({
                 onChange={(e) => setDraft(e.target.value.slice(0, MAX_COMMENT_CHARS))}
                 rows={2}
                 maxLength={MAX_COMMENT_CHARS}
-                placeholder="Add a comment…"
+                placeholder={t('feed.commentPlaceholder')}
                 className="w-full resize-y rounded-lg border border-black/15 bg-tour-surface px-3 py-2 text-[13px] text-tour-text placeholder:text-tour-text-tertiary focus:border-tour-accent focus:outline-none focus:ring-1 focus:ring-tour-accent"
               />
               <div className="mt-1 flex items-center justify-between gap-2">
@@ -226,7 +237,7 @@ export function FeedPostCard({
                   disabled={!draft.trim() || commentsLoading}
                   className="rounded-lg bg-tour-accent px-3 py-1.5 text-[12px] font-medium text-white hover:opacity-95 disabled:opacity-50"
                 >
-                  Post
+                  {t('feed.postComment')}
                 </button>
               </div>
               {commentError ? <p className="mt-1 text-[11px] text-red-700">{commentError}</p> : null}

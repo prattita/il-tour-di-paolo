@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { useTranslation } from '../hooks/useTranslation'
 import { useGroupCompletionPickerData } from '../hooks/useGroupCompletionPickerData'
 import {
   getEligibleTasksForPicker,
@@ -16,6 +17,7 @@ const selectClass =
   'mt-1 w-full rounded-lg border border-black/18 bg-tour-surface px-2.5 py-2.5 text-[13px] text-tour-text focus:border-tour-accent focus:outline-none focus:ring-1 focus:ring-tour-accent disabled:cursor-not-allowed disabled:opacity-50'
 
 export function TaskCompletePage() {
+  const { t } = useTranslation()
   const { groupId } = useParams()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -93,27 +95,27 @@ export function TaskCompletePage() {
   }, [pickerActivity, member, pendingByActivityId])
 
   const pickerTask = useMemo(
-    () => eligiblePickerTasks.find((t) => t.id === selectedTaskId),
+    () => eligiblePickerTasks.find((task) => task.id === selectedTaskId),
     [eligiblePickerTasks, selectedTaskId],
   )
 
   const lockedGateMessage = useMemo(() => {
     if (!wantsLockedRoute || !pickerDataReady || !member) return ''
     if (!memberParticipatesInActivity(member, activityIdParam)) {
-      return 'You are not participating in this activity.'
+      return t('taskComplete.notParticipating')
     }
     const act = activities.find((a) => a.id === activityIdParam)
-    if (!act) return 'Activity not found.'
+    if (!act) return t('taskComplete.activityNotFound')
     const tsk = (act.tasks || []).find((x) => x.id === taskIdParam)
-    if (!tsk) return 'Task not found.'
+    if (!tsk) return t('taskComplete.taskNotFound')
     const pending = pendingByActivityId[activityIdParam] ?? null
     const status = getTaskStatus(tsk, member.progress?.[activityIdParam], pending)
     if (status !== 'empty') {
-      if (status === 'approved') return 'This task is already completed.'
+      if (status === 'approved') return t('taskComplete.taskAlreadyCompleted')
       if (status === 'pending') {
-        return 'This task is already submitted for review. To cancel, go to Activities and tap Withdraw submission on that activity.'
+        return t('taskComplete.taskPendingReview')
       }
-      return 'Finish your pending submission for another task in this activity first.'
+      return t('taskComplete.finishPendingOtherFirst')
     }
     return ''
   }, [
@@ -124,6 +126,7 @@ export function TaskCompletePage() {
     activityIdParam,
     taskIdParam,
     pendingByActivityId,
+    t,
   ])
 
   const lockedActivity = wantsLockedRoute ? activities.find((a) => a.id === activityIdParam) : null
@@ -159,7 +162,7 @@ export function TaskCompletePage() {
     e.preventDefault()
     setSubmitError('')
     if (imageFiles.length < 1) {
-      setSubmitError('Please add at least one photo.')
+      setSubmitError(t('taskComplete.needPhoto'))
       return
     }
     if (!user?.uid || !displayActivity || !displayTask || !groupId) return
@@ -169,7 +172,7 @@ export function TaskCompletePage() {
       await createPendingSubmission({
         groupId,
         userId: user.uid,
-        displayName: user.displayName || user.email || 'Member',
+        displayName: user.displayName || user.email || t('groupShell.displayNameFallback'),
         activityId: displayActivity.id,
         activityName: displayActivity.name,
         taskId: displayTask.id,
@@ -179,7 +182,7 @@ export function TaskCompletePage() {
       })
       navigate(`/group/${groupId}/activities`, { replace: true, state: { submitted: true } })
     } catch (err) {
-      setSubmitError(err.message || 'Submit failed.')
+      setSubmitError(err.message || t('taskComplete.submitFailed'))
     } finally {
       setSubmitting(false)
     }
@@ -190,12 +193,12 @@ export function TaskCompletePage() {
 
   const gateMessage = useMemo(() => {
     if (!pickerDataReady) return ''
-    if (!group) return 'Group not found.'
+    if (!group) return t('feed.groupNotFound')
     if (!user?.uid) return ''
-    if (!isMember) return 'You are not a member of this group.'
+    if (!isMember) return t('feed.notMember')
     if (wantsLockedRoute && lockedGateMessage) return lockedGateMessage
     return ''
-  }, [pickerDataReady, group, user?.uid, isMember, wantsLockedRoute, lockedGateMessage])
+  }, [pickerDataReady, group, user?.uid, isMember, wantsLockedRoute, lockedGateMessage, t])
 
   const showPickerEmpty =
     pickerDataReady && isMember && !wantsLockedRoute && eligibleActivities.length === 0
@@ -213,10 +216,10 @@ export function TaskCompletePage() {
           onClick={() => navigate(-1)}
           className="shrink-0 text-[12px] text-tour-text-secondary hover:text-tour-text"
         >
-          ← Back
+          {t('settings.back')}
         </button>
         <h1 className="min-w-0 flex-1 truncate text-center text-[15px] font-medium">
-          Complete a task
+          {t('taskComplete.pageTitle')}
         </h1>
         <span className="w-10 shrink-0" aria-hidden />
       </header>
@@ -237,22 +240,22 @@ export function TaskCompletePage() {
               to={activitiesPath}
               className="inline-block rounded-lg border border-black/10 bg-tour-surface px-3 py-1.5 text-sm font-medium text-tour-text hover:bg-tour-muted"
             >
-              Back to activities
+              {t('taskComplete.backToActivities')}
             </Link>
           </div>
         )}
 
         {!loadingUi && !error && !gateMessage && showPickerEmpty && (
           <div className="space-y-4">
-            <p className="text-sm text-tour-text">You have no remaining tasks to submit.</p>
+            <p className="text-sm text-tour-text">{t('taskComplete.noTasksLeft')}</p>
             <p className="text-sm text-tour-text-secondary">
-              All your activities are complete or pending review.
+              {t('taskComplete.allCompleteOrPending')}
             </p>
             <Link
               to={feedPath}
               className="inline-block rounded-lg border border-black/10 bg-tour-surface px-3 py-1.5 text-sm font-medium text-tour-text hover:bg-tour-muted"
             >
-              Back to feed
+              {t('taskComplete.backToFeed')}
             </Link>
           </div>
         )}
@@ -261,7 +264,7 @@ export function TaskCompletePage() {
           <div className="space-y-4">
             <div>
               <label htmlFor="complete-activity" className="block text-[12px] font-medium text-tour-text-secondary">
-                Activity
+                {t('taskComplete.labelActivity')}
               </label>
               <select
                 id="complete-activity"
@@ -269,7 +272,7 @@ export function TaskCompletePage() {
                 onChange={(e) => setSelectedActivityId(e.target.value)}
                 className={selectClass}
               >
-                <option value="">Select activity</option>
+                <option value="">{t('taskComplete.selectActivity')}</option>
                 {eligibleActivities.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
@@ -280,7 +283,7 @@ export function TaskCompletePage() {
 
             <div>
               <label htmlFor="complete-task" className="block text-[12px] font-medium text-tour-text-secondary">
-                Task
+                {t('taskComplete.labelTask')}
               </label>
               <select
                 id="complete-task"
@@ -289,10 +292,10 @@ export function TaskCompletePage() {
                 disabled={!selectedActivityId}
                 className={selectClass}
               >
-                <option value="">Select task</option>
-                {eligiblePickerTasks.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
+                <option value="">{t('taskComplete.selectTask')}</option>
+                {eligiblePickerTasks.map((task) => (
+                  <option key={task.id} value={task.id}>
+                    {task.name}
                   </option>
                 ))}
               </select>
@@ -317,9 +320,12 @@ export function TaskCompletePage() {
             >
               <div>
                 <p className="form-label mb-1 text-[12px] text-tour-text-secondary">
-                  Photo proof <span className="text-[#A32D2D]">required</span>
+                  {t('taskComplete.photoProof')}{' '}
+                  <span className="text-[#A32D2D]">{t('taskComplete.required')}</span>
                   {imageFiles.length > 0 ? (
-                    <span className="text-tour-text-tertiary"> · up to {MAX_SUBMISSION_PHOTOS}</span>
+                    <span className="text-tour-text-tertiary">
+                      {t('taskComplete.photoUpTo', { max: MAX_SUBMISSION_PHOTOS })}
+                    </span>
                   ) : null}
                 </p>
                 <label className="flex cursor-pointer flex-col items-center gap-1.5 rounded-lg border border-dashed border-black/18 bg-tour-muted px-3 py-6">
@@ -335,10 +341,12 @@ export function TaskCompletePage() {
                     </svg>
                   </span>
                   <span className="text-[13px] font-medium text-tour-text">
-                    {imageFiles.length === 0 ? 'Upload photo' : 'Add another photo'}
+                    {imageFiles.length === 0
+                      ? t('taskComplete.uploadPhoto')
+                      : t('taskComplete.addAnotherPhoto')}
                   </span>
                   <span className="text-center text-[11px] text-tour-text-secondary">
-                    Tap to choose from camera or library
+                    {t('taskComplete.tapToChoose')}
                   </span>
                   <input
                     type="file"
@@ -364,7 +372,7 @@ export function TaskCompletePage() {
                           onClick={() => removeImageAt(idx)}
                           className="shrink-0 text-[11px] font-medium text-red-700 hover:underline"
                         >
-                          Remove
+                          {t('taskComplete.remove')}
                         </button>
                       </li>
                     ))}
@@ -372,21 +380,22 @@ export function TaskCompletePage() {
                 ) : null}
                 {imageFiles.length > 0 && imageFiles.length < MAX_SUBMISSION_PHOTOS ? (
                   <p className="mt-2 text-[11px] text-tour-text-secondary">
-                    You can add up to {MAX_SUBMISSION_PHOTOS} photos (tap the upload area again).
+                    {t('taskComplete.addMorePhotosHint', { max: MAX_SUBMISSION_PHOTOS })}
                   </p>
                 ) : null}
               </div>
 
               <div>
                 <label htmlFor="desc" className="mb-1 block text-[12px] text-tour-text-secondary">
-                  Description <span className="text-tour-text-tertiary">optional</span>
+                  {t('taskComplete.description')}{' '}
+                  <span className="text-tour-text-tertiary">{t('taskComplete.optional')}</span>
                 </label>
                 <textarea
                   id="desc"
                   rows={3}
                   value={description}
                   onChange={(ev) => setDescription(ev.target.value)}
-                  placeholder="Tell us about it..."
+                  placeholder={t('taskComplete.descriptionPlaceholder')}
                   className="w-full resize-none rounded-lg border border-black/18 bg-tour-surface px-2.5 py-2 text-[13px] text-tour-text placeholder:text-tour-text-secondary focus:border-tour-accent focus:outline-none focus:ring-1 focus:ring-tour-accent"
                 />
               </div>
@@ -406,11 +415,11 @@ export function TaskCompletePage() {
                     : 'bg-tour-accent text-white hover:opacity-95'
                 }`}
               >
-                {submitting ? 'Submitting…' : 'Submit for review'}
+                {submitting ? t('taskComplete.submitting') : t('taskComplete.submitForReview')}
               </button>
 
               <p className="text-center text-[11px] text-tour-text-secondary">
-                Your submission will appear in the feed once the owner approves it.
+                {t('taskComplete.submissionFeedHint')}
               </p>
 
               <button
@@ -418,7 +427,7 @@ export function TaskCompletePage() {
                 onClick={() => navigate(-1)}
                 className="block w-full rounded-lg border border-black/10 py-2 text-center text-sm font-medium text-tour-text hover:bg-tour-muted"
               >
-                Cancel
+                {t('taskComplete.cancel')}
               </button>
             </form>
           </>

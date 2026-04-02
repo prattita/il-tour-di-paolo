@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Avatar } from '../components/Avatar'
 import { useAuth } from '../context/useAuth'
+import { useTranslation } from '../hooks/useTranslation'
 import {
   subscribeActivities,
   subscribeActivitiesForViewer,
@@ -10,6 +11,7 @@ import {
 import { getGroup } from '../services/groupService'
 
 export function GroupInfoPage() {
+  const { t } = useTranslation()
   const { groupId } = useParams()
   const { user } = useAuth()
   const [group, setGroup] = useState(null)
@@ -29,7 +31,7 @@ export function GroupInfoPage() {
         const g = await getGroup(groupId)
         if (active) setGroup(g)
       } catch (e) {
-        if (active) setError(e.message || 'Failed to load group.')
+        if (active) setError(e.message || t('groupInfo.loadFailed'))
       } finally {
         if (active) setLoading(false)
       }
@@ -38,11 +40,13 @@ export function GroupInfoPage() {
     return () => {
       active = false
     }
-  }, [groupId])
+  }, [groupId, t])
 
   const isMember = Boolean(user?.uid && group?.memberIds?.includes(user.uid))
   const isOwner = Boolean(user?.uid && group?.ownerId === user.uid)
-  const activityNameById = Object.fromEntries(activities.map((a) => [a.id, a.name || 'Activity']))
+  const activityNameById = Object.fromEntries(
+    activities.map((a) => [a.id, a.name || t('feed.activityFallback')]),
+  )
 
   useEffect(() => {
     if (!groupId || !isMember || !user?.uid) return
@@ -76,16 +80,16 @@ export function GroupInfoPage() {
   }
 
   if (loading) {
-    return <p className="text-sm text-tour-text-secondary">Loading…</p>
+    return <p className="text-sm text-tour-text-secondary">{t('groupInfo.loading')}</p>
   }
   if (error) {
     return <p className="text-sm text-red-800">{error}</p>
   }
   if (!group) {
-    return <p className="text-sm text-tour-text-secondary">Group not found.</p>
+    return <p className="text-sm text-tour-text-secondary">{t('feed.groupNotFound')}</p>
   }
   if (!isMember) {
-    return <p className="text-sm text-tour-text-secondary">You are not a member of this group.</p>
+    return <p className="text-sm text-tour-text-secondary">{t('feed.notMember')}</p>
   }
 
   return (
@@ -95,24 +99,24 @@ export function GroupInfoPage() {
         {group.description ? (
           <p className="mt-2 text-sm leading-relaxed text-tour-text-secondary">{group.description}</p>
         ) : (
-          <p className="mt-2 text-sm text-tour-text-secondary">No description yet.</p>
+          <p className="mt-2 text-sm text-tour-text-secondary">{t('groupInfo.noDescription')}</p>
         )}
         {isOwner && (
           <Link
             to={`/group/${groupId}/settings`}
             className="mt-3 inline-flex rounded-lg border border-tour-accent/40 bg-tour-accent-muted/60 px-3 py-2 text-[12px] font-medium text-tour-accent-foreground hover:opacity-95"
           >
-            Edit group & invite
+            {t('groupInfo.editGroupInvite')}
           </Link>
         )}
       </section>
 
       <section className="rounded-xl border border-black/10 bg-tour-surface p-4">
         <h2 className="text-[12px] font-medium uppercase tracking-wide text-tour-text-secondary">
-          Members
+          {t('groupInfo.membersHeading')}
         </h2>
         {members.length === 0 ? (
-          <p className="mt-2 text-sm text-tour-text-secondary">No members loaded.</p>
+          <p className="mt-2 text-sm text-tour-text-secondary">{t('groupInfo.noMembersLoaded')}</p>
         ) : (
           <ul className="mt-3 divide-y divide-black/10">
             {members.map((m) => {
@@ -131,10 +135,12 @@ export function GroupInfoPage() {
                       alt=""
                     />
                     <div className="min-w-0 flex-1">
-                      <span className="text-[13px] font-medium">{m.displayName || 'Member'}</span>
+                      <span className="text-[13px] font-medium">
+                        {m.displayName || t('groupShell.displayNameFallback')}
+                      </span>
                       {rowOwner && (
                         <span className="ml-2 rounded bg-tour-muted px-1.5 py-0.5 text-[10px] font-medium text-tour-text-secondary">
-                          Owner
+                          {t('groupShell.ownerTag')}
                         </span>
                       )}
                     </div>
@@ -149,19 +155,18 @@ export function GroupInfoPage() {
       <section className="rounded-xl border border-black/10 bg-tour-surface p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-[12px] font-medium uppercase tracking-wide text-tour-text-secondary">
-            Activities
+            {t('groupInfo.activitiesHeading')}
           </h2>
           <Link
             to={`/group/${groupId}/activities`}
             className="text-[11px] font-medium text-tour-accent underline"
           >
-            View all →
+            {t('groupInfo.viewAllActivities')}
           </Link>
         </div>
         {activities.length === 0 ? (
           <p className="mt-2 text-sm text-tour-text-secondary">
-            No activities yet.
-            {isOwner ? ' Add them in Group settings.' : ' Ask the owner to add some.'}
+            {isOwner ? t('groupInfo.noActivitiesOwner') : t('groupInfo.noActivitiesMember')}
           </p>
         ) : (
           <ul className="mt-3 space-y-2">
@@ -186,18 +191,23 @@ export function GroupInfoPage() {
                     ].join(' ')}
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="text-[13px] font-medium text-tour-text">
-                        {a.name}
+                      <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="min-w-0 text-[13px] font-medium leading-snug text-tour-text">
+                          {a.name}
+                        </span>
                         {advanced ? (
-                          <span className="ml-2 align-middle rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800">
-                            Advanced
+                          <span className="inline-flex shrink-0 items-center rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-wide text-violet-800">
+                            {t('activities.advancedBadge')}
                           </span>
                         ) : null}
                       </span>
                       {advanced && a.prerequisiteActivityId ? (
                         <span className="mt-0.5 block text-[11px] font-normal text-violet-800/85">
-                          Advanced track of:{' '}
-                          {activityNameById[a.prerequisiteActivityId] || 'prerequisite activity'}
+                          {t('activities.advancedTrackOf', {
+                            name:
+                              activityNameById[a.prerequisiteActivityId] ||
+                              t('activities.prerequisiteFallback'),
+                          })}
                         </span>
                       ) : null}
                     </span>
@@ -217,10 +227,10 @@ export function GroupInfoPage() {
                           a.description ? 'mt-3 space-y-2' : 'space-y-2'
                         }
                       >
-                        {(a.tasks || []).map((t) => (
-                          <li key={t.id} className="flex gap-2 text-[12px] text-tour-text">
+                        {(a.tasks || []).map((task) => (
+                          <li key={task.id} className="flex gap-2 text-[12px] text-tour-text">
                             <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-tour-accent" />
-                            <span>{t.name}</span>
+                            <span>{task.name}</span>
                           </li>
                         ))}
                       </ul>
