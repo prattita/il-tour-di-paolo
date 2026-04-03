@@ -15,6 +15,7 @@ dist-ssr
 # Env — never commit real Firebase keys
 .env
 .env.*.local
+functions/.env
 
 # Editor directories and files
 .vscode/*

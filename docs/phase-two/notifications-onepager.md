@@ -1,6 +1,6 @@
 # Notifications — Feature Spec
 
-> Status: **Phase Two — in progress** (FCM **client** + `/settings` push wired; **you** still add VAPID in `.env` + Console; Cloud Functions not in repo yet)  
+> Status: **Phase Two — in progress** (FCM client + **`onFeedTaskCompletionPush`** in `functions/`; deploy Blaze + set `WEB_APP_ORIGIN`; other triggers TBD)  
 > Last updated: April 2026  
 > Related: [Account settings](settingsPage-onepager.md), [Internationalisation (i18n)](i18n-onepager.md), [DESIGN.md](../mvp/DESIGN.md)
 
@@ -300,7 +300,7 @@ Work proceeds in **logical chunks** below. **Push and email do not depend on eac
 
 ### 2. Cloud Functions — push (FCM)
 
-- [ ] `onNewFeedPost` (or equivalent) — **push only**, `task_completion` posts; recipients = members with `pushEnabled` + token (exclude actor if product prefers)
+- [x] `onNewFeedPost` — **`onFeedTaskCompletionPush`** (`functions/index.js`): `onCreate` `groups/{groupId}/feed/{postId}`, filter `type === 'task_completion'`; FCM to members with `pushEnabled` + `pushToken`; **skips actor**; `us-central1`. **Deploy:** Blaze plan, `functions/.env` with `WEB_APP_ORIGIN` (no trailing slash), then `firebase deploy --only functions` (use `prod` alias / project `il-tour-di-paolo`).
 - [ ] `onNewPendingSubmission` → FCM to owner when `pushEnabled` + token
 - [ ] `onSubmissionApproved` → FCM to submitter (ensure feed handler filters `type === 'task_completion'` if shared with other triggers)
 - [ ] `onSubmissionRejected` → FCM after `onUpdate` with `rejected: true` (coordinate with client delete order)
@@ -332,7 +332,7 @@ Use this table to reconcile the spec with the codebase without spelunking.
 |---|---|
 | **Settings location** | **`/settings`** Notifications section ([settingsPage-onepager](settingsPage-onepager.md)); not group profile. |
 | **FCM client** | `src/lib/firebaseMessaging.js`, `fcmConfig.js`, `pushSettingsService.js`, `FcmForegroundBanner.jsx`, `PushNotificationsSection.jsx`; Vite SW plugin. |
-| **Cloud Functions** | None for notifications until **§2–3 checklist** ships. |
+| **Cloud Functions** | **`onFeedTaskCompletionPush`** — feed `task_completion` → multicast FCM. **§2** other triggers not shipped. Requires **Blaze** + `WEB_APP_ORIGIN` in `functions/.env`. |
 | **Rejection flag** | Client reject flow gains a short `update` before delete once **rejection** email and/or push is implemented. |
 
 ---

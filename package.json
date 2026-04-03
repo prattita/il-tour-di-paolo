@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:rules": "firebase emulators:exec --only firestore --project demo-il-tour \"vitest run tests/firestore.feed-rules.test.js\""
+    "test:rules": "firebase emulators:exec --only firestore --project demo-il-tour \"vitest run tests/firestore.feed-rules.test.js\"",
+    "deploy:functions": "firebase deploy --only functions"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",
