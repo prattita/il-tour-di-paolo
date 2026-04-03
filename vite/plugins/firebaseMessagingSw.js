@@ -26,7 +26,7 @@ function buildSwSource(env) {
     'messaging.onBackgroundMessage((payload) => {',
     "  const title = (payload.notification && payload.notification.title) || (payload.data && payload.data.title) || 'Il Tour di Paolo';",
     "  const body = (payload.notification && payload.notification.body) || (payload.data && payload.data.body) || '';",
-    "  return self.registration.showNotification(title, { body, icon: '/favicon.svg', data: payload.data || {} });",
+    "  return self.registration.showNotification(title, { body, icon: '/p-icon-512.png', data: payload.data || {} });",
     '});',
   ].join('\n')
 }
