@@ -419,6 +419,8 @@ export default {
       'Get alerts for your groups. Your browser will ask for permission the first time you turn this on.',
     pushCheckingSupport: 'Checking browser support…',
     pushNotSupported: 'Push notifications are not supported in this browser.',
+    pushIosHomeScreenHint:
+      'On iPhone and iPad, web push only works when this site is installed as a proper Home Screen app (no Safari address bar). Use Share → Add to Home Screen, open from that icon, and use iOS 16.4 or later. If Safari still opens with a URL bar, delete the Home Screen icon and add it again after updating this app.',
     pushDeniedHint:
       'Notifications are blocked for this site. Enable them in your browser or device settings, then try again.',
     pushMissingVapid:

@@ -4,6 +4,12 @@ import { isFcmVapidKeyConfigured } from '../../lib/fcmConfig'
 import { getFirebaseMessagingWhenReady } from '../../lib/firebaseMessaging'
 import { disableWebPushForUser, enableWebPushForUser } from '../../services/pushSettingsService'
 
+/** iPhone/iPad (excludes desktop Safari). */
+function isLikelyIos() {
+  if (typeof navigator === 'undefined') return false
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent)
+}
+
 function ToggleRow({ id, label, description, checked, disabled, busy, onChange, ariaLabel }) {
   return (
     <div className="flex items-start justify-between gap-4 border-t border-black/10 pt-3 first:border-t-0 first:pt-0">
@@ -11,7 +17,13 @@ function ToggleRow({ id, label, description, checked, disabled, busy, onChange, 
         <label htmlFor={id} className="text-[14px] font-medium text-tour-text">
           {label}
         </label>
-        {description ? <p className="mt-1 text-[12px] text-tour-text-secondary">{description}</p> : null}
+        {description != null ? (
+          typeof description === 'string' ? (
+            <p className="mt-1 text-[12px] text-tour-text-secondary">{description}</p>
+          ) : (
+            <div className="mt-1 text-[12px] text-tour-text-secondary">{description}</div>
+          )
+        ) : null}
       </div>
       <button
         id={id}
@@ -84,14 +96,29 @@ export function PushNotificationsSection({ uid, userEmail, notifications }) {
     [uid, pushBusy, pushEnabled, t],
   )
 
-  const pushDisabledReason =
-    pushSupported === false
-      ? t('settings.pushNotSupported')
-      : !vapidOk
-        ? t('settings.pushMissingVapid')
-        : permissionDenied
-          ? t('settings.pushDeniedHint')
-          : null
+  /** Order: config / permission before “unsupported” so iOS+VAPID issues still show the right error. */
+  const pushBlockReason =
+    !vapidOk ? 'vapid' : permissionDenied ? 'denied' : pushSupported === false ? 'unsupported' : null
+
+  const pushDescription =
+    pushBlockReason === 'vapid'
+      ? t('settings.pushMissingVapid')
+      : pushBlockReason === 'denied'
+        ? t('settings.pushDeniedHint')
+        : pushBlockReason === 'unsupported'
+          ? isLikelyIos()
+            ? (
+                <>
+                  <p>{t('settings.pushNotSupported')}</p>
+                  <p className="mt-2 font-normal text-tour-text-secondary">
+                    {t('settings.pushIosHomeScreenHint')}
+                  </p>
+                </>
+              )
+            : t('settings.pushNotSupported')
+          : pushSupported === null
+            ? t('settings.pushCheckingSupport')
+            : t('settings.pushNotificationsHint')
 
   return (
     <section className="mt-4 rounded-xl border border-black/10 bg-tour-surface px-3.5 py-3 sm:px-4 sm:py-4">
@@ -104,12 +131,9 @@ export function PushNotificationsSection({ uid, userEmail, notifications }) {
         <ToggleRow
           id="settings-push-toggle"
           label={t('settings.pushNotificationsLabel')}
-          description={
-            pushDisabledReason ||
-            (pushSupported === null ? t('settings.pushCheckingSupport') : t('settings.pushNotificationsHint'))
-          }
+          description={pushDescription}
           checked={pushEnabled}
-          disabled={Boolean(pushDisabledReason)}
+          disabled={pushBlockReason != null}
           busy={pushBusy}
           onChange={handlePushToggle}
         />

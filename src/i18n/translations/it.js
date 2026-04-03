@@ -416,6 +416,8 @@ export default {
       'Ricevi avvisi sui tuoi gruppi. Il browser chiederà il permesso la prima volta che le attivi.',
     pushCheckingSupport: 'Verifica del browser…',
     pushNotSupported: 'Le notifiche push non sono supportate in questo browser.',
+    pushIosHomeScreenHint:
+      'Su iPhone e iPad le push web funzionano solo se il sito è installato come app sulla Home (senza barra indirizzi di Safari). Condividi → Aggiungi a Home, apri da quell’icona, iOS 16.4+. Se Safari si apre ancora con la barra URL, elimina l’icona e aggiungila di nuovo dopo l’aggiornamento dell’app.',
     pushDeniedHint:
       'Le notifiche sono bloccate per questo sito. Abilitalle nelle impostazioni del browser o del dispositivo e riprova.',
     pushMissingVapid:
