@@ -59,12 +59,12 @@ export function SettingsPage() {
         setProfileLoading(false)
       },
       (e) => {
-        setProfileError(e.message || 'Failed to load profile.')
+        setProfileError(e.message || t('settings.profileLoadError'))
         setProfileLoading(false)
       },
     )
     return () => unsub()
-  }, [user?.uid])
+  }, [user?.uid, t])
 
   useEffect(() => {
     setHeroPhotoFailed(false)
@@ -77,7 +77,13 @@ export function SettingsPage() {
   const displayName = userProfile?.displayName || user?.displayName
   const avatarUrl = userProfile?.avatarUrl ?? null
   const canExpandPhoto = Boolean(avatarUrl && !heroPhotoFailed && !avatarUploading)
-  const photoAlt = displayName ? `Profile photo of ${displayName}` : 'Profile photo'
+  const photoAlt = useMemo(
+    () =>
+      displayName
+        ? t('profile.photoAltNamed', { name: displayName })
+        : t('profile.photoAltGeneric'),
+    [displayName, t],
+  )
 
   const backTo = useMemo(() => {
     const raw = location.state?.settingsBack
@@ -100,7 +106,7 @@ export function SettingsPage() {
     try {
       await uploadUserAvatarAndSyncGroups(user.uid, file)
     } catch (e) {
-      setAvatarError(e.message || 'Could not update photo.')
+      setAvatarError(e.message || t('profile.avatarUpdateFailed'))
     } finally {
       setAvatarUploading(false)
     }
@@ -213,7 +219,9 @@ export function SettingsPage() {
                   )}
                 </label>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[14px] font-medium text-tour-text">{displayName || 'Member'}</p>
+                  <p className="text-[14px] font-medium text-tour-text">
+                    {displayName || t('groupShell.displayNameFallback')}
+                  </p>
                   {canExpandPhoto && (
                     <button
                       type="button"
@@ -232,7 +240,7 @@ export function SettingsPage() {
                   photos={[{ url: avatarUrl }]}
                   onClose={() => setLightboxOpen(false)}
                   getImgProps={() => ({ alt: photoAlt })}
-                  overlayAriaLabel="Profile photo. Tap outside, Done, or press Escape to close."
+                  overlayAriaLabel={t('profile.avatarLightboxAria')}
                 />
               )}
             </section>

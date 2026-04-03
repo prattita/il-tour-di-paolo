@@ -58,7 +58,7 @@ export function FeedPostCard({
   onLikeToggle,
   likeBusy,
 }) {
-  const { t } = useTranslation()
+  const { t, language } = useTranslation()
   const [draft, setDraft] = useState('')
   const [fullOpen, setFullOpen] = useState(false)
 
@@ -84,7 +84,9 @@ export function FeedPostCard({
         <p className="truncate text-[13px] font-medium text-tour-text">
           {post.displayName || t('groupShell.displayNameFallback')}
         </p>
-        <p className="text-[11px] text-tour-text-secondary">{formatFeedTime(post.timestamp)}</p>
+        <p className="text-[11px] text-tour-text-secondary">
+          {formatFeedTime(post.timestamp, { t, language })}
+        </p>
       </div>
       {post.type === 'task_completion' && (
         <MedalBadge tier={medalTierForPost(post.medal)} className="shrink-0" />

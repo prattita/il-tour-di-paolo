@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import { Avatar } from '../components/Avatar'
 import { useAuth } from '../context/useAuth'
+import { useTranslation } from '../hooks/useTranslation'
 import {
   approvePendingSubmission,
   rejectPendingSubmission,
@@ -12,11 +13,11 @@ import { FeedPhotoCarousel } from '../components/FeedPhotoCarousel'
 import { PageLoading } from '../components/PageLoading'
 import { normalizeDocPhotos } from '../lib/feedPhotos'
 
-function formatSubmittedAt(value) {
+function formatSubmittedAt(value, locale) {
   if (!value) return '—'
   const d = typeof value.toDate === 'function' ? value.toDate() : value
   if (!(d instanceof Date) || Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString(undefined, {
+  return d.toLocaleString(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
   })
@@ -25,6 +26,7 @@ function formatSubmittedAt(value) {
 export function GroupApprovalsPage() {
   const { groupId } = useParams()
   const { user } = useAuth()
+  const { t, language } = useTranslation()
   const [group, setGroup] = useState(null)
   const [loadingGroup, setLoadingGroup] = useState(true)
   const [queue, setQueue] = useState([])
@@ -61,10 +63,10 @@ export function GroupApprovalsPage() {
     const unsub = subscribePendingQueue(
       groupId,
       (items) => setQueue(items),
-      (e) => setQueueError(e.message || 'Failed to load approvals.'),
+      (e) => setQueueError(e.message || t('approvals.loadQueueFailed')),
     )
     return () => unsub()
-  }, [groupId, isOwner])
+  }, [groupId, isOwner, t])
 
   const APPROVAL_DEADLINE_MS = 120_000
 
@@ -75,11 +77,7 @@ export function GroupApprovalsPage() {
     let deadlineId
     const deadline = new Promise((_, reject) => {
       deadlineId = setTimeout(() => {
-        reject(
-          new Error(
-            'Approval took too long and was stopped. If the post appears in the feed, refresh; otherwise try again or check the browser console.',
-          ),
-        )
+        reject(new Error(t('approvals.approvalTimeout')))
       }, APPROVAL_DEADLINE_MS)
     })
     try {
@@ -88,7 +86,7 @@ export function GroupApprovalsPage() {
         deadline,
       ])
     } catch (e) {
-      setActionError(e?.message || e?.code || 'Approve failed.')
+      setActionError(e?.message || e?.code || t('approvals.approveFailed'))
       console.error('[approve]', e)
     } finally {
       clearTimeout(deadlineId)
@@ -98,7 +96,14 @@ export function GroupApprovalsPage() {
 
   async function handleReject(pending) {
     if (!groupId || busyId) return
-    if (!window.confirm(`Reject submission from ${pending.displayName || 'member'} for “${pending.taskName}”?`)) {
+    if (
+      !window.confirm(
+        t('approvals.rejectConfirm', {
+          member: pending.displayName || t('approvals.rejectMemberFallback'),
+          task: pending.taskName || '',
+        }),
+      )
+    ) {
       return
     }
     setActionError('')
@@ -106,18 +111,18 @@ export function GroupApprovalsPage() {
     try {
       await rejectPendingSubmission(groupId, pending.id, pending)
     } catch (e) {
-      setActionError(e.message || 'Reject failed.')
+      setActionError(e.message || t('approvals.rejectFailed'))
     } finally {
       setBusyId(null)
     }
   }
 
   if (!loadingGroup && !group) {
-    return <p className="text-sm text-tour-text-secondary">Group not found.</p>
+    return <p className="text-sm text-tour-text-secondary">{t('feed.groupNotFound')}</p>
   }
 
   if (!loadingGroup && group && !isMember) {
-    return <p className="text-sm text-tour-text-secondary">You are not a member of this group.</p>
+    return <p className="text-sm text-tour-text-secondary">{t('feed.notMember')}</p>
   }
 
   if (!loadingGroup && group && isMember && !isOwner) {
@@ -128,9 +133,11 @@ export function GroupApprovalsPage() {
     <div className="text-tour-text">
       <div className="mb-4 border-b border-black/10 pb-3 lg:hidden">
         <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
-          Il Tour di Paolo
+          {t('common.brandLine')}
         </p>
-        <p className="text-[15px] font-medium text-tour-text">{group?.name || 'Group'}</p>
+        <p className="text-[15px] font-medium text-tour-text">
+          {group?.name || t('groupShell.titleGroup')}
+        </p>
       </div>
 
       {loadingGroup && <PageLoading />}
@@ -149,7 +156,7 @@ export function GroupApprovalsPage() {
 
       {!loadingGroup && isOwner && queue.length === 0 && !queueError && (
         <p className="rounded-xl border border-black/10 bg-tour-surface p-4 text-sm text-tour-text-secondary">
-          No submissions awaiting review.
+          {t('approvals.emptyQueue')}
         </p>
       )}
 
@@ -157,63 +164,67 @@ export function GroupApprovalsPage() {
         {queue.map((pending) => {
           const pendingPhotos = normalizeDocPhotos(pending)
           return (
-          <article
-            key={pending.id}
-            className="overflow-hidden rounded-xl border border-black/10 bg-tour-surface"
-          >
-            {pendingPhotos.length > 1 ? (
-              <FeedPhotoCarousel photos={pendingPhotos} isHeroImage={false} />
-            ) : pendingPhotos.length === 1 ? (
-              <img
-                src={pendingPhotos[0].url}
-                alt=""
-                className="aspect-[4/3] w-full object-cover"
-              />
-            ) : null}
-            <div className="space-y-2 px-3.5 py-3">
-              <div className="flex items-start gap-2.5 text-[13px]">
-                <Avatar
-                  avatarUrl={pending.avatarUrl}
-                  displayName={pending.displayName}
-                  seed={pending.userId}
-                  className="h-9 w-9 text-[12px] shrink-0"
+            <article
+              key={pending.id}
+              className="overflow-hidden rounded-xl border border-black/10 bg-tour-surface"
+            >
+              {pendingPhotos.length > 1 ? (
+                <FeedPhotoCarousel photos={pendingPhotos} isHeroImage={false} />
+              ) : pendingPhotos.length === 1 ? (
+                <img
+                  src={pendingPhotos[0].url}
                   alt=""
+                  className="aspect-[4/3] w-full object-cover"
                 />
-                <div className="min-w-0 flex-1">
-                <p className="font-medium text-tour-text">{pending.displayName || 'Member'}</p>
-                <p className="mt-0.5 text-tour-text-secondary">
-                  <span className="text-tour-text">{pending.activityName}</span>
-                  {' · '}
-                  <span className="text-tour-text">{pending.taskName}</span>
-                </p>
-                <p className="mt-1 text-[11px] text-tour-text-secondary">
-                  Submitted {formatSubmittedAt(pending.submittedAt)}
-                </p>
+              ) : null}
+              <div className="space-y-2 px-3.5 py-3">
+                <div className="flex items-start gap-2.5 text-[13px]">
+                  <Avatar
+                    avatarUrl={pending.avatarUrl}
+                    displayName={pending.displayName}
+                    seed={pending.userId}
+                    className="h-9 w-9 text-[12px] shrink-0"
+                    alt=""
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-tour-text">
+                      {pending.displayName || t('groupShell.displayNameFallback')}
+                    </p>
+                    <p className="mt-0.5 text-tour-text-secondary">
+                      <span className="text-tour-text">{pending.activityName}</span>
+                      {' · '}
+                      <span className="text-tour-text">{pending.taskName}</span>
+                    </p>
+                    <p className="mt-1 text-[11px] text-tour-text-secondary">
+                      {t('approvals.submittedAt', {
+                        when: formatSubmittedAt(pending.submittedAt, language),
+                      })}
+                    </p>
+                  </div>
+                </div>
+                {pending.description && (
+                  <p className="text-[12px] text-tour-text-secondary">{pending.description}</p>
+                )}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    type="button"
+                    disabled={busyId === pending.id}
+                    onClick={() => handleApprove(pending)}
+                    className="rounded-full bg-tour-accent px-4 py-2 text-[12px] font-medium text-white disabled:opacity-50"
+                  >
+                    {busyId === pending.id ? t('approvals.working') : t('approvals.approve')}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busyId === pending.id}
+                    onClick={() => handleReject(pending)}
+                    className="rounded-full border border-black/15 px-4 py-2 text-[12px] font-medium text-tour-text disabled:opacity-50"
+                  >
+                    {t('approvals.reject')}
+                  </button>
                 </div>
               </div>
-              {pending.description && (
-                <p className="text-[12px] text-tour-text-secondary">{pending.description}</p>
-              )}
-              <div className="flex flex-wrap gap-2 pt-1">
-                <button
-                  type="button"
-                  disabled={busyId === pending.id}
-                  onClick={() => handleApprove(pending)}
-                  className="rounded-full bg-tour-accent px-4 py-2 text-[12px] font-medium text-white disabled:opacity-50"
-                >
-                  {busyId === pending.id ? 'Working…' : 'Approve'}
-                </button>
-                <button
-                  type="button"
-                  disabled={busyId === pending.id}
-                  onClick={() => handleReject(pending)}
-                  className="rounded-full border border-black/15 px-4 py-2 text-[12px] font-medium text-tour-text disabled:opacity-50"
-                >
-                  Reject
-                </button>
-              </div>
-            </div>
-          </article>
+            </article>
           )
         })}
       </div>

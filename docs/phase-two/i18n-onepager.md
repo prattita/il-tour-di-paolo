@@ -94,8 +94,8 @@ Ship **pass-by-pass** (small PRs):
 4. **Feed** — **done** (`GroupFeedPage`, `FeedPostCard`, `FeedPhotoCarousel`, `FeedPhotoLightbox` / expand button, `MedalBadge` on feed); keys under `feed`, `medals`
 5. **Activities + task complete** — **done** (`ActivityListPage`, `TaskCompletePage`; keys under `activities`, `taskComplete`; reuses `feed.*`, `groupShell.*`, `settings.back`, `common.brandLine`)
 6. **Profile + group info + standings** — **done** (`GroupProfilePage`, `GroupInfoPage`, `GroupStandingsPage`, `UserTracker`, `StandingsRankMarker`; keys under `groupInfo`, `profile`, `standings`; ordinals via `formatStandingsOrdinal(n, language)`)
-7. **Approvals + group settings**
-8. **Errors, banners, toasts** — including advanced-activity copy
+7. **Approvals + group settings** — **done** (`GroupApprovalsPage`, `GroupSettingsPage`; keys `approvals`, `groupSettings`; reuses `feed.*`, `groupShell.*`, `groupInfo.*`, `groupNew.*`, `activities.*`, `common.brandLine`)
+8. **Errors, banners, toasts** — **done** (auth route loaders `ProtectedRoute` / `PublicOnlyRoute`; `PageLoading` default label; `useGroupCompletionPickerData` error fallbacks; `SettingsPage` profile/avatar strings + lightbox aria; `GroupFeedPage` comment displayName fallback; `formatFeedTime` relative labels + `Intl` locale; `stub.*` for `GroupStubPage`; advanced/rejection banners were already keyed in pass 5–6)
 
 **Translate:** buttons, headings, empty states, errors, placeholders, system feed templates, medal **labels** in UI.  
 **Do not translate:** user names, emails, group/activity/task/post body text, proper noun **Il Tour di Paolo** (unless you later decide a localized brand line).  
@@ -126,7 +126,8 @@ Ship **pass-by-pass** (small PRs):
 - [x] Pass 4 — Feed (+ shared `MedalBadge`, photo lightbox strings)
 - [x] Pass 5 — Activities + task complete (`ActivityListPage`, `TaskCompletePage`)
 - [x] Pass 6 — Profile + group info + standings
-- [ ] Passes 7–8 completed or explicitly deferred with tracking
+- [x] Pass 7 — Approvals + group settings (`GroupApprovalsPage`, `GroupSettingsPage`)
+- [x] Pass 8 — Errors, banners, toasts (route loaders, shared hooks, feed timestamps, settings polish)
 
 ---
 

@@ -4,6 +4,7 @@ import { useAuth } from '../context/useAuth'
 import { useTranslation } from '../hooks/useTranslation'
 import { useGroupCompletionPickerData } from '../hooks/useGroupCompletionPickerData'
 import { hasAnyEligibleCompletionActivity } from '../lib/completionEligibility'
+import { parseActivityAddedEnglishMessage } from '../lib/feedDisplay'
 import { docHasPhoto } from '../lib/feedPhotos'
 import { FeedPostCard } from '../components/FeedPostCard'
 import { PageLoading } from '../components/PageLoading'
@@ -27,14 +28,35 @@ import {
 import { getGroup } from '../services/groupService'
 
 function systemFeedDisplayText(post, t) {
-  if (
-    post.systemKind === 'activity_added' &&
-    typeof post.systemActivityName === 'string' &&
-    post.systemActivityName.trim()
-  ) {
-    const actor = (post.systemActorDisplayName || '').trim() || t('groupShell.roleOwner')
-    return t('feed.systemActivityAdded', { actor, activity: post.systemActivityName.trim() })
+  const activityName =
+    typeof post.systemActivityName === 'string' ? post.systemActivityName.trim() : ''
+  const actorName =
+    typeof post.systemActorDisplayName === 'string' ? post.systemActorDisplayName.trim() : ''
+  const kind = String(post.systemKind || '').trim()
+  const isActivityAdded = kind === 'activity_added'
+
+  if (isActivityAdded && activityName) {
+    return t('feed.systemActivityAdded', {
+      actor: actorName || t('groupShell.roleOwner'),
+      activity: activityName,
+    })
   }
+
+  if (post.type === 'system' && activityName) {
+    return t('feed.systemActivityAdded', {
+      actor: actorName || t('groupShell.roleOwner'),
+      activity: activityName,
+    })
+  }
+
+  const parsed = parseActivityAddedEnglishMessage(post.message)
+  if (parsed && post.type === 'system') {
+    return t('feed.systemActivityAdded', {
+      actor: actorName || parsed.actor || t('groupShell.roleOwner'),
+      activity: activityName || parsed.activity,
+    })
+  }
+
   return post.message || t('feed.systemPostFallback')
 }
 
@@ -303,7 +325,7 @@ export function GroupFeedPage() {
       try {
         await addFeedPostComment(groupId, postId, {
           userId: user.uid,
-          displayName: member?.displayName || user.displayName || 'Member',
+          displayName: member?.displayName || user.displayName || t('groupShell.displayNameFallback'),
           avatarUrl: member?.avatarUrl ?? null,
           text,
         })

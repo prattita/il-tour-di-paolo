@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from './useTranslation'
 import { getGroup } from '../services/groupService'
 import { subscribeActivitiesForViewer, subscribeGroupMember } from '../services/activityService'
 import { subscribePendingSubmission } from '../services/pendingService'
@@ -8,6 +9,7 @@ import { subscribePendingSubmission } from '../services/pendingService'
  * — same inputs as Activities / completion picker (DESIGN §7.4).
  */
 export function useGroupCompletionPickerData(groupId, userId) {
+  const { t } = useTranslation()
   const [group, setGroup] = useState(null)
   const [activities, setActivities] = useState([])
   const [member, setMember] = useState(null)
@@ -35,7 +37,7 @@ export function useGroupCompletionPickerData(groupId, userId) {
       } catch (e) {
         if (active) {
           setGroup(null)
-          setError(e.message || 'Failed to load group.')
+          setError(e.message || t('activities.loadGroupFailed'))
         }
       } finally {
         if (active) setLoadingGroup(false)
@@ -45,7 +47,7 @@ export function useGroupCompletionPickerData(groupId, userId) {
     return () => {
       active = false
     }
-  }, [groupId])
+  }, [groupId, t])
 
   useEffect(() => {
     if (!groupId || !isMember) {
@@ -61,10 +63,10 @@ export function useGroupCompletionPickerData(groupId, userId) {
         setActivities(list)
         setActivitiesHydrated(true)
       },
-      (e) => setError(e.message || 'Activities listener failed.'),
+      (e) => setError(e.message || t('activities.loadActivitiesFailed')),
     )
     return () => unsub()
-  }, [groupId, isMember, userId, group?.ownerId])
+  }, [groupId, isMember, userId, group?.ownerId, t])
 
   useEffect(() => {
     if (!groupId || !userId || !isMember) {
@@ -79,10 +81,10 @@ export function useGroupCompletionPickerData(groupId, userId) {
         setMember(m)
         setMemberHydrated(true)
       },
-      (e) => setError(e.message || 'Member listener failed.'),
+      (e) => setError(e.message || t('activities.loadMemberFailed')),
     )
     return () => unsub()
-  }, [groupId, userId, isMember])
+  }, [groupId, userId, isMember, t])
 
   const activityIdsKey = useMemo(() => activities.map((a) => a.id).sort().join(','), [activities])
 
