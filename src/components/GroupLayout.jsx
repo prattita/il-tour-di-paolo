@@ -7,13 +7,16 @@ import { signOutUser } from '../services/authService'
 import { subscribeGroupMember } from '../services/activityService'
 import { getGroup } from '../services/groupService'
 
-function navLinkClass({ isActive }) {
-  return [
-    'block w-full rounded-lg py-2.5 pl-3.5 pr-3 text-left text-[13px] transition-colors',
-    isActive
-      ? 'bg-tour-accent-muted font-medium text-tour-accent-foreground'
-      : 'text-tour-text hover:bg-black/[0.04]',
-  ].join(' ')
+function navLinkClassFactory(compact) {
+  const inset = compact ? 'pl-2 pr-2' : 'pl-3 pr-3'
+  return ({ isActive }) =>
+    [
+      'block w-full rounded-lg py-2.5 text-left text-[13px] transition-colors',
+      inset,
+      isActive
+        ? 'bg-tour-accent-muted font-medium text-tour-accent-foreground'
+        : 'text-tour-text hover:bg-black/[0.04]',
+    ].join(' ')
 }
 
 function OwnerBadge({ label }) {
@@ -24,9 +27,11 @@ function OwnerBadge({ label }) {
   )
 }
 
-function GroupNavPanel({ groupId, user, meMember, isOwner, onNavigate, settingsNavState }) {
+function GroupNavPanel({ groupId, user, meMember, isOwner, onNavigate, settingsNavState, compact = false }) {
   const { t } = useTranslation()
   const profilePath = `/group/${groupId}/profile/${user?.uid || ''}`
+  const navLinkClass = navLinkClassFactory(compact)
+  const hPad = compact ? 'px-3' : 'px-4'
 
   const handleNav = () => {
     onNavigate?.()
@@ -42,7 +47,8 @@ function GroupNavPanel({ groupId, user, meMember, isOwner, onNavigate, settingsN
         onClick={handleNav}
         className={({ isActive }) =>
           [
-            'block border-b border-black/10 px-4 pb-3 pt-2 outline-none transition-colors hover:bg-black/[0.03]',
+            'block border-b border-black/10 pb-3 pt-2 outline-none transition-colors hover:bg-black/[0.03]',
+            hPad,
             isActive ? 'bg-black/[0.04]' : '',
           ].join(' ')
         }
@@ -70,7 +76,7 @@ function GroupNavPanel({ groupId, user, meMember, isOwner, onNavigate, settingsN
         </div>
       </NavLink>
 
-      <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-4 py-2 pl-5 pr-4" onClick={handleNav}>
+      <nav className={`flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto py-2 ${hPad}`} onClick={handleNav}>
         <NavLink to={`/group/${groupId}/feed`} className={navLinkClass}>
           {t('groupShell.navFeed')}
         </NavLink>
@@ -102,17 +108,25 @@ function GroupNavPanel({ groupId, user, meMember, isOwner, onNavigate, settingsN
         )}
       </nav>
 
-      <div className="border-t border-black/10 py-2 pl-5 pr-4">
+      <div
+        className={[
+          'border-t border-black/10 pt-2',
+          hPad,
+          compact
+            ? 'pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]'
+            : 'pb-2',
+        ].join(' ')}
+      >
         <NavLink
           to="/"
-          className="block rounded-lg py-2 pl-3.5 pr-3 text-[12px] text-tour-text-secondary hover:bg-black/[0.04]"
+          className={`block rounded-lg py-2 text-[12px] text-tour-text-secondary hover:bg-black/[0.04] ${compact ? 'pl-2 pr-2' : 'pl-3 pr-3'}`}
         >
           {t('groupShell.homeAllGroups')}
         </NavLink>
         <NavLink
           to="/settings"
           state={settingsNavState}
-          className="block rounded-lg py-2 pl-3.5 pr-3 text-[12px] text-tour-text-secondary hover:bg-black/[0.04]"
+          className={`block rounded-lg py-2 text-[12px] text-tour-text-secondary hover:bg-black/[0.04] ${compact ? 'pl-2 pr-2' : 'pl-3 pr-3'}`}
         >
           {t('home.settings')}
         </NavLink>
@@ -122,7 +136,7 @@ function GroupNavPanel({ groupId, user, meMember, isOwner, onNavigate, settingsN
             signOutUser().catch(console.error)
             onNavigate?.()
           }}
-          className="mt-0.5 w-full rounded-lg py-2 pl-3.5 pr-3 text-left text-[13px] text-[#A32D2D] hover:bg-red-50"
+          className={`mt-0.5 w-full rounded-lg py-2 text-left text-[13px] text-[#A32D2D] hover:bg-red-50 ${compact ? 'pl-2 pr-2' : 'pl-3 pr-3'}`}
         >
           {t('home.signOut')}
         </button>
@@ -227,7 +241,7 @@ export function GroupLayout() {
             onClick={() => setMenuOpen(false)}
           />
           <aside className="fixed left-0 top-0 z-50 flex h-full w-[min(220px,85vw)] flex-col border-r border-black/10 bg-tour-surface shadow-lg lg:hidden">
-            <div className="shrink-0 border-b border-black/10 px-4 py-3">
+            <div className="shrink-0 border-b border-black/10 px-3 py-3">
               <p className="text-[11px] font-medium uppercase tracking-wide text-tour-text-secondary">
                 {t('common.brandLine')}
               </p>
@@ -240,6 +254,7 @@ export function GroupLayout() {
                 meMember={meMember}
                 isOwner={isOwner}
                 settingsNavState={settingsNavState}
+                compact
                 onNavigate={() => setMenuOpen(false)}
               />
             </div>
