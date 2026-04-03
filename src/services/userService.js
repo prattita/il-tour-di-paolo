@@ -24,6 +24,28 @@ export async function ensureUserProfile(uid, { email, displayName, avatarUrl = n
     avatarUrl,
     groupIds: [],
     createdAt: serverTimestamp(),
+    notifications: {
+      emailEnabled: false,
+      pushEnabled: false,
+      pushToken: null,
+    },
+  })
+}
+
+/** Adds `notifications` to legacy `users/{uid}` docs that predate the notifications feature. */
+export async function ensureNotificationDefaults(uid) {
+  const db = getFirebaseDb()
+  if (!db || !uid) return
+  const ref = doc(db, 'users', uid)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) return
+  if (snap.data().notifications != null) return
+  await updateDoc(ref, {
+    notifications: {
+      emailEnabled: false,
+      pushEnabled: false,
+      pushToken: null,
+    },
   })
 }
 

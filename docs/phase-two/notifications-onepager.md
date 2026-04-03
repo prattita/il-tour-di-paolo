@@ -1,6 +1,6 @@
 # Notifications — Feature Spec
 
-> Status: **Phase Two — not started** (checklist below is tracking only; no Cloud Functions in repo yet)  
+> Status: **Phase Two — in progress** (FCM **client** + `/settings` push wired; **you** still add VAPID in `.env` + Console; Cloud Functions not in repo yet)  
 > Last updated: April 2026  
 > Related: [Account settings](settingsPage-onepager.md), [Internationalisation (i18n)](i18n-onepager.md), [DESIGN.md](../mvp/DESIGN.md)
 
@@ -286,32 +286,41 @@ Notification fields live on **`users/{userId}`**, which already allows **`read, 
 
 > **Tracking:** Mark `[x]` when shipped. After substantive changes, update this section and the **Status** line in the header.
 
-Roll out in **three phases** (each can be its own PR or merge batch).
+Work proceeds in **logical chunks** below. **Push and email do not depend on each other** (same triggers can call FCM and/or Resend once both exist). Order the PRs however fits your schedule.
 
-### Phase 1 — Infrastructure & `/settings` UI
+### 1. Web app & `/settings` (FCM client)
 
-- [ ] Resend account, API key, Firebase Functions env config
-- [ ] VAPID keys in Firebase Console; FCM enabled for the web app
-- [ ] Add `firebase-messaging-sw.js` (and hosting registration as required by Firebase docs)
-- [ ] **Account settings:** wire **Email** and **Push** toggles on `/settings` (replace stubs); persist `notifications.emailEnabled` / `notifications.pushEnabled` on `users/{uid}`; show Auth email read-only
-- [ ] Push: request permission on first enable; handle **denied** state in UI
-- [ ] Client: create/merge `notifications` defaults on user doc if missing (migration-safe)
+- [ ] **You (Firebase + hosting):** VAPID key pair in Console → copy **public** key into `VITE_FIREBASE_VAPID_KEY` (local `.env` + Vercel env). Ensure **Cloud Messaging** is enabled for the project.
+- [x] `firebase-messaging-sw.js` generated at dev + build (`vite/plugins/firebaseMessagingSw.js`); served at `/firebase-messaging-sw.js`
+- [x] **`/settings`:** push toggle; persist `notifications.pushEnabled` and `notifications.pushToken`; permission on first enable; **denied** / unsupported / missing-VAPID copy
+- [x] Token refresh when signed in and `pushEnabled` (`FcmForegroundBanner`)
+- [x] `notifications` on `users/{uid}` — on **new** users in `ensureUserProfile`; **legacy** docs via `ensureNotificationDefaults` after sign-in
+- [x] Foreground `onMessage` → dismissible banner; SW `onBackgroundMessage` → system notification
+- [x] **`/settings` email block:** read-only Auth email + “Coming soon” (until Resend / §3)
 
-### Phase 2 — Email (Cloud Functions)
+### 2. Cloud Functions — push (FCM)
 
+- [ ] `onNewFeedPost` (or equivalent) — **push only**, `task_completion` posts; recipients = members with `pushEnabled` + token (exclude actor if product prefers)
+- [ ] `onNewPendingSubmission` → FCM to owner when `pushEnabled` + token
+- [ ] `onSubmissionApproved` → FCM to submitter (ensure feed handler filters `type === 'task_completion'` if shared with other triggers)
+- [ ] `onSubmissionRejected` → FCM after `onUpdate` with `rejected: true` (coordinate with client delete order)
+- [ ] `onNewMemberJoined` → FCM to owner when enabled; **skip** if `userId === ownerId`
+
+### 3. Cloud Functions — email (Resend)
+
+- [ ] Resend account, API key, Functions env config
+- [ ] **`/settings`:** wire `notifications.emailEnabled` if not already done
 - [ ] `onNewPendingSubmission` → Resend when `owner.notifications.emailEnabled`
 - [ ] `onSubmissionApproved` → filter `task_completion`; Resend to submitter when enabled
 - [ ] `onSubmissionRejected` → `onUpdate` with `rejected: true`; client then deletes pending + Storage per existing reject flow
 - [ ] `onNewMemberJoined` → skip if `userId === ownerId`; Resend to owner when enabled
 - [ ] Plain text bodies for all four
+- [ ] Where a trigger already sends push, **add Resend in the same function** when `emailEnabled` applies (avoid duplicate Firestore triggers)
 
-### Phase 3 — Push (FCM + handlers)
+### 4. QA & polish
 
-- [ ] Store/update `pushToken` on opt-in and on launch when `pushEnabled` (silent refresh)
-- [ ] Extend Phase 2 functions (where applicable) to send FCM when `pushEnabled` + valid token
-- [ ] `onNewFeedPost` (or equivalent) — **push only** for `task_completion` (or as product prefers); no email
-- [ ] Foreground `onMessage` → in-app toast/banner
-- [ ] Service worker: background notification display
+- [ ] End-to-end on target browsers (Safari PWA, Chrome Android, others you care about): permission, token refresh, tap-through to routes
+- [ ] Note browser-specific caveats in this file or `KNOWN_CONCERNS.md` if any
 
 ---
 
@@ -322,14 +331,15 @@ Use this table to reconcile the spec with the codebase without spelunking.
 | Topic | Planned / shipped behavior |
 |---|---|
 | **Settings location** | **`/settings`** Notifications section ([settingsPage-onepager](settingsPage-onepager.md)); not group profile. |
-| **Cloud Functions** | Not present until Phase 2–3; repo today is client-only Firebase. |
-| **Rejection flag** | Client reject flow gains a short `update` before delete once Phase 2 ships. |
+| **FCM client** | `src/lib/firebaseMessaging.js`, `fcmConfig.js`, `pushSettingsService.js`, `FcmForegroundBanner.jsx`, `PushNotificationsSection.jsx`; Vite SW plugin. |
+| **Cloud Functions** | None for notifications until **§2–3 checklist** ships. |
+| **Rejection flag** | Client reject flow gains a short `update` before delete once **rejection** email and/or push is implemented. |
 
 ---
 
 ## Checklist hygiene (for agents / maintainers)
 
-When notification behavior or routes change, update **this file’s checklist** and **Implementation status**. Cross-link: [Account settings](settingsPage-onepager.md) stubs should be removed or checked off in tandem with Phase 1 UI items.
+When notification behavior or routes change, update **this file’s checklist** and **Implementation status**. Cross-link: [Account settings](settingsPage-onepager.md) should stay in sync with **§1** (client) and **§3** (email toggle + Resend).
 
 ---
 

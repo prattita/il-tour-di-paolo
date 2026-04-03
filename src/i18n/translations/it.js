@@ -410,7 +410,21 @@ export default {
     changePhotoAria: 'Cambia foto del profilo',
     notificationsTitle: 'Notifiche',
     notificationsHint:
-      'Le preferenze di notifica non sono ancora disponibili. Le opzioni per gli avvisi push e in-app arriveranno presto.',
+      'Scegli come possiamo avvisarti. Le push usano il browser; l’email userà l’indirizzo qui sotto quando sarà disponibile.',
+    pushNotificationsLabel: 'Notifiche push',
+    pushNotificationsHint:
+      'Ricevi avvisi sui tuoi gruppi. Il browser chiederà il permesso la prima volta che le attivi.',
+    pushCheckingSupport: 'Verifica del browser…',
+    pushNotSupported: 'Le notifiche push non sono supportate in questo browser.',
+    pushDeniedHint:
+      'Le notifiche sono bloccate per questo sito. Abilitalle nelle impostazioni del browser o del dispositivo e riprova.',
+    pushMissingVapid:
+      'Le push non sono configurate per questa versione (manca la chiave web push). Contatta chi gestisce l’hosting.',
+    pushToggleError: 'Impossibile aggiornare le notifiche push.',
+    emailNotificationsLabel: 'Notifiche email',
+    emailNotificationsSoon: 'In arrivo.',
+    pushForegroundDismiss: 'Chiudi',
+    pushForegroundFallback: 'Nuova notifica',
     loadingProfile: 'Caricamento profilo…',
     profileLoadError: 'Impossibile caricare il profilo account.',
   },

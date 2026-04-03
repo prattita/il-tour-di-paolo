@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthProvider'
+import { FcmForegroundBanner } from './components/FcmForegroundBanner'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { PublicOnlyRoute } from './components/PublicOnlyRoute'
 import { GroupLayout } from './components/GroupLayout'
@@ -22,6 +23,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <FcmForegroundBanner />
         <Routes>
           <Route
             path="/auth"

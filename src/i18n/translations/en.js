@@ -413,7 +413,21 @@ export default {
     changePhotoAria: 'Change profile photo',
     notificationsTitle: 'Notifications',
     notificationsHint:
-      'Notification preferences are not wired yet. This section will hold toggles for push and in-app alerts when notifications ship.',
+      'Choose how we can reach you. Push uses your browser; email will use the address below when it is available.',
+    pushNotificationsLabel: 'Push notifications',
+    pushNotificationsHint:
+      'Get alerts for your groups. Your browser will ask for permission the first time you turn this on.',
+    pushCheckingSupport: 'Checking browser support…',
+    pushNotSupported: 'Push notifications are not supported in this browser.',
+    pushDeniedHint:
+      'Notifications are blocked for this site. Enable them in your browser or device settings, then try again.',
+    pushMissingVapid:
+      'Push is not configured for this deployment yet (missing web push key). Ask the person who manages hosting.',
+    pushToggleError: 'Could not update push notifications.',
+    emailNotificationsLabel: 'Email notifications',
+    emailNotificationsSoon: 'Coming soon.',
+    pushForegroundDismiss: 'Dismiss',
+    pushForegroundFallback: 'New notification',
     loadingProfile: 'Loading your profile…',
     profileLoadError: 'Could not load your account profile.',
   },

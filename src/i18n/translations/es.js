@@ -410,7 +410,21 @@ export default {
     changePhotoAria: 'Cambiar foto de perfil',
     notificationsTitle: 'Notificaciones',
     notificationsHint:
-      'Las preferencias de notificaciones aún no están conectadas. Aquí habrá interruptores para alertas push y en la app cuando estén listas.',
+      'Elige cómo podemos avisarte. Las push usan el navegador; el correo usará la dirección de abajo cuando esté disponible.',
+    pushNotificationsLabel: 'Notificaciones push',
+    pushNotificationsHint:
+      'Recibe avisos de tus grupos. El navegador pedirá permiso la primera vez que lo actives.',
+    pushCheckingSupport: 'Comprobando compatibilidad del navegador…',
+    pushNotSupported: 'Las notificaciones push no están disponibles en este navegador.',
+    pushDeniedHint:
+      'Las notificaciones están bloqueadas para este sitio. Actívalas en la configuración del navegador o del dispositivo e inténtalo de nuevo.',
+    pushMissingVapid:
+      'Las push no están configuradas en esta versión (falta la clave web push). Contacta a quien gestione el alojamiento.',
+    pushToggleError: 'No se pudieron actualizar las notificaciones push.',
+    emailNotificationsLabel: 'Notificaciones por correo',
+    emailNotificationsSoon: 'Próximamente.',
+    pushForegroundDismiss: 'Cerrar',
+    pushForegroundFallback: 'Nueva notificación',
     loadingProfile: 'Cargando tu perfil…',
     profileLoadError: 'No se pudo cargar el perfil de tu cuenta.',
   },

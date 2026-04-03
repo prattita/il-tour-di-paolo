@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 import { getFirebaseAuth } from '../lib/firebase'
-import { ensureUserProfile } from '../services/userService'
+import { ensureNotificationDefaults, ensureUserProfile } from '../services/userService'
 import { AuthContext } from './authContext'
 
 export function AuthProvider({ children }) {
@@ -22,6 +22,7 @@ export function AuthProvider({ children }) {
             displayName: nextUser.displayName,
             avatarUrl: nextUser.photoURL || null,
           })
+          await ensureNotificationDefaults(nextUser.uid)
         } catch (e) {
           console.error('[auth] ensureUserProfile failed', e)
         }

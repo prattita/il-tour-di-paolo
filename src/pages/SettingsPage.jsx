@@ -6,6 +6,7 @@ import { useAuth } from '../context/useAuth'
 import { useTranslation } from '../hooks/useTranslation'
 import { SUPPORTED_LANGUAGES } from '../i18n/storage.js'
 import { uploadUserAvatarAndSyncGroups } from '../services/avatarService'
+import { PushNotificationsSection } from '../components/settings/PushNotificationsSection'
 import { subscribeUserProfile } from '../services/userService'
 
 const SETTINGS_AVATAR_INPUT_ID = 'settings-avatar-file-input'
@@ -245,12 +246,11 @@ export function SettingsPage() {
               )}
             </section>
 
-            <section className="mt-4 rounded-xl border border-black/10 bg-tour-surface px-3.5 py-3 sm:px-4 sm:py-4">
-              <h2 className="text-[12px] font-medium uppercase tracking-wide text-tour-text-secondary">
-                {t('settings.notificationsTitle')}
-              </h2>
-              <p className="mt-2 text-sm text-tour-text-secondary">{t('settings.notificationsHint')}</p>
-            </section>
+            <PushNotificationsSection
+              uid={user?.uid}
+              userEmail={user?.email || ''}
+              notifications={userProfile.notifications}
+            />
           </>
         )}
       </div>
