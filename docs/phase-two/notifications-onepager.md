@@ -1,19 +1,45 @@
 # Notifications — Feature Spec
- 
-> Status: Post-MVP (Phase 2) — **not implemented**; checklist below is tracking only
-> Last updated: March 2026
-> Parent doc: DESIGN.md
- 
+
+> Status: **Phase Two — not started** (checklist below is tracking only; no Cloud Functions in repo yet)  
+> Last updated: April 2026  
+> Related: [Account settings](settingsPage-onepager.md), [Internationalisation (i18n)](i18n-onepager.md), [DESIGN.md](../mvp/DESIGN.md)
+
 ---
- 
+
+## Goal
+
+Deliver **opt-in email and push** for key competition events (pending submissions, approvals/rejections, new members, feed activity) using **Resend** + **Firebase Cloud Functions** (email) and **FCM** (web push). Preferences and toggles live on **global account settings** (`/settings`), consistent with [Account settings](settingsPage-onepager.md).
+
+---
+
 ## Overview
- 
-Two notification channels — email and push — covering key competition events. Both are opt-in via a single global toggle per user. Email uses Resend + Firebase Cloud Functions. Push uses Firebase Cloud Messaging (FCM) supporting iOS PWA (Safari bookmark) and Android.
- 
+
+Two channels — **email** and **push** — covering the events in the table below. Each channel has a **single global toggle** per user (no per-event granularity for v1). Email uses Resend + Cloud Functions. Push uses FCM (iOS PWA via Safari Home Screen, Android via supported browsers).
+
 ---
- 
-## Notification Events
- 
+
+## Scope (v1)
+
+- **`notifications` block** on `users/{userId}` (`emailEnabled`, `pushEnabled`, `pushToken`).
+- **Rejection path:** `rejected: true` on pending doc before delete so a function can run on `onUpdate` (Firestore has no delete trigger).
+- **UI:** Email and push toggles on **`/settings`** (Notifications section); email address read-only from Firebase Auth.
+- **Email:** Plain text, four transactional flows + rejection handling as specified below.
+- **Push:** Payloads and deep links per event; **new feed post** is push-only (no email).
+
+---
+
+## Out of scope (v1)
+
+- Per-event notification settings (see **Rejected alternatives**).
+- In-app notification center / inbox.
+- HTML or branded email templates (plain text only for v1).
+- Third-party push vendors (OneSignal, etc.).
+- **i18n** of notification **payload** copy (emails/push titles can stay English v1; UI toggles use app `t()` when implemented).
+
+---
+
+## Notification events
+
 | Event | Email | Push | Recipients |
 |---|---|---|---|
 | New pending submission | ✅ | ✅ | Owner only |
@@ -21,135 +47,135 @@ Two notification channels — email and push — covering key competition events
 | Submission rejected | ✅ | ✅ | Submitting user |
 | New member joined | ✅ | ✅ | Owner only |
 | New feed post | ❌ | ✅ | All members |
- 
-Email is not sent for new feed posts — too frequent, would feel spammy. Push is lightweight enough for feed activity.
- 
+
+Email is not sent for new feed posts — too frequent. Push is lightweight enough for feed activity.
+
 ---
- 
-## Notification Settings
- 
-A single **global toggle** per user — all notifications on or off. No per-event granularity for MVP.
- 
+
+## Notification settings
+
+A single **global toggle per channel** — all notification types for that channel on or off. No per-event granularity for v1.
+
 Stored on the user document:
- 
+
 ```javascript
 // users/{userId}
 {
-  ...
+  // ...existing fields
   notifications: {
     emailEnabled: boolean,    // default: false
     pushEnabled: boolean,     // default: false
-    pushToken: string | null  // FCM token, set on push opt-in
+    pushToken: string | null  // FCM token, set on push opt-in / refresh
   }
 }
 ```
- 
-Settings UI lives at the bottom of the Profile screen:
- 
+
+**Settings UI** lives in the **Notifications** section on **[Account settings](settingsPage-onepager.md)** (`/settings` — protected, outside group shell). That page already reserves stubs for this work; replace stubs with working toggles when this spec ships.
+
 ```
 ┌─────────────────────────────┐
 │  Notifications              │
 │                             │
 │  Email notifications  [ ◯ ] │  ← toggle
-│  your@email.com             │  ← shown below toggle, read-only
+│  your@email.com             │  ← below toggle, read-only (Auth)
 │                             │
 │  Push notifications   [ ◯ ] │  ← toggle
-│  (requires browser prompt)  │  ← shown before first enable
+│  (requires browser prompt)  │  ← hint before first enable
 └─────────────────────────────┘
 ```
- 
-- Email address shown below the email toggle — read-only, pulled from Firebase Auth
-- Push toggle triggers browser permission prompt on first enable
-- If push permission is denied by the OS, toggle shown as disabled with a note: "Enable notifications in your device settings"
-- Both toggles default to off — fully opt-in
- 
+
+- Email address shown below the email toggle — read-only, from Firebase Auth.
+- Push toggle triggers the browser permission prompt on first enable.
+- If push permission is denied by the OS/browser, show the toggle disabled with a short note (e.g. enable notifications in device or site settings).
+- Both toggles default **off** — fully opt-in.
+- **i18n:** Section title, labels, and helper copy should use the same `t('…')` patterns as the rest of `/settings` ([i18n-onepager](i18n-onepager.md)).
+
 ---
- 
-## Email Notifications
- 
+
+## Email notifications
+
 ### Stack
- 
-- **Resend** — transactional email provider, permanent free tier (3,000 emails/month)
-- **Firebase Cloud Functions** — triggers on Firestore writes, calls Resend API
-- One Cloud Function per notification event
- 
+
+- **Resend** — transactional email; free tier (e.g. 3,000 emails/month) sufficient at family scale.
+- **Firebase Cloud Functions** — Firestore triggers calling Resend’s API.
+- One callable/trigger path per notification family below (implementation may consolidate shared helpers).
+
 ### Cloud Functions
- 
+
 **`onNewPendingSubmission`**
 ```
-Trigger: onCreate on groups/{groupId}/pending/{submissionId}
-Recipient: group owner (look up ownerId from groups/{groupId})
+Trigger: onCreate on groups/{groupId}/pending/{pendingId}
+Recipient: group owner (ownerId on groups/{groupId})
 Subject: "New submission to review — {activityName}"
 Body: {memberName} submitted "{taskName}" in {activityName}. Open the app to review.
 Condition: owner.notifications.emailEnabled == true
 ```
- 
+
 **`onSubmissionApproved`**
 ```
-Trigger: onCreate on groups/{groupId}/feed/{postId} where type == "task_completion"
+Trigger: onCreate on groups/{groupId}/feed/{postId}
+Filter in function: type == "task_completion" (ignore system posts)
 Recipient: post.userId
 Subject: "Your submission was approved — {taskName} 🎉"
 Body: Your submission for "{taskName}" in {activityName} has been approved.
       You earned a {medal} medal!
 Condition: user.notifications.emailEnabled == true
 ```
- 
+
 **`onSubmissionRejected`**
 ```
-Trigger: custom — write a rejected:{true} flag on pending doc before deletion,
-         trigger fires on update, then deletes the doc
+Trigger: onUpdate on pending when rejected:true set before deletion
 Recipient: pending.userId
 Subject: "Your submission needs a resubmit — {taskName}"
 Body: Your submission for "{taskName}" in {activityName} was not approved.
       Please resubmit with a new photo.
 Condition: user.notifications.emailEnabled == true
 ```
- 
+
 **`onNewMemberJoined`**
 ```
 Trigger: onCreate on groups/{groupId}/members/{userId}
 Recipient: group owner
 Subject: "{memberName} joined your group"
-Body: {memberName} has joined Il Tour di Paolo 2026.
+Body: {memberName} has joined Il Tour di Paolo.
 Condition: owner.notifications.emailEnabled == true
+Skip: do not notify when the new member is the owner (owner’s own member doc on group create)
 ```
- 
+
 ### Rejection trigger note
- 
-Firestore Cloud Functions cannot trigger on document deletion. To trigger the rejection email, the approval flow adds a `rejected: true` flag to the pending document before deleting it. The Cloud Function fires on the update, sends the email, then the client proceeds with deletion. This adds one extra write but avoids a separate `rejectedSubmissions` collection.
- 
+
+Firestore cannot trigger on document **delete**. For rejection email/push, the client sets **`rejected: true`** (and any minimal fields the function needs) on the pending document, the function runs on **`onUpdate`**, then the client completes the usual delete + Storage cleanup. One extra write; avoids a separate `rejectedSubmissions` collection.
+
 ### Email templates
- 
-Plain text emails for MVP — no HTML templates. Clean, readable, no maintenance overhead. Upgrade to branded HTML templates post-MVP if desired.
- 
+
+Plain text only for v1 — no HTML templates. Upgrade to branded HTML post-v1 if desired.
+
 ---
- 
-## Push Notifications
- 
+
+## Push notifications
+
 ### Stack
- 
-- **Firebase Cloud Messaging (FCM)** — handles push delivery for both iOS and Android
-- Same Cloud Functions as email — add push dispatch alongside email dispatch
-- **Service worker** (`firebase-messaging-sw.js`) — required for background push on web
-- **VAPID keys** — generated in Firebase Console, used for Web Push subscription
- 
-### iOS PWA Support
- 
-Push notifications are supported for PWAs added to the Home Screen via Safari (iOS 16.4+). Users who have already bookmarked the app are ready for this feature — they just need to grant notification permission.
- 
-Lock screen notifications, Notification Center, and badge counts are all supported once permission is granted.
- 
-**Known limitation:** FCM push subscriptions on iOS PWAs can occasionally expire or disappear. The app should silently refresh the push token on each launch and update `pushToken` in Firestore if it changes.
- 
-### Android Support
- 
-Full push support via Chrome, Firefox, Edge, and Samsung Internet. Does not require home screen installation. Same FCM codebase as iOS.
- 
+
+- **Firebase Cloud Messaging (FCM)** — web push for supported browsers / iOS PWA.
+- **Same Cloud Functions** as email — add push dispatch alongside email where both apply.
+- **Service worker** (`firebase-messaging-sw.js`) — background push on web.
+- **VAPID keys** — from Firebase Console, used for Web Push subscription.
+
+### iOS PWA support
+
+Push works for PWAs added to the Home Screen in Safari (iOS 16.4+). Users need notification permission. Lock screen, Notification Center, and badges follow platform behavior once granted.
+
+**Known limitation:** FCM tokens on iOS PWAs can expire or reset. The app should **refresh the token on launch** (when push is enabled) and update `users.notifications.pushToken` if it changed.
+
+### Android support
+
+Full push via Chrome, Firefox, Edge, Samsung Internet. Home screen install not required. Same FCM code path as iOS where applicable.
+
 ### Push token management
- 
+
 On push opt-in:
+
 ```javascript
-// Request permission + get FCM token
 const permission = await Notification.requestPermission()
 if (permission === 'granted') {
   const token = await getToken(messaging, { vapidKey: VAPID_KEY })
@@ -159,69 +185,70 @@ if (permission === 'granted') {
   })
 }
 ```
- 
-On app launch (silently refresh token):
+
+On app launch (silent refresh when push enabled):
+
 ```javascript
 onMessage(messaging, (payload) => {
-  // foreground message handler
+  // Foreground: prefer in-app toast/banner, not a second system notification
 })
- 
-// Refresh token if changed
+
 const currentToken = await getToken(messaging, { vapidKey: VAPID_KEY })
-if (currentToken !== storedToken) {
+if (currentToken && currentToken !== storedToken) {
   await updateDoc(doc(db, `users/${userId}`), {
     'notifications.pushToken': currentToken
   })
 }
 ```
- 
+
 ### Push payloads per event
- 
+
 **New pending submission (owner):**
 ```
 Title: "New submission to review"
 Body:  "{memberName} submitted {taskName} in {activityName}"
-Click: opens /group/{groupId}/approvals
+Click: /group/{groupId}/approvals
 ```
- 
+
 **Submission approved:**
 ```
 Title: "Submission approved 🎉"
 Body:  "Your {taskName} earned a {medal} medal!"
-Click: opens /group/{groupId}/feed
+Click: /group/{groupId}/feed
 ```
- 
+
 **Submission rejected:**
 ```
 Title: "Submission needs a resubmit"
 Body:  "Your {taskName} submission was not approved. Tap to resubmit."
-Click: opens /group/{groupId}/activities
+Click: /group/{groupId}/activities
 ```
- 
+
 **New member joined (owner):**
 ```
 Title: "New member joined"
 Body:  "{memberName} joined your group"
-Click: opens /group/{groupId}/settings
+Click: /group/{groupId}/settings
 ```
- 
+
 **New feed post (all members):**
 ```
 Title: "{memberName} completed a task"
 Body:  "{taskName} in {activityName} — {medal} medal"
-Click: opens /group/{groupId}/feed
+Click: /group/{groupId}/feed
 ```
- 
+
 ### Foreground vs background push
- 
-- **Background** (app not open): handled by service worker, system displays notification natively
-- **Foreground** (app open): `onMessage` handler fires — show an in-app toast/banner instead of a system notification to avoid duplicate alerts
- 
+
+- **Background:** Service worker shows the system notification.
+- **Foreground:** `onMessage` — show an in-app toast/banner instead of duplicating a system notification.
+
 ---
- 
-## Data Model Changes
- 
-### `users/{userId}` — add notifications block
+
+## Data model changes
+
+### `users/{userId}` — add `notifications`
+
 ```javascript
 notifications: {
   emailEnabled: boolean,     // default: false
@@ -229,71 +256,98 @@ notifications: {
   pushToken: string | null   // FCM registration token
 }
 ```
- 
-### `groups/{groupId}/pending/{submissionId}` — add rejection flag
-```javascript
-rejected: boolean   // set to true before deletion to trigger rejection email/push
-```
- 
----
- 
-## Firestore Security Rules Updates
- 
-```javascript
-match /users/{userId} {
-  // Existing rule — user reads/writes own doc
-  allow read, write: if request.auth.uid == userId;
- 
-  // Narrow: any authenticated user can update pushToken only
-  // (needed for silent token refresh on launch)
-  // Covered by existing write rule — no change needed
-}
-```
- 
-No additional rules needed — notification fields live on `users/{userId}` which the user already owns.
- 
----
- 
-## Implementation Checklist
 
-> **Tracking:** Mark `[x]` when an item is shipped in the repo. After any notifications work, update this section (and the **Status** line in the header) so progress stays visible without reading code.
+### `groups/{groupId}/pending/{pendingId}` — rejection flag (transient)
 
-### Infrastructure
-- [ ] Create Resend account, generate API key, add to Firebase Functions environment config
-- [ ] Generate VAPID keys in Firebase Console
-- [ ] Create `firebase-messaging-sw.js` service worker
-- [ ] Add FCM to Firebase project and app config
- 
-### Email
-- [ ] `onNewPendingSubmission` Cloud Function
-- [ ] `onSubmissionApproved` Cloud Function
-- [ ] `onSubmissionRejected` Cloud Function (with rejected flag pattern)
-- [ ] `onNewMemberJoined` Cloud Function
-- [ ] Plain text email templates for all four events
- 
-### Push
-- [ ] Push permission request + FCM token capture on opt-in
-- [ ] Silent token refresh on app launch
-- [ ] Add push dispatch to all four existing Cloud Functions
-- [ ] `onNewFeedPost` Cloud Function — push only, no email
-- [ ] Foreground message handler — show in-app toast instead of system notification
-- [ ] Service worker background message handler
- 
-### Settings UI
-- [ ] Email notifications toggle on Profile screen
-- [ ] Push notifications toggle on Profile screen
-- [ ] Handle denied OS permission state gracefully
-- [ ] Silent token refresh wired to app launch
- 
+```javascript
+rejected: boolean   // set true immediately before delete path; triggers onUpdate handlers
+```
+
 ---
- 
-## Rejected Alternatives
- 
+
+## Firestore security rules
+
+Notification fields live on **`users/{userId}`**, which already allows **`read, write`** for `request.auth.uid == userId` (see [DESIGN.md](../mvp/DESIGN.md) §10). The signed-in user may update `notifications.*` and `pushToken` without a separate rule. **No rules change is required** for v1 unless you later tighten `users` updates to a field allowlist.
+
+---
+
+## Edge cases & decisions
+
+| Scenario | Behavior |
+|---|---|
+| Owner creates group | `onNewMemberJoined` must **not** email/push the owner for their own `members/{ownerId}` create. |
+| `onCreate` feed post | Functions must **filter** `type === 'task_completion'` so system posts do not trigger “submission approved” to wrong recipients. |
+| User disables email/push | Functions still run but **no-op** send when the corresponding flag is false. |
+| Member removed | Existing DESIGN cleanup applies; no notification spec change. |
+
+---
+
+## Implementation checklist
+
+> **Tracking:** Mark `[x]` when shipped. After substantive changes, update this section and the **Status** line in the header.
+
+Roll out in **three phases** (each can be its own PR or merge batch).
+
+### Phase 1 — Infrastructure & `/settings` UI
+
+- [ ] Resend account, API key, Firebase Functions env config
+- [ ] VAPID keys in Firebase Console; FCM enabled for the web app
+- [ ] Add `firebase-messaging-sw.js` (and hosting registration as required by Firebase docs)
+- [ ] **Account settings:** wire **Email** and **Push** toggles on `/settings` (replace stubs); persist `notifications.emailEnabled` / `notifications.pushEnabled` on `users/{uid}`; show Auth email read-only
+- [ ] Push: request permission on first enable; handle **denied** state in UI
+- [ ] Client: create/merge `notifications` defaults on user doc if missing (migration-safe)
+
+### Phase 2 — Email (Cloud Functions)
+
+- [ ] `onNewPendingSubmission` → Resend when `owner.notifications.emailEnabled`
+- [ ] `onSubmissionApproved` → filter `task_completion`; Resend to submitter when enabled
+- [ ] `onSubmissionRejected` → `onUpdate` with `rejected: true`; client then deletes pending + Storage per existing reject flow
+- [ ] `onNewMemberJoined` → skip if `userId === ownerId`; Resend to owner when enabled
+- [ ] Plain text bodies for all four
+
+### Phase 3 — Push (FCM + handlers)
+
+- [ ] Store/update `pushToken` on opt-in and on launch when `pushEnabled` (silent refresh)
+- [ ] Extend Phase 2 functions (where applicable) to send FCM when `pushEnabled` + valid token
+- [ ] `onNewFeedPost` (or equivalent) — **push only** for `task_completion` (or as product prefers); no email
+- [ ] Foreground `onMessage` → in-app toast/banner
+- [ ] Service worker: background notification display
+
+---
+
+## Implementation status (repo)
+
+Use this table to reconcile the spec with the codebase without spelunking.
+
+| Topic | Planned / shipped behavior |
+|---|---|
+| **Settings location** | **`/settings`** Notifications section ([settingsPage-onepager](settingsPage-onepager.md)); not group profile. |
+| **Cloud Functions** | Not present until Phase 2–3; repo today is client-only Firebase. |
+| **Rejection flag** | Client reject flow gains a short `update` before delete once Phase 2 ships. |
+
+---
+
+## Checklist hygiene (for agents / maintainers)
+
+When notification behavior or routes change, update **this file’s checklist** and **Implementation status**. Cross-link: [Account settings](settingsPage-onepager.md) stubs should be removed or checked off in tandem with Phase 1 UI items.
+
+---
+
+## Rejected alternatives
+
 | Approach | Why rejected |
 |---|---|
-| Per-event notification settings | Adds settings complexity for a family app — global toggle sufficient |
-| Email for new feed posts | Too frequent — push is the right channel for real-time activity |
-| In-app notification center | Scope creep — system push + email covers the use cases cleanly |
-| Third-party push service (OneSignal etc.) | FCM is already in the stack, no additional vendor needed |
-| HTML email templates for MVP | Maintenance overhead — plain text is readable and faster to ship |
- 
+| Per-event notification settings | Too much settings surface for a family app; global toggles are enough for v1. |
+| Email for new feed posts | Too noisy; push only. |
+| In-app notification center | Scope creep; email + push cover the needs. |
+| Third-party push (OneSignal, etc.) | FCM is already in the Firebase stack. |
+| HTML email templates for v1 | Faster ship and less maintenance; upgrade later if needed. |
+
+---
+
+## Future
+
+- Branded HTML email templates and localized notification copy.
+- Per-event or per-group preferences if the product outgrows global toggles.
+- Tighter **Storage** / **users** field-level rules if the app moves beyond a closed trust boundary ([DESIGN.md](../mvp/DESIGN.md) §10).
+- Deep links from push into the correct group/route if the app adds richer routing state.

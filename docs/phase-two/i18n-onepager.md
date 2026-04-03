@@ -1,6 +1,6 @@
 # Internationalisation (i18n) — Mini spec
 
-> Status: **Phase Two — in progress** (skeleton + Settings fully wired; rest of app English until audit)  
+> Status: **Phase Two — v1 i18n complete** (all audit passes done; `en` / `es` / `it` aligned; shared literals deduped via per-locale `L` in translation files)  
 > Last updated: April 2026  
 > Related: [Account settings](settingsPage-onepager.md), [Notifications](notifications-onepager.md), [DESIGN.md](../mvp/DESIGN.md)
 
@@ -44,7 +44,7 @@ Language preference is **per device**, stored in **`localStorage`**, applied on 
 - **Language control in [Account settings](settingsPage-onepager.md)** (`/settings` → Language section) — aligns with the shipped settings page stub.
 - **Optional:** compact language control in **group nav** (e.g. under user block) for quick switching without opening settings — only if you want two entry points; otherwise **settings-only** avoids duplication.
 
-Iterative **string audit by screen** (see checklist below); avoid one giant PR.
+The **string audit** ran pass-by-pass (see checklist below); new screens should add keys to all three locale files and follow the same patterns.
 
 ---
 
@@ -74,9 +74,7 @@ Iterative **string audit by screen** (see checklist below); avoid one giant PR.
 - `src/hooks/useTranslation.js` — `{ t, language, changeLanguage }`.
 - **`main.jsx`** wraps `<App />` with `<LanguageProvider>` (outside router; inside `StrictMode`).
 
-**First fully wired screen:** [`SettingsPage`](../src/pages/SettingsPage.jsx) (header, back link, language pills, profile/notifications copy). Other routes stay hardcoded English until audit passes.
-
-**Convention:** semantic dot keys, never English prose as the key.
+**Shipped coverage:** app chrome across auth, home, join/create group, group shell, feed, activities, task complete, profile/info/standings, approvals, settings, shared loaders (`ProtectedRoute`, `PageLoading`, `useGroupCompletionPickerData`), and [`SettingsPage`](../src/pages/SettingsPage.jsx) (language + profile/notifications copy). **Convention:** semantic dot keys, never English prose as the key. **Maintenance:** repeated identical strings within a locale are centralized in a file-top **`L` object** in `src/i18n/translations/{en,es,it}.js` (stable `t('namespace.key')` paths unchanged).
 
 **Later migration to i18next:** install packages, init i18next, re-export hook — call sites stay `t('…')` if keys match.
 
