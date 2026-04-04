@@ -248,7 +248,6 @@ export default {
     withdrawSubmission: 'Withdraw submission',
     taskComplete: 'Complete',
     taskPending: 'Pending',
-    compoundHint: 'Track times, then submit once when you reach the goal.',
     compoundDecrementAria: 'Decrease count',
     compoundIncrementAria: 'Increase count',
     compoundUpdateFailed: 'Could not update counter.',
@@ -409,6 +408,18 @@ export default {
     unlockedLead: 'No approvals yet',
     unlockedRest:
       ' — rename freely; structure will lock after the first approval.',
+    deleteGroupSectionTitle: 'Delete group',
+    deleteGroupIntro:
+      'Permanently deletes this group: activities, member progress in this group, feed, comments, pending submissions, and the invite code. Other groups you belong to are not affected.',
+    deleteGroupUserIdsHint:
+      'This group will disappear from everyone’s home list the next time they open the app (stale links clean up automatically).',
+    deleteGroupTypeLabel: 'Type the exact group name to enable delete:',
+    deleteGroupDeleteButton: 'Delete group permanently',
+    deleteGroupDeleting: 'Deleting…',
+    deleteGroupFailed:
+      'Could not delete the group. Try again. If it keeps failing, check the Firebase console for leftover documents.',
+    deleteGroupFinalConfirm:
+      'Delete this group and all of its data forever? This cannot be undone.',
   },
   settings: {
     pageTitle: 'Account settings',

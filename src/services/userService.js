@@ -64,6 +64,32 @@ export function subscribeUserProfile(uid, onData, onError) {
   )
 }
 
+/**
+ * Avatar to denormalize into `groups/.../members/{uid}` — prefers Firestore `users/{uid}.avatarUrl`
+ * (custom upload) over Auth `photoURL` (e.g. default Google image).
+ */
+export async function getUserAvatarUrlForMember(uid, fallbackFromAuth = null) {
+  if (!uid) return typeof fallbackFromAuth === 'string' && fallbackFromAuth.trim() ? fallbackFromAuth.trim() : null
+  const db = getFirebaseDb()
+  if (!db) {
+    return typeof fallbackFromAuth === 'string' && fallbackFromAuth.trim() ? fallbackFromAuth.trim() : null
+  }
+  try {
+    const snap = await getDoc(doc(db, 'users', uid))
+    if (snap.exists()) {
+      const url = snap.data()?.avatarUrl
+      if (typeof url === 'string' && url.trim().length > 0) {
+        return url.trim()
+      }
+    }
+  } catch {
+    // fall through to Auth URL
+  }
+  return typeof fallbackFromAuth === 'string' && fallbackFromAuth.trim().length > 0
+    ? fallbackFromAuth.trim()
+    : null
+}
+
 export async function getUserGroupIds(uid) {
   const db = getFirebaseDb()
   if (!db) {

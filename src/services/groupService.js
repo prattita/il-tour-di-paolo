@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore'
 import { normalizeCompoundTargetInput } from '../lib/compoundTask'
 import { getFirebaseDb } from '../lib/firebase'
+import { getUserAvatarUrlForMember } from './userService'
 
 function requireDb() {
   const db = getFirebaseDb()
@@ -105,6 +106,8 @@ export async function createGroup({
     .filter((activity) => activity.name?.trim())
     .map((activity, index) => buildActivityDocument(activity, index))
 
+  const memberAvatarUrl = await getUserAvatarUrlForMember(ownerId, ownerAvatarUrl)
+
   const inviteCode = await generateUniqueInviteCode()
   const groupRef = doc(collection(db, 'groups'))
   const memberRef = doc(db, `groups/${groupRef.id}/members/${ownerId}`)
@@ -131,7 +134,7 @@ export async function createGroup({
   const contentBatch = writeBatch(db)
   contentBatch.set(memberRef, {
     displayName: ownerDisplayName,
-    avatarUrl: ownerAvatarUrl,
+    avatarUrl: memberAvatarUrl,
     joinedAt: serverTimestamp(),
     selectedActivityIds: null,
     progress: {},
@@ -182,6 +185,8 @@ export async function joinGroupByInviteCode({
     return { groupId, alreadyMember: true }
   }
 
+  const memberAvatarUrl = await getUserAvatarUrlForMember(userId, userAvatarUrl)
+
   const memberRef = doc(db, `groups/${groupId}/members/${userId}`)
   const userRef = doc(db, 'users', userId)
 
@@ -191,7 +196,7 @@ export async function joinGroupByInviteCode({
   batch.update(groupRef, { memberIds: arrayUnion(userId) })
   batch.set(memberRef, {
     displayName: userDisplayName,
-    avatarUrl: userAvatarUrl,
+    avatarUrl: memberAvatarUrl,
     joinedAt: serverTimestamp(),
     selectedActivityIds: null,
     progress: {},

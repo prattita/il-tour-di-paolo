@@ -1,6 +1,7 @@
 import {
   arrayRemove,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -11,7 +12,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore'
-import { pendingPhotoStoragePaths } from '../lib/feedPhotos'
+import { normalizeDocPhotos, pendingPhotoStoragePaths } from '../lib/feedPhotos'
 import { getFirebaseDb } from '../lib/firebase'
 import { buildActivityDocument, generateUniqueInviteCode, getGroup } from './groupService'
 import { deleteSubmissionPhotosByPaths } from './storageService'
@@ -25,6 +26,90 @@ function requireDb() {
 }
 
 const BATCH_LIMIT = 400
+
+async function deleteDocumentRefsInChunks(db, refs) {
+  const list = refs.filter(Boolean)
+  for (let i = 0; i < list.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db)
+    for (const r of list.slice(i, i + BATCH_LIMIT)) {
+      batch.delete(r)
+    }
+    await batch.commit()
+  }
+}
+
+/**
+ * Owner-only: remove all Firestore data for this group (subcollections first; Firestore does not
+ * cascade deletes). Deletes Storage objects for pending and feed photos, the invite doc, then the
+ * group doc. Does not write other users' user documents; stale groupIds self-heal on home load
+ * via pruneStaleGroupIdsFromUser.
+ */
+export async function deleteEntireGroup(groupId, ownerId) {
+  const db = requireDb()
+  const group = await getGroup(groupId)
+  if (!group) throw new Error('Group not found.')
+  if (group.ownerId !== ownerId) throw new Error('Only the owner can delete this group.')
+
+  const pendingSnap = await getDocs(collection(db, `groups/${groupId}/pending`))
+  for (const d of pendingSnap.docs) {
+    await deleteSubmissionPhotosByPaths(pendingPhotoStoragePaths({ id: d.id, ...d.data() }))
+  }
+  await deleteDocumentRefsInChunks(
+    db,
+    pendingSnap.docs.map((d) => d.ref),
+  )
+
+  const feedSnap = await getDocs(collection(db, `groups/${groupId}/feed`))
+  const commentRefs = []
+  for (const feedDoc of feedSnap.docs) {
+    const data = feedDoc.data()
+    const paths = normalizeDocPhotos({ id: feedDoc.id, ...data })
+      .map((p) => p.path)
+      .filter((p) => typeof p === 'string' && p.length > 0)
+    await deleteSubmissionPhotosByPaths(paths)
+
+    const commentsSnap = await getDocs(
+      collection(db, `groups/${groupId}/feed/${feedDoc.id}/comments`),
+    )
+    for (const c of commentsSnap.docs) {
+      commentRefs.push(c.ref)
+    }
+  }
+  await deleteDocumentRefsInChunks(db, commentRefs)
+  await deleteDocumentRefsInChunks(
+    db,
+    feedSnap.docs.map((d) => d.ref),
+  )
+
+  const activitiesSnap = await getDocs(collection(db, `groups/${groupId}/activities`))
+  await deleteDocumentRefsInChunks(
+    db,
+    activitiesSnap.docs.map((d) => d.ref),
+  )
+
+  const enrollSnap = await getDocs(collection(db, `groups/${groupId}/enrollments`))
+  await deleteDocumentRefsInChunks(
+    db,
+    enrollSnap.docs.map((d) => d.ref),
+  )
+
+  const membersSnap = await getDocs(collection(db, `groups/${groupId}/members`))
+  await deleteDocumentRefsInChunks(
+    db,
+    membersSnap.docs.map((d) => d.ref),
+  )
+
+  const code = typeof group.inviteCode === 'string' ? group.inviteCode.trim() : ''
+  if (code) {
+    const inviteRef = doc(db, 'invites', code)
+    const invSnap = await getDoc(inviteRef)
+    if (invSnap.exists() && invSnap.data()?.groupId === groupId) {
+      await deleteDoc(inviteRef)
+    }
+  }
+
+  await deleteDoc(doc(db, 'groups', groupId))
+}
 
 export async function updateGroupDetails(groupId, { name, description }) {
   const db = requireDb()

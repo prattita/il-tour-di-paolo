@@ -88,9 +88,6 @@ export function ActivityListTaskRow({
           <TaskStatusDot status={status} />
           <div className="min-w-0 flex-1">
             <p className="text-[13px] text-tour-text">{task.name}</p>
-            {compound ? (
-              <p className="mt-0.5 text-[11px] text-tour-text-secondary">{t('activities.compoundHint')}</p>
-            ) : null}
           </div>
           {compound ? (
             <div
@@ -115,7 +112,6 @@ export function ActivityListTaskRow({
           <TaskStatusDot status={status} />
           <div className="min-w-0 flex-1">
             <p className="text-[13px] text-tour-text">{task.name}</p>
-            <p className="mt-0.5 text-[11px] text-tour-text-secondary">{t('activities.compoundHint')}</p>
           </div>
           <div className="flex shrink-0 items-center gap-0.5">
             <button

@@ -110,7 +110,8 @@ service cloud.firestore {
         )
       );
 
-      allow delete: if false;
+      // Owner may delete the group document after the app has removed subcollections (no cascade in Firestore).
+      allow delete: if isGroupOwner(groupId);
 
       match /activities/{activityId} {
         // Owner sees all activities. Members: standard, enrolled advanced, or advanced they are

@@ -40,7 +40,7 @@ A **compound task** is still **one task slot** in the activity’s three tasks, 
   - **Allowed** while **another** task in the same activity has a pending submission (member can keep logging visits).
   - **Disabled** when this task is **approved**, or when **this task** is **pending** (submission in flight), or when the row is otherwise not editable (e.g. activity-level blocked states that you already use for simple tasks — keep behavior consistent with `getTaskStatus` / eligibility helpers).
 
-**Optional copy** (e.g. subtitle or hint): short line such as “Track times, then submit once when done” — localize when i18n covers this screen.
+**No extra subtitle** under the task name on Activities — counter + Complete are enough.
 
 **Feed FAB / quick complete** ([quicktaskcompletion-onepager.md](../phase-one/quicktaskcompletion-onepager.md)): compound tasks appear in pickers like today; **Complete** only if `x === y` and other eligibility holds. If the completion UI is shared, reuse the same gating logic as the Activities page.
 

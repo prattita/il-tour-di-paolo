@@ -245,7 +245,6 @@ export default {
     withdrawSubmission: 'Ritira consegna',
     taskComplete: 'Completa',
     taskPending: 'In attesa',
-    compoundHint: 'Segna le volte, poi invia una sola volta al traguardo.',
     compoundDecrementAria: 'Diminuisci conteggio',
     compoundIncrementAria: 'Aumenta conteggio',
     compoundUpdateFailed: 'Impossibile aggiornare il contatore.',
@@ -406,6 +405,18 @@ export default {
     unlockedLead: 'Nessuna approvazione ancora',
     unlockedRest:
       ' — rinomina liberamente; la struttura si bloccherà dopo la prima approvazione.',
+    deleteGroupSectionTitle: 'Elimina gruppo',
+    deleteGroupIntro:
+      'Elimina definitivamente questo gruppo: attività, progressi dei membri in questo gruppo, feed, commenti, consegne in attesa e codice invito. Gli altri gruppi a cui appartieni non sono toccati.',
+    deleteGroupUserIdsHint:
+      'Questo gruppo sparirà dalla home di tutti al prossimo accesso (i collegamenti obsoleti si ripuliscono da soli).',
+    deleteGroupTypeLabel: 'Digita il nome esatto del gruppo per abilitare l’eliminazione:',
+    deleteGroupDeleteButton: 'Elimina gruppo in modo permanente',
+    deleteGroupDeleting: 'Eliminazione…',
+    deleteGroupFailed:
+      'Impossibile eliminare il gruppo. Riprova. Se continua a fallire, controlla nella console Firebase eventuali documenti residui.',
+    deleteGroupFinalConfirm:
+      'Eliminare questo gruppo e tutti i suoi dati per sempre? L’azione non è reversibile.',
   },
   settings: {
     pageTitle: 'Impostazioni account',

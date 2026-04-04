@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Avatar } from '../components/Avatar'
 import { useAuth } from '../context/useAuth'
 import { useTranslation } from '../hooks/useTranslation'
@@ -13,6 +13,7 @@ import {
 import { getGroup } from '../services/groupService'
 import {
   addGroupActivity,
+  deleteEntireGroup,
   ensureActivityAdvancedDefaults,
   regenerateGroupInviteCode,
   removeGroupMember,
@@ -35,6 +36,7 @@ function emptyAddActivity() {
 
 export function GroupSettingsPage() {
   const { groupId } = useParams()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const { t } = useTranslation()
   const [group, setGroup] = useState(null)
@@ -65,6 +67,10 @@ export function GroupSettingsPage() {
   const [editError, setEditError] = useState('')
 
   const [removeBusyId, setRemoveBusyId] = useState('')
+
+  const [deleteGroupNameInput, setDeleteGroupNameInput] = useState('')
+  const [deleteGroupBusy, setDeleteGroupBusy] = useState(false)
+  const [deleteGroupError, setDeleteGroupError] = useState('')
 
   async function refreshGroup() {
     if (!groupId) return
@@ -187,6 +193,25 @@ export function GroupSettingsPage() {
       setInviteError(err.message || t('groupSettings.regenerateFailed'))
     } finally {
       setInviteBusy(false)
+    }
+  }
+
+  async function handleDeleteGroup() {
+    const expected = (group?.name || '').trim()
+    if (!expected || deleteGroupNameInput.trim() !== expected) return
+    if (!window.confirm(t('groupSettings.deleteGroupFinalConfirm'))) {
+      return
+    }
+    if (!user?.uid) return
+    setDeleteGroupError('')
+    setDeleteGroupBusy(true)
+    try {
+      await deleteEntireGroup(groupId, user.uid)
+      navigate('/', { replace: true })
+    } catch (err) {
+      setDeleteGroupError(err.message || t('groupSettings.deleteGroupFailed'))
+    } finally {
+      setDeleteGroupBusy(false)
     }
   }
 
@@ -855,6 +880,44 @@ export function GroupSettingsPage() {
                 ))}
               </ul>
             )}
+          </section>
+
+          <section className="rounded-xl border border-red-200 bg-red-50/40 p-4">
+            <h2 className="text-[14px] font-medium text-red-950">
+              {t('groupSettings.deleteGroupSectionTitle')}
+            </h2>
+            <p className="mt-2 text-[12px] leading-relaxed text-red-900/90">
+              {t('groupSettings.deleteGroupIntro')}
+            </p>
+            <p className="mt-2 text-[12px] leading-relaxed text-red-900/80">
+              {t('groupSettings.deleteGroupUserIdsHint')}
+            </p>
+            <label className="mt-3 block text-[12px] font-medium text-red-950">
+              {t('groupSettings.deleteGroupTypeLabel')}
+              <input
+                type="text"
+                value={deleteGroupNameInput}
+                onChange={(e) => setDeleteGroupNameInput(e.target.value)}
+                autoComplete="off"
+                placeholder={(group?.name || '').trim() || '…'}
+                className="mt-1 w-full rounded-lg border border-red-200 bg-tour-surface px-3 py-2 text-[13px] text-tour-text shadow-sm focus:border-red-400 focus:outline-none focus:ring-1 focus:ring-red-300"
+              />
+            </label>
+            {deleteGroupError ? (
+              <p className="mt-2 text-[12px] text-red-800">{deleteGroupError}</p>
+            ) : null}
+            <button
+              type="button"
+              disabled={
+                deleteGroupBusy ||
+                !(group?.name || '').trim() ||
+                deleteGroupNameInput.trim() !== (group?.name || '').trim()
+              }
+              onClick={handleDeleteGroup}
+              className="mt-3 min-h-11 rounded-lg border border-red-300 bg-tour-surface px-4 py-2 text-[12px] font-semibold text-red-900 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {deleteGroupBusy ? t('groupSettings.deleteGroupDeleting') : t('groupSettings.deleteGroupDeleteButton')}
+            </button>
           </section>
         </div>
       )}
