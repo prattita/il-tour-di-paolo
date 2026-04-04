@@ -386,9 +386,16 @@ You’re on **Vercel’s default hostname** (`*.vercel.app`). That hostname is *
 ### Code
 
 - `src/components/OwnerPendingAppBadge.jsx` (mounted in `App.jsx` inside `AuthProvider`)
-- `src/hooks/useOwnerPendingAppBadge.js`
+- `src/hooks/useOwnerPendingAppBadge.js` — `visibilitychange`, **`pagehide`**, **`blur`** (iOS often skips visibility alone)
 - `src/services/ownerPendingBadgeService.js` (`getCountFromServer` per owned group)
 - `src/lib/appBadge.js`
+- **`firebase-messaging-sw.js`** (`vite/plugins/firebaseMessagingSw.js`) — `onBackgroundMessage` **only** calls `setAppBadge` when `data.kind === new_pending_submission` and `data.ownerPendingBadge` (no `showNotification`; FCM still shows the lock-screen alert once). Count is computed in **`onNewPendingSubmissionPush`** (`functions/index.js`).
+
+### QA / troubleshooting (iOS)
+
+- **Stale Home Screen app:** Delete the icon → open the site in Safari → **Add to Home Screen** again after deploy so the **new service worker** and JS load.
+- **If badge still missing:** Confirm **Settings → Safari → your site → Notifications** allow alerts; badge API is tied to that flow on some iOS versions.
+- **Stale count after approve:** Badge updates on next **new pending** push (SW path) or next time you **background** the app (client recount). Full sync on every event is a possible follow-up.
 
 ### Platform notes
 
@@ -398,7 +405,7 @@ You’re on **Vercel’s default hostname** (`*.vercel.app`). That hostname is *
 
 ### Possible follow-ups (not done)
 
-- Recompute badge when a **push** arrives in the service worker (faster update without opening the app).
+- Include **`ownerPendingBadge`** (or deltas) on **other** owner-facing pushes so the icon stays exact after approve/reject without reopening.
 - A different **count** for **members** (would need a new product rule + data).
 
 ---

@@ -409,8 +409,7 @@ export default {
     viewPhoto: 'Vedi foto',
     changePhotoAria: 'Cambia foto del profilo',
     notificationsTitle: 'Notifiche',
-    notificationsHint:
-      'Scegli come possiamo avvisarti. Le push usano il browser; l’email userà l’indirizzo qui sotto quando sarà disponibile.',
+    notificationsHint: 'Attiva le push per ricevere avvisi sui tuoi gruppi in questo browser.',
     pushNotificationsLabel: 'Notifiche push',
     pushNotificationsHint:
       'Ricevi avvisi sui tuoi gruppi. Il browser chiederà il permesso la prima volta che le attivi.',
@@ -423,12 +422,6 @@ export default {
     pushMissingVapid:
       'Le push non sono configurate per questa versione (manca la chiave web push). Contatta chi gestisce l’hosting.',
     pushToggleError: 'Impossibile aggiornare le notifiche push.',
-    emailNotificationsLabel: 'Notifiche email',
-    emailNotificationsHint:
-      'Email in testo semplice per invii, approvazioni, rifiuti e nuovi membri nei tuoi gruppi. Usiamo l’email del tuo account.',
-    emailNoAddressHint:
-      'Il tuo account non ha un indirizzo email, quindi non possiamo inviare notifiche per email. Accedi con email o collegane una.',
-    emailToggleError: 'Impossibile aggiornare le notifiche email.',
     pushForegroundDismiss: 'Chiudi',
     pushForegroundFallback: 'Nuova notifica',
     loadingProfile: 'Caricamento profilo…',

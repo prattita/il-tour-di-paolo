@@ -22,9 +22,18 @@ function buildSwSource(env) {
     `importScripts('https://www.gstatic.com/firebasejs/${FIREBASE_JS_VERSION}/firebase-app-compat.js');`,
     `importScripts('https://www.gstatic.com/firebasejs/${FIREBASE_JS_VERSION}/firebase-messaging-compat.js');`,
     `firebase.initializeApp(${json});`,
-    'firebase.messaging();',
-    '// Background: do not call showNotification here — messages with a `notification`',
-    '// payload are already displayed once by FCM; duplicating caused double lock-screen alerts.',
+    'var messaging = firebase.messaging();',
+    '// Default notification still comes from FCM (do not call showNotification here — duplicates).',
+    '// iOS PWA badge: page JS may not run when push arrives; set badge in SW when data present.',
+    'messaging.onBackgroundMessage(function (payload) {',
+    '  var d = payload.data || {};',
+    '  if (d.kind !== "new_pending_submission" || d.ownerPendingBadge == null) return;',
+    '  var nav = self.navigator;',
+    '  if (!nav || typeof nav.setAppBadge !== "function") return;',
+    '  var num = parseInt(String(d.ownerPendingBadge), 10);',
+    '  if (isNaN(num) || num <= 0) return;',
+    '  nav.setAppBadge(num).catch(function () {});',
+    '});',
   ].join('\n')
 }
 

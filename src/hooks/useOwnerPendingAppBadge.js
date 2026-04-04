@@ -35,9 +35,18 @@ export function useOwnerPendingAppBadge(uid) {
       void apply()
     }
 
+    // iOS Home Screen PWA often skips visibilitychange when locking; blur/pagehide help.
+    const onHideSignals = () => {
+      void apply()
+    }
+
     document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('pagehide', onHideSignals)
+    window.addEventListener('blur', onHideSignals)
     return () => {
       document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('pagehide', onHideSignals)
+      window.removeEventListener('blur', onHideSignals)
       void clearAppBadgeIfSupported()
     }
   }, [uid])

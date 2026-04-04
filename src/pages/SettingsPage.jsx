@@ -246,11 +246,7 @@ export function SettingsPage() {
               )}
             </section>
 
-            <PushNotificationsSection
-              uid={user?.uid}
-              userEmail={user?.email || ''}
-              notifications={userProfile.notifications}
-            />
+            <PushNotificationsSection uid={user?.uid} notifications={userProfile.notifications} />
           </>
         )}
       </div>

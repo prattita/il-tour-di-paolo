@@ -25,7 +25,6 @@ export async function ensureUserProfile(uid, { email, displayName, avatarUrl = n
     groupIds: [],
     createdAt: serverTimestamp(),
     notifications: {
-      emailEnabled: false,
       pushEnabled: false,
       pushToken: null,
     },
@@ -42,7 +41,6 @@ export async function ensureNotificationDefaults(uid) {
   if (snap.data().notifications != null) return
   await updateDoc(ref, {
     notifications: {
-      emailEnabled: false,
       pushEnabled: false,
       pushToken: null,
     },

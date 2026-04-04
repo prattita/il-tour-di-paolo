@@ -1,28 +1,16 @@
 const admin = require('firebase-admin')
 const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore')
-const { defineSecret, defineString } = require('firebase-functions/params')
+const { defineString } = require('firebase-functions/params')
 const { logger } = require('firebase-functions')
-const { maybeEmailUser } = require('./emailNotify')
 
 admin.initializeApp()
 
 /** Public site origin for web push `link` (no trailing slash). */
 const webAppOrigin = defineString('WEB_APP_ORIGIN', { default: '' })
 
-/** Set via `firebase functions:secrets:set RESEND_API_KEY` before deploy. */
-const resendApiKey = defineSecret('RESEND_API_KEY')
-
-/** Verified sender in Resend (e.g. `Il Tour <notify@yourdomain.com>`). Default is Resend sandbox. */
-const resendFrom = defineString('RESEND_FROM', {
-  default: 'Il Tour di Paolo <onboarding@resend.dev>',
-})
-
 const REGION = 'us-central1'
 
-const emailTriggerOpts = {
-  region: REGION,
-  secrets: [resendApiKey],
-}
+const fnOpts = { region: REGION }
 
 function medalLabel(medal) {
   if (!medal || typeof medal !== 'string') return ''
@@ -40,22 +28,11 @@ function firstNameFromDisplayName(raw) {
   return part || 'Someone'
 }
 
-/** Display name for emails (spec “memberName”): full trimmed string or fallback. */
-function memberDisplayName(raw) {
-  if (typeof raw !== 'string') return 'Someone'
-  const t = raw.trim()
-  return t || 'Someone'
-}
-
 function absoluteLink(path) {
   const origin = webAppOrigin.value().replace(/\/$/, '')
   if (!origin) return undefined
   const p = path.startsWith('/') ? path : `/${path}`
   return `${origin}${p}`
-}
-
-function resendContext() {
-  return { key: resendApiKey.value(), from: resendFrom.value() }
 }
 
 /**
@@ -72,6 +49,24 @@ async function getPushTokenForUser(db, uid) {
   const token = n.pushToken
   if (typeof token !== 'string' || token.length < 80) return null
   return token
+}
+
+/** Total pending docs across groups where `ownerId` owns (for PWA icon badge in push `data`). */
+async function countOwnerPendingAcrossOwnedGroups(db, ownerId) {
+  if (!ownerId) return 0
+  const userSnap = await db.doc(`users/${ownerId}`).get()
+  if (!userSnap.exists) return 0
+  const groupIds = userSnap.get('groupIds')
+  if (!Array.isArray(groupIds) || groupIds.length === 0) return 0
+  let total = 0
+  for (const gid of groupIds) {
+    if (typeof gid !== 'string' || !gid) continue
+    const gSnap = await db.doc(`groups/${gid}`).get()
+    if (!gSnap.exists || gSnap.get('ownerId') !== ownerId) continue
+    const agg = await db.collection(`groups/${gid}/pending`).count().get()
+    total += agg.data().count
+  }
+  return total
 }
 
 async function sendMulticast(tokens, payload, logLabel) {
@@ -114,12 +109,12 @@ async function sendMulticast(tokens, payload, logLabel) {
 }
 
 /**
- * Push: task_completion feed → other members; submitter gets approval push + email.
+ * Push: task_completion feed → other members; submitter gets approval push.
  */
 exports.onFeedTaskCompletionPush = onDocumentCreated(
   {
     document: 'groups/{groupId}/feed/{postId}',
-    ...emailTriggerOpts,
+    ...fnOpts,
   },
   async (event) => {
     const snap = event.data
@@ -194,31 +189,16 @@ exports.onFeedTaskCompletionPush = onDocumentCreated(
     } else {
       logger.info('onSubmissionApprovedPush: no submitter token', { groupId, actorId })
     }
-
-    const { key, from } = resendContext()
-    const emailBody = [
-      `Your submission for "${taskName}" in ${activityName} has been approved.`,
-      medal ? `You earned a ${medal} medal!` : '',
-      link ? `\nOpen the app: ${link}` : '',
-    ]
-      .filter(Boolean)
-      .join('\n')
-
-    await maybeEmailUser(admin, db, key, from, actorId, {
-      subject: `Your submission was approved — ${taskName} 🎉`,
-      text: emailBody,
-      logLabel: 'onSubmissionApprovedEmail',
-    })
   },
 )
 
 /**
- * Push + email: owner rejects — `rejected: true` on pending before delete.
+ * Push: owner rejects — `rejected: true` on pending before delete.
  */
 exports.pushPendingRejectedToSubmitter = onDocumentUpdated(
   {
     document: 'groups/{groupId}/pending/{pendingId}',
-    ...emailTriggerOpts,
+    ...fnOpts,
   },
   async (event) => {
     const change = event.data
@@ -266,29 +246,16 @@ exports.pushPendingRejectedToSubmitter = onDocumentUpdated(
     } else {
       logger.info('pushPendingRejectedToSubmitter: no submitter token', { groupId, submitterId })
     }
-
-    const { key, from } = resendContext()
-    await maybeEmailUser(admin, db, key, from, submitterId, {
-      subject: `Your submission needs a resubmit — ${taskName}`,
-      text: [
-        `Your submission for "${taskName}" in ${activityName} was not approved.`,
-        'Please resubmit with a new photo.',
-        link ? `\nOpen the app: ${link}` : '',
-      ]
-        .filter(Boolean)
-        .join('\n'),
-      logLabel: 'onSubmissionRejectedEmail',
-    })
   },
 )
 
 /**
- * Push + email: new pending submission → owner.
+ * Push: new pending submission → owner.
  */
 exports.onNewPendingSubmissionPush = onDocumentCreated(
   {
     document: 'groups/{groupId}/pending/{pendingId}',
-    ...emailTriggerOpts,
+    ...fnOpts,
   },
   async (event) => {
     const snap = event.data
@@ -304,7 +271,6 @@ exports.onNewPendingSubmissionPush = onDocumentCreated(
     const ownerId = groupSnap.get('ownerId')
     if (typeof ownerId !== 'string' || !ownerId) return
 
-    const memberName = memberDisplayName(pending.displayName)
     const memberFirst = firstNameFromDisplayName(pending.displayName)
     const taskName =
       typeof pending.taskName === 'string' && pending.taskName.trim()
@@ -319,6 +285,8 @@ exports.onNewPendingSubmissionPush = onDocumentCreated(
     const pushBody = `${memberFirst} submitted ${taskName} in ${activityName}`
     const link = absoluteLink(`/group/${groupId}/approvals`)
 
+    const ownerPendingBadge = String(await countOwnerPendingAcrossOwnedGroups(db, ownerId))
+
     const token = await getPushTokenForUser(db, ownerId)
     if (token) {
       await sendMulticast(
@@ -330,6 +298,7 @@ exports.onNewPendingSubmissionPush = onDocumentCreated(
           data: {
             groupId: String(groupId),
             kind: 'new_pending_submission',
+            ownerPendingBadge,
           },
         },
         'onNewPendingSubmissionPush',
@@ -337,29 +306,16 @@ exports.onNewPendingSubmissionPush = onDocumentCreated(
     } else {
       logger.info('onNewPendingSubmissionPush: no owner token', { groupId, ownerId })
     }
-
-    const { key, from } = resendContext()
-    await maybeEmailUser(admin, db, key, from, ownerId, {
-      subject: `New submission to review — ${activityName}`,
-      text: [
-        `${memberName} submitted "${taskName}" in ${activityName}.`,
-        'Open the app to review.',
-        link ? `\n${link}` : '',
-      ]
-        .filter(Boolean)
-        .join('\n'),
-      logLabel: 'onNewPendingSubmissionEmail',
-    })
   },
 )
 
 /**
- * Push + email: new member (not owner) → owner.
+ * Push: new member (not owner) → owner.
  */
 exports.onNewMemberJoinedPush = onDocumentCreated(
   {
     document: 'groups/{groupId}/members/{memberId}',
-    ...emailTriggerOpts,
+    ...fnOpts,
   },
   async (event) => {
     const snap = event.data
@@ -375,7 +331,6 @@ exports.onNewMemberJoinedPush = onDocumentCreated(
     if (memberId === ownerId) return
 
     const member = snap.data() || {}
-    const memberName = memberDisplayName(member.displayName)
     const memberFirst = firstNameFromDisplayName(member.displayName)
 
     const pushTitle = 'New member joined'
@@ -400,17 +355,5 @@ exports.onNewMemberJoinedPush = onDocumentCreated(
     } else {
       logger.info('onNewMemberJoinedPush: no owner token', { groupId, ownerId })
     }
-
-    const { key, from } = resendContext()
-    await maybeEmailUser(admin, db, key, from, ownerId, {
-      subject: `${memberName} joined your group`,
-      text: [
-        `${memberName} has joined Il Tour di Paolo.`,
-        link ? `\nOpen group settings: ${link}` : '',
-      ]
-        .filter(Boolean)
-        .join('\n'),
-      logLabel: 'onNewMemberJoinedEmail',
-    })
   },
 )
