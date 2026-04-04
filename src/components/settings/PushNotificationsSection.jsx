@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
+import { doc, updateDoc } from 'firebase/firestore'
 import { useTranslation } from '../../hooks/useTranslation'
 import { isFcmVapidKeyConfigured } from '../../lib/fcmConfig'
+import { getFirebaseDb } from '../../lib/firebase'
 import { getFirebaseMessagingWhenReady } from '../../lib/firebaseMessaging'
 import { disableWebPushForUser, enableWebPushForUser } from '../../services/pushSettingsService'
 
@@ -58,8 +60,11 @@ export function PushNotificationsSection({ uid, userEmail, notifications }) {
   const [pushSupported, setPushSupported] = useState(null)
   const [pushBusy, setPushBusy] = useState(false)
   const [pushError, setPushError] = useState('')
+  const [emailBusy, setEmailBusy] = useState(false)
+  const [emailError, setEmailError] = useState('')
 
   const pushEnabled = Boolean(notifications?.pushEnabled)
+  const emailEnabled = Boolean(notifications?.emailEnabled)
   const permissionDenied = typeof Notification !== 'undefined' && Notification.permission === 'denied'
   const vapidOk = isFcmVapidKeyConfigured()
 
@@ -94,6 +99,25 @@ export function PushNotificationsSection({ uid, userEmail, notifications }) {
       }
     },
     [uid, pushBusy, pushEnabled, t],
+  )
+
+  const handleEmailToggle = useCallback(
+    async (next) => {
+      if (!uid || emailBusy || next === emailEnabled) return
+      if (!userEmail) return
+      setEmailError('')
+      setEmailBusy(true)
+      try {
+        const db = getFirebaseDb()
+        if (!db) throw new Error(t('settings.emailToggleError'))
+        await updateDoc(doc(db, 'users', uid), { 'notifications.emailEnabled': next })
+      } catch (e) {
+        setEmailError(e.message || t('settings.emailToggleError'))
+      } finally {
+        setEmailBusy(false)
+      }
+    },
+    [uid, emailBusy, emailEnabled, userEmail, t],
   )
 
   /** Order: config / permission before “unsupported” so iOS+VAPID issues still show the right error. */
@@ -140,13 +164,27 @@ export function PushNotificationsSection({ uid, userEmail, notifications }) {
 
         {pushError ? <p className="text-[12px] text-red-800">{pushError}</p> : null}
 
-        <div className="border-t border-black/10 pt-3">
-          <p className="text-[14px] font-medium text-tour-text">{t('settings.emailNotificationsLabel')}</p>
-          {userEmail ? (
-            <p className="mt-1 break-all text-[13px] text-tour-text-secondary">{userEmail}</p>
-          ) : null}
-          <p className="mt-2 text-[12px] text-tour-text-secondary">{t('settings.emailNotificationsSoon')}</p>
-        </div>
+        <ToggleRow
+          id="settings-email-toggle"
+          label={t('settings.emailNotificationsLabel')}
+          description={
+            <>
+              <p>
+                {!userEmail
+                  ? t('settings.emailNoAddressHint')
+                  : t('settings.emailNotificationsHint')}
+              </p>
+              {userEmail ? (
+                <p className="mt-2 break-all font-normal text-tour-text-secondary">{userEmail}</p>
+              ) : null}
+            </>
+          }
+          checked={emailEnabled}
+          disabled={!userEmail}
+          busy={emailBusy}
+          onChange={handleEmailToggle}
+        />
+        {emailError ? <p className="text-[12px] text-red-800">{emailError}</p> : null}
       </div>
     </section>
   )

@@ -1,6 +1,6 @@
 # Notifications — Feature Spec
 
-> Status: **Phase Two — in progress** (FCM client + **`onFeedTaskCompletionPush`** in `functions/`; deploy Blaze + set `WEB_APP_ORIGIN`; other triggers TBD)  
+> Status: **Push + badging shipped** in repo. **Email delivery deferred** until you own a domain for Resend (Vercel `*.vercel.app` is not enough). **§4** = your device QA.  
 > Last updated: April 2026  
 > Related: [Account settings](settingsPage-onepager.md), [Internationalisation (i18n)](i18n-onepager.md), [DESIGN.md](../mvp/DESIGN.md)
 
@@ -70,7 +70,7 @@ Stored on the user document:
 }
 ```
 
-**Settings UI** lives in the **Notifications** section on **[Account settings](settingsPage-onepager.md)** (`/settings` — protected, outside group shell). That page already reserves stubs for this work; replace stubs with working toggles when this spec ships.
+**Settings UI** lives in the **Notifications** section on **[Account settings](settingsPage-onepager.md)** (`/settings` — protected, outside group shell). Push and email toggles are implemented in `PushNotificationsSection.jsx`.
 
 ```
 ┌─────────────────────────────┐
@@ -163,7 +163,7 @@ Plain text only for v1 — no HTML templates. Upgrade to branded HTML post-v1 if
 
 ### iOS PWA support
 
-Push works for PWAs added to the Home Screen in Safari (iOS 16.4+). Users need notification permission. Lock screen, Notification Center, and badges follow platform behavior once granted.
+Push works for PWAs added to the Home Screen in Safari (iOS 16.4+). Users need notification permission. Lock screen and Notification Center follow platform behavior once granted. **Custom app-icon badge** (owner pending count) is implemented — see **App icon badging (shipped)**.
 
 **Known limitation:** FCM tokens on iOS PWAs can expire or reset. The app should **refresh the token on launch** (when push is enabled) and update `users.notifications.pushToken` if it changed.
 
@@ -240,8 +240,8 @@ Click: /group/{groupId}/feed
 
 ### Foreground vs background push
 
-- **Background:** Service worker shows the system notification.
-- **Foreground:** `onMessage` — show an in-app toast/banner instead of duplicating a system notification.
+- **Background:** FCM delivers a `notification` payload; the browser/OS shows one system notification. The service worker **does not** call `showNotification` again (that caused duplicate alerts).
+- **Foreground:** `onMessage` — in-app dismissible banner (`FcmForegroundBanner`); no second system notification.
 
 ---
 
@@ -290,37 +290,33 @@ Work proceeds in **logical chunks** below. **Push and email do not depend on eac
 
 ### 1. Web app & `/settings` (FCM client)
 
-- [ ] **You (Firebase + hosting):** VAPID key pair in Console → copy **public** key into `VITE_FIREBASE_VAPID_KEY` (local `.env` + Vercel env). Ensure **Cloud Messaging** is enabled for the project.
+- [x] Client reads **`VITE_FIREBASE_VAPID_KEY`** when present (`fcmConfig.js`, token flow). **Ops (you):** set that env var in **each** deploy environment + confirm Cloud Messaging enabled in Firebase Console.
 - [x] `firebase-messaging-sw.js` generated at dev + build (`vite/plugins/firebaseMessagingSw.js`); served at `/firebase-messaging-sw.js`
 - [x] **`/settings`:** push toggle; persist `notifications.pushEnabled` and `notifications.pushToken`; permission on first enable; **denied** / unsupported / missing-VAPID copy
 - [x] Token refresh when signed in and `pushEnabled` (`FcmForegroundBanner`)
 - [x] `notifications` on `users/{uid}` — on **new** users in `ensureUserProfile`; **legacy** docs via `ensureNotificationDefaults` after sign-in
-- [x] Foreground `onMessage` → dismissible banner; SW `onBackgroundMessage` → system notification
-- [x] **`/settings` email block:** read-only Auth email + “Coming soon” (until Resend / §3)
+- [x] Foreground `onMessage` → dismissible banner; background: FCM surfaces `notification` payload (SW does **not** call `showNotification` again — avoids duplicate alerts)
+- [x] **`/settings` email:** toggle `notifications.emailEnabled`; read-only Auth email + hint copy
 
 ### 2. Cloud Functions — push (FCM)
 
-- [x] `onNewFeedPost` — **`onFeedTaskCompletionPush`** (`functions/index.js`): `onCreate` `groups/{groupId}/feed/{postId}`, filter `type === 'task_completion'`; FCM to members with `pushEnabled` + `pushToken`; **skips actor**; `us-central1`. **Deploy:** Blaze plan, `functions/.env` with `WEB_APP_ORIGIN` (no trailing slash), then `firebase deploy --only functions` (use `prod` alias / project `il-tour-di-paolo`).
-- [ ] `onNewPendingSubmission` → FCM to owner when `pushEnabled` + token
-- [ ] `onSubmissionApproved` → FCM to submitter (ensure feed handler filters `type === 'task_completion'` if shared with other triggers)
-- [ ] `onSubmissionRejected` → FCM after `onUpdate` with `rejected: true` (coordinate with client delete order)
-- [ ] `onNewMemberJoined` → FCM to owner when enabled; **skip** if `userId === ownerId`
+- [x] **`onFeedTaskCompletionPush`** — `onCreate` `groups/{groupId}/feed/{postId}`, filter `type === 'task_completion'`; FCM to members (**skips actor**); **same handler** sends **“Submission approved”** push to **submitter only** (actor). `us-central1`; `WEB_APP_ORIGIN` in `functions/.env`.
+- [x] **`onNewPendingSubmissionPush`** — `onCreate` pending → owner (push + token).
+- [x] **`pushPendingRejectedToSubmitter`** — `onUpdate` when `rejected: true` (export name avoids legacy HTTPS name collision); client `updateDoc` then batch delete; Firestore rules allow owner-only `rejected` update.
+- [x] **`onNewMemberJoinedPush`** — `onCreate` `members/{userId}` → owner; **skips** `memberId === ownerId`.
 
 ### 3. Cloud Functions — email (Resend)
 
-- [ ] Resend account, API key, Functions env config
-- [ ] **`/settings`:** wire `notifications.emailEnabled` if not already done
-- [ ] `onNewPendingSubmission` → Resend when `owner.notifications.emailEnabled`
-- [ ] `onSubmissionApproved` → filter `task_completion`; Resend to submitter when enabled
-- [ ] `onSubmissionRejected` → `onUpdate` with `rejected: true`; client then deletes pending + Storage per existing reject flow
-- [ ] `onNewMemberJoined` → skip if `userId === ownerId`; Resend to owner when enabled
-- [ ] Plain text bodies for all four
-- [ ] Where a trigger already sends push, **add Resend in the same function** when `emailEnabled` applies (avoid duplicate Firestore triggers)
+- [x] Resend SDK in `functions/`; secret **`RESEND_API_KEY`** (`firebase functions:secrets:set`); optional param **`RESEND_FROM`** in `functions/.env` (verified domain in prod). See `functions/.env.example`.
+- [x] **`/settings`:** `notifications.emailEnabled` toggle (`PushNotificationsSection`).
+- [x] Same triggers as push: **`onNewPendingSubmissionPush`**, **`onFeedTaskCompletionPush`** (submitter approved only), **`pushPendingRejectedToSubmitter`**, **`onNewMemberJoinedPush`** — each calls **`maybeEmailUser`** when `emailEnabled` + Firebase Auth email; plain text per §“Email notifications”.
+- [x] Recipient address from **`admin.auth().getUser(uid).email`** (not Firestore `users.email`).
 
 ### 4. QA & polish
 
 - [ ] End-to-end on target browsers (Safari PWA, Chrome Android, others you care about): permission, token refresh, tap-through to routes
 - [ ] Note browser-specific caveats in this file or `KNOWN_CONCERNS.md` if any
+- [x] **App icon badging** — owner pending count on Home Screen PWA when app is **backgrounded**; **clears** when app is **foreground** (see **App icon badging** below)
 
 ---
 
@@ -332,8 +328,78 @@ Use this table to reconcile the spec with the codebase without spelunking.
 |---|---|
 | **Settings location** | **`/settings`** Notifications section ([settingsPage-onepager](settingsPage-onepager.md)); not group profile. |
 | **FCM client** | `src/lib/firebaseMessaging.js`, `fcmConfig.js`, `pushSettingsService.js`, `FcmForegroundBanner.jsx`, `PushNotificationsSection.jsx`; Vite SW plugin. |
-| **Cloud Functions** | **`onFeedTaskCompletionPush`** — feed `task_completion` → multicast FCM. **§2** other triggers not shipped. Requires **Blaze** + `WEB_APP_ORIGIN` in `functions/.env`. |
-| **Rejection flag** | Client reject flow gains a short `update` before delete once **rejection** email and/or push is implemented. |
+| **Cloud Functions** | Same four triggers: **FCM** always; **Resend** only when `RESEND_API_KEY` secret + valid `RESEND_FROM` exist (**email deferred** if not). Params: `WEB_APP_ORIGIN`, `RESEND_FROM`. Helpers: `functions/emailNotify.js`. |
+| **Rejection flag** | Shipped: `updateDoc({ rejected: true })` before batch delete + Storage cleanup (`approvalService`). |
+| **Badging** | **`OwnerPendingAppBadge`** + `useOwnerPendingAppBadge`, `ownerPendingBadgeService`, `lib/appBadge.js`. |
+
+---
+
+## Progress snapshot (where we are)
+
+| Area | In repo | Your ops / verification |
+|------|---------|---------------------------|
+| **§1** FCM client, `/settings` toggles, SW at `/firebase-messaging-sw.js` | Done | Set **`VITE_FIREBASE_VAPID_KEY`** everywhere the app is hosted; confirm Cloud Messaging enabled in Firebase. |
+| **§2** Push from four Firestore triggers | Done | **`WEB_APP_ORIGIN`** in `functions/.env`; Blaze; `firebase deploy --only functions`. |
+| **§3** Resend email (code paths) | In repo | **Deferred in production:** needs **your domain** + DNS in Resend (`*.vercel.app` cannot be verified). Until then, `emailEnabled` is harmless; sends no-op if API key missing/invalid. |
+| **§4** QA | Optional | Manual passes on Safari PWA + Android Chrome; note quirks if any. |
+| **Badging** | Done (owners) | Home Screen PWA; test on installed iOS Safari app. |
+
+---
+
+## What you still need to do (checklist)
+
+Use this when you come back to the project after a break.
+
+1. **Hosting env:** `VITE_FIREBASE_VAPID_KEY` = Firebase Console → Project settings → Cloud Messaging → **Web Push certificates** (public key). Same value in local `.env` and production host (e.g. Vercel env vars).
+2. **Functions env:** `functions/.env` with **`WEB_APP_ORIGIN`** (no trailing slash), e.g. `https://your-app.vercel.app`.
+3. **Email (when ready):** Buy a domain → point it at Vercel for the app → add the same domain in **Resend** with DNS records → `RESEND_FROM` in `functions/.env` → enable **Secret Manager API** → `firebase functions:secrets:set RESEND_API_KEY` → deploy. **Until then, email is intentionally postponed** (push still works).
+4. **Deploy:** `firebase deploy --only functions` (and **Firestore rules** if you ever changed pending `rejected` rules locally without deploying).
+5. **§4:** Walk through the five **push** flows on device (pending → owner; approve → members + submitter; reject → submitter; join → owner; feed post → others). **Badge:** as owner, background the **installed** PWA with pending submissions → icon should show count; open app → badge clears.
+
+---
+
+## Email (deferred — no custom domain yet)
+
+You’re on **Vercel’s default hostname** (`*.vercel.app`). That hostname is **not yours to verify in Resend**, so you **cannot** get a production `From:` address for transactional email without **buying a domain** (same domain can point to Vercel **and** be verified in Resend via DNS).
+
+**What still works**
+
+- **Push** (FCM): fully usable with `WEB_APP_ORIGIN` set to your Vercel URL.
+- **Code:** Cloud Functions still call `maybeEmailUser` when `emailEnabled` is true; if **`RESEND_API_KEY`** is missing or too short, email is skipped **silently** (no user-facing error).
+- **`/settings`:** Email toggle remains; turning it on **does not deliver mail** until Resend + domain are configured.
+
+**Original spec gap while deferred**
+
+- The notification table promised **email** for four events — **not delivered** to real inboxes until step 3 in **What you still need to do** is done. Everything else in the spec (push payloads, rejection flag, toggles) remains as implemented.
+
+---
+
+## App icon badging (shipped)
+
+### Behavior (v1)
+
+- **Who:** **Group owners** only. The badge number is the **total count of `pending` docs** across all groups where `groups/{groupId}.ownerId === uid` (same work as the approval queue).
+- **When shown:** When the document becomes **`visibilityState === 'hidden'`** (user switched away / home button), the app queries Firestore and calls **`navigator.setAppBadge(n)`** (`n > 0`).
+- **When cleared:** When the app is **`visible`** again, **`navigator.clearAppBadge()`** runs — so the bubble is a **“something waiting while you’re away”** hint, not a live counter on the icon while you’re inside the app.
+- **Non-owners:** Count is always **0** → no badge when backgrounded.
+
+### Code
+
+- `src/components/OwnerPendingAppBadge.jsx` (mounted in `App.jsx` inside `AuthProvider`)
+- `src/hooks/useOwnerPendingAppBadge.js`
+- `src/services/ownerPendingBadgeService.js` (`getCountFromServer` per owned group)
+- `src/lib/appBadge.js`
+
+### Platform notes
+
+- **iOS (Safari, 16.4+):** [Badging API](https://webkit.org/blog/14112/badging-for-home-screen-web-apps) — **Add to Home Screen** PWA; **notification permission** recommended for the badge to appear.
+- **Android / desktop:** Supported only where the browser implements the [Badging API](https://developer.mozilla.org/en-US/docs/Web/API/Badging_API).
+- **Safari tab (not installed):** badge API unavailable.
+
+### Possible follow-ups (not done)
+
+- Recompute badge when a **push** arrives in the service worker (faster update without opening the app).
+- A different **count** for **members** (would need a new product rule + data).
 
 ---
 
@@ -357,6 +423,7 @@ When notification behavior or routes change, update **this file’s checklist** 
 
 ## Future
 
+- **Email go-live** — custom domain + Resend verification (see **Email (deferred)**).
 - Branded HTML email templates and localized notification copy.
 - Per-event or per-group preferences if the product outgrows global toggles.
 - Tighter **Storage** / **users** field-level rules if the app moves beyond a closed trust boundary ([DESIGN.md](../mvp/DESIGN.md) §10).

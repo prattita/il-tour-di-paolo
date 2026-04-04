@@ -424,7 +424,11 @@ export default {
       'Las push no están configuradas en esta versión (falta la clave web push). Contacta a quien gestione el alojamiento.',
     pushToggleError: 'No se pudieron actualizar las notificaciones push.',
     emailNotificationsLabel: 'Notificaciones por correo',
-    emailNotificationsSoon: 'Próximamente.',
+    emailNotificationsHint:
+      'Correos en texto plano por envíos, aprobaciones, rechazos y nuevos miembros en tus grupos. Usamos el correo de tu cuenta.',
+    emailNoAddressHint:
+      'Tu cuenta no tiene correo, así que no podemos enviar notificaciones por email. Inicia sesión con correo o vincula uno.',
+    emailToggleError: 'No se pudo actualizar las notificaciones por correo.',
     pushForegroundDismiss: 'Cerrar',
     pushForegroundFallback: 'Nueva notificación',
     loadingProfile: 'Cargando tu perfil…',

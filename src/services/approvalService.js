@@ -7,6 +7,7 @@ import {
   query,
   runTransaction,
   serverTimestamp,
+  updateDoc,
   writeBatch,
 } from 'firebase/firestore'
 import { getFirebaseDb } from '../lib/firebase'
@@ -159,6 +160,8 @@ export async function rejectPendingSubmission(groupId, pendingId, pending) {
   const db = requireDb()
   const memberRef = doc(db, `groups/${groupId}/members/${pending.userId}`)
   const pendingDocRef = doc(db, `groups/${groupId}/pending/${pendingId}`)
+
+  await updateDoc(pendingDocRef, { rejected: true })
 
   const batch = writeBatch(db)
   batch.update(memberRef, {

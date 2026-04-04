@@ -424,7 +424,11 @@ export default {
       'Le push non sono configurate per questa versione (manca la chiave web push). Contatta chi gestisce l’hosting.',
     pushToggleError: 'Impossibile aggiornare le notifiche push.',
     emailNotificationsLabel: 'Notifiche email',
-    emailNotificationsSoon: 'In arrivo.',
+    emailNotificationsHint:
+      'Email in testo semplice per invii, approvazioni, rifiuti e nuovi membri nei tuoi gruppi. Usiamo l’email del tuo account.',
+    emailNoAddressHint:
+      'Il tuo account non ha un indirizzo email, quindi non possiamo inviare notifiche per email. Accedi con email o collegane una.',
+    emailToggleError: 'Impossibile aggiornare le notifiche email.',
     pushForegroundDismiss: 'Chiudi',
     pushForegroundFallback: 'Nuova notifica',
     loadingProfile: 'Caricamento profilo…',

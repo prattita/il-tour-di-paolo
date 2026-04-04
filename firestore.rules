@@ -202,6 +202,10 @@ service cloud.firestore {
           && (
             request.resource.data.avatarUrl == null
             || request.resource.data.avatarUrl is string
+          )
+          && (
+            !request.resource.data.keys().hasAny(['rejected'])
+            || request.resource.data.rejected == false
           );
 
         // Owner (queue) or submitter (Phase 9 withdraw). Submitter must still be a group member.
@@ -212,7 +216,14 @@ service cloud.firestore {
             && request.auth.uid in groupDoc(groupId).data.memberIds
           );
 
-        allow update: if false;
+        // Owner: set rejected:true once (triggers Cloud Function before delete).
+        allow update: if isGroupOwner(groupId)
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly(['rejected'])
+          && request.resource.data.rejected == true
+          && (
+            !resource.data.keys().hasAny(['rejected'])
+            || resource.data.rejected != true
+          );
       }
 
       match /feed/{postId} {

@@ -427,7 +427,11 @@ export default {
       'Push is not configured for this deployment yet (missing web push key). Ask the person who manages hosting.',
     pushToggleError: 'Could not update push notifications.',
     emailNotificationsLabel: 'Email notifications',
-    emailNotificationsSoon: 'Coming soon.',
+    emailNotificationsHint:
+      'Plain-text emails for submissions, approvals, rejections, and new members in your groups. Uses your sign-in email.',
+    emailNoAddressHint:
+      'Your account has no email address, so we cannot send email notifications. Sign in with email or link one to your account.',
+    emailToggleError: 'Could not update email notifications.',
     pushForegroundDismiss: 'Dismiss',
     pushForegroundFallback: 'New notification',
     loadingProfile: 'Loading your profile…',

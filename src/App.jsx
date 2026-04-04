@@ -18,11 +18,13 @@ import { GroupApprovalsPage } from './pages/GroupApprovalsPage'
 import { GroupSettingsPage } from './pages/GroupSettingsPage'
 import { GroupStandingsPage } from './pages/GroupStandingsPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { OwnerPendingAppBadge } from './components/OwnerPendingAppBadge'
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <OwnerPendingAppBadge />
         <FcmForegroundBanner />
         <Routes>
           <Route
