@@ -57,6 +57,42 @@ service cloud.firestore {
         && memberHasGoldOnActivity(groupId, uid, activityData.prerequisiteActivityId);
     }
 
+    /** Assigned personal: any member may read (profile / feed); UI hides from non-assignee lists. Unassigned: owner only (via owner rule). */
+    function personalAssignedInGroup(groupId, data) {
+      return data.keys().hasAny(['isPersonal'])
+        && data.isPersonal == true
+        && data.keys().hasAny(['assignedUserId'])
+        && data.assignedUserId is string
+        && data.assignedUserId in groupDoc(groupId).data.memberIds;
+    }
+
+    function activityReadOkForMember(groupId, activityId, data) {
+      return personalAssignedInGroup(groupId, data)
+        || (
+          (!data.keys().hasAny(['isPersonal']) || data.isPersonal == false)
+          && activityIsStandard(data)
+        )
+        || (
+          data.isAdvanced == true
+          && (
+            memberEnrolledInAdvanced(groupId, activityId)
+            || memberEligibleForAdvanced(groupId, data, request.auth.uid)
+          )
+        );
+    }
+
+    function pendingPersonalSubmitOk(groupId, activityId) {
+      let ar = /databases/$(database)/documents/groups/$(groupId)/activities/$(activityId);
+      return !exists(ar)
+        || !get(ar).data.keys().hasAny(['isPersonal'])
+        || get(ar).data.isPersonal != true
+        || (
+          get(ar).data.keys().hasAny(['assignedUserId'])
+          && get(ar).data.assignedUserId is string
+          && get(ar).data.assignedUserId == request.auth.uid
+        );
+    }
+
     /** Multi-photo pending submission (Phase One Task 5): 1–3 items with url, path, dimensions. */
     function validPendingPhotoItem(p) {
       return p is map
@@ -111,25 +147,14 @@ service cloud.firestore {
       );
 
       // Owner may delete the group document after the app has removed subcollections (no cascade in Firestore).
-      allow delete: if isGroupOwner(groupId);
+      // Use `resource.data` (not get()) so delete is evaluated against the doc being removed.
+      allow delete: if request.auth != null
+        && resource.data.keys().hasAll(['ownerId'])
+        && request.auth.uid == resource.data.ownerId;
 
       match /activities/{activityId} {
-        // Owner sees all activities. Members: standard, enrolled advanced, or advanced they are
-        // eligible to join (gold on prerequisite).
         allow read: if isGroupOwner(groupId)
-          || (
-            isGroupMember(groupId)
-            && (
-              activityIsStandard(resource.data)
-              || (
-                resource.data.isAdvanced == true
-                && (
-                  memberEnrolledInAdvanced(groupId, activityId)
-                  || memberEligibleForAdvanced(groupId, resource.data, request.auth.uid)
-                )
-              )
-            )
-          );
+          || (isGroupMember(groupId) && activityReadOkForMember(groupId, activityId, resource.data));
 
         allow write: if isGroupOwner(groupId);
       }
@@ -218,7 +243,8 @@ service cloud.firestore {
           && (
             !request.resource.data.keys().hasAny(['rejected'])
             || request.resource.data.rejected == false
-          );
+          )
+          && pendingPersonalSubmitOk(groupId, request.resource.data.activityId);
 
         // Owner (queue) or submitter (Phase 9 withdraw). Submitter must still be a group member.
         allow delete: if isGroupOwner(groupId)

@@ -7,7 +7,7 @@ import { PageLoading } from '../components/PageLoading'
 import {
   subscribeGroupEnrollments,
   subscribeGroupMembers,
-  subscribeStandardActivitiesOnly,
+  subscribeNonAdvancedActivitiesForStandings,
 } from '../services/activityService'
 import { getGroup } from '../services/groupService'
 import { rankMembersForStandings } from '../lib/standingsRank'
@@ -54,7 +54,7 @@ export function GroupStandingsPage() {
       (list) => setMembers(list),
       (e) => setListError(e.message || t('standings.loadMembersFailed')),
     )
-    const unsubA = subscribeStandardActivitiesOnly(
+    const unsubA = subscribeNonAdvancedActivitiesForStandings(
       groupId,
       (list) => setActivities(list),
       (e) => setListError(e.message || t('standings.loadActivitiesFailed')),
@@ -72,11 +72,21 @@ export function GroupStandingsPage() {
   }, [groupId, isMember, t])
 
   const perMemberSummary = useMemo(() => {
-    const standardIds = activities.map((a) => a.id)
+    const sharedStandardIds = activities
+      .filter((a) => a.isPersonal !== true)
+      .map((a) => a.id)
     const out = {}
     for (const m of members) {
+      const personalIds = activities
+        .filter(
+          (a) =>
+            a.isPersonal === true &&
+            typeof a.assignedUserId === 'string' &&
+            a.assignedUserId === m.id,
+        )
+        .map((a) => a.id)
       const enrolled = enrollmentsByUserId[m.id] || []
-      const visibleIds = [...new Set([...standardIds, ...enrolled])]
+      const visibleIds = [...new Set([...sharedStandardIds, ...personalIds, ...enrolled])]
       const pseudoActivities = visibleIds.map((id) => ({ id }))
       out[m.id] = {
         total: pseudoActivities.length,
@@ -86,6 +96,12 @@ export function GroupStandingsPage() {
     }
     return out
   }, [members, activities, enrollmentsByUserId])
+
+  /** Non-personal activities everyone shares (subtitle only; personal adds per assignee). */
+  const sharedStandardActivityCount = useMemo(
+    () => activities.filter((a) => a.isPersonal !== true).length,
+    [activities],
+  )
 
   const ranked = useMemo(() => {
     const membersWithScope = members.map((m) => ({
@@ -135,10 +151,10 @@ export function GroupStandingsPage() {
             )}
             {' · '}
             {t(
-              activities.length === 1
+              sharedStandardActivityCount === 1
                 ? 'standings.activityCount_one'
                 : 'standings.activityCount_other',
-              { count: activities.length },
+              { count: sharedStandardActivityCount },
             )}
           </p>
           {ranked.length === 0 ? (

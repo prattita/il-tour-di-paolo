@@ -84,7 +84,16 @@ export async function createPendingSubmission({
   if (!activitySnap.exists()) {
     throw new Error('Activity not found.')
   }
-  const actTasks = activitySnap.data().tasks || []
+  const actData = activitySnap.data()
+  if (actData.isPersonal === true) {
+    if (
+      typeof actData.assignedUserId !== 'string' ||
+      actData.assignedUserId !== userId
+    ) {
+      throw new Error('Only the assigned member can submit for this personal activity.')
+    }
+  }
+  const actTasks = actData.tasks || []
   const taskDef = actTasks.find((x) => x.id === taskId)
   if (!taskDef) {
     throw new Error('Task not found.')

@@ -396,3 +396,45 @@ describe('groups/{groupId}/activities and enrollments — advanced', () => {
     )
   })
 })
+
+describe('groups/{groupId}/activities — personal', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore()
+      await setDoc(doc(db, 'groups', GROUP_ID, 'activities', 'act_pers'), {
+        name: 'Personal',
+        sortOrder: 0,
+        isAdvanced: false,
+        prerequisiteActivityId: null,
+        isPersonal: true,
+        assignedUserId: MEMBER_UID,
+      })
+      await setDoc(doc(db, 'groups', GROUP_ID, 'activities', 'act_pers_un'), {
+        name: 'Personal unassigned',
+        sortOrder: 1,
+        isAdvanced: false,
+        prerequisiteActivityId: null,
+        isPersonal: true,
+        assignedUserId: null,
+      })
+    })
+  })
+
+  it('any group member can read assigned personal activity', async () => {
+    await assertSucceeds(
+      getDoc(doc(authedDb(MEMBER2_UID), 'groups', GROUP_ID, 'activities', 'act_pers')),
+    )
+  })
+
+  it('member cannot read unassigned personal activity', async () => {
+    await assertFails(
+      getDoc(doc(authedDb(MEMBER_UID), 'groups', GROUP_ID, 'activities', 'act_pers_un')),
+    )
+  })
+
+  it('owner can read unassigned personal activity', async () => {
+    await assertSucceeds(
+      getDoc(doc(authedDb(OWNER_UID), 'groups', GROUP_ID, 'activities', 'act_pers_un')),
+    )
+  })
+})

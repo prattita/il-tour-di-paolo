@@ -232,6 +232,8 @@ export default {
     advancedJoinSectionTitle: 'Actividades avanzadas a las que puedes unirte',
     advancedJoinHint: 'Opcional. Una vez dentro, no podrás salir.',
     advancedTrackOf: 'Itinerario avanzado de: {{name}}',
+    personalAssignedToLine: 'Asignada a: {{name}}',
+    personalUnassignedGroupInfo: 'Sin asignar',
     prerequisiteFallback: 'actividad previa',
     joinConfirm:
       '¿Unirte a "{{name}}"? Una vez dentro, no podrás salir.',
@@ -250,6 +252,8 @@ export default {
     compoundUpdateFailed: 'No se pudo actualizar el contador.',
     advancedSectionTitle: 'Actividades avanzadas',
     advancedBadge: 'Avanzada',
+    personalSectionTitle: 'Actividades personales',
+    personalBadge: 'Personal',
   },
   taskComplete: {
     pageTitle: L.completeATask,
@@ -395,6 +399,14 @@ export default {
       'Los mismos campos que Añadir actividad (nombre de la actividad, descripción opcional, tres nombres de tarea). Tras la primera aprobación en una actividad, las tres tareas y su orden quedan fijas en la base de datos: aún puedes renombrar la actividad y las tareas; no puedes añadir, quitar ni reordenar tareas (véase DESIGN §8).',
     noActivitiesYet: L.noActivitiesYet,
     advancedCheckboxEdit: 'Actividad avanzada',
+    personalCheckboxAdd:
+      'Actividad personal (solo el miembro asignado la completa)',
+    personalCheckboxEdit: 'Actividad personal',
+    assigneeLabel: 'Asignar a',
+    assigneePickupLabel: 'Asigna un miembro para continuar',
+    selectAssigneePlaceholder: '— Seleccionar miembro —',
+    personalUnassignedShort: 'Sin asignar — elige a alguien en Editar.',
+    personalAssignedTo: 'Asignada a {{name}}',
     savingEdit: L.saving,
     save: 'Guardar',
     cancel: L.cancel,

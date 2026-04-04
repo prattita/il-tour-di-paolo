@@ -232,6 +232,8 @@ export default {
     advancedJoinSectionTitle: 'Attività avanzate a cui puoi unirti',
     advancedJoinHint: 'Facoltativo. Dopo esserti iscritto non potrai annullare.',
     advancedTrackOf: 'Percorso avanzato di: {{name}}',
+    personalAssignedToLine: 'Assegnata a: {{name}}',
+    personalUnassignedGroupInfo: 'Non assegnata',
     prerequisiteFallback: 'attività prerequisito',
     joinConfirm:
       'Unirti a «{{name}}»? Dopo l’iscrizione non potrai annullare.',
@@ -250,6 +252,8 @@ export default {
     compoundUpdateFailed: 'Impossibile aggiornare il contatore.',
     advancedSectionTitle: 'Attività avanzate',
     advancedBadge: 'Avanzata',
+    personalSectionTitle: 'Attività personali',
+    personalBadge: 'Personale',
   },
   taskComplete: {
     pageTitle: L.completeATask,
@@ -395,6 +399,14 @@ export default {
       'Stessi campi di Aggiungi attività (nome attività, descrizione facoltativa, tre nomi di task). Dopo la prima approvazione in un’attività, i tre task e il loro ordine restano fissi nel database: puoi ancora rinominare attività e task; non puoi aggiungere, rimuovere o riordinare i task (vedi DESIGN §8).',
     noActivitiesYet: L.noActivitiesYet,
     advancedCheckboxEdit: 'Attività avanzata',
+    personalCheckboxAdd:
+      'Attività personale (solo il membro assegnato la completa)',
+    personalCheckboxEdit: 'Attività personale',
+    assigneeLabel: 'Assegna a',
+    assigneePickupLabel: 'Assegna un membro per continuare',
+    selectAssigneePlaceholder: '— Seleziona membro —',
+    personalUnassignedShort: 'Non assegnata — scegli qualcuno in Modifica.',
+    personalAssignedTo: 'Assegnata a {{name}}',
     savingEdit: L.saving,
     save: 'Salva',
     cancel: L.cancel,

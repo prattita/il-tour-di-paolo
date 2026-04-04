@@ -102,10 +102,10 @@ export function TaskCompletePage() {
 
   const lockedGateMessage = useMemo(() => {
     if (!wantsLockedRoute || !pickerDataReady || !member) return ''
-    if (!memberParticipatesInActivity(member, activityIdParam)) {
+    const act = activities.find((a) => a.id === activityIdParam)
+    if (!memberParticipatesInActivity(member, activityIdParam, act)) {
       return t('taskComplete.notParticipating')
     }
-    const act = activities.find((a) => a.id === activityIdParam)
     if (!act) return t('taskComplete.activityNotFound')
     const tsk = (act.tasks || []).find((x) => x.id === taskIdParam)
     if (!tsk) return t('taskComplete.taskNotFound')

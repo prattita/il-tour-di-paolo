@@ -196,8 +196,29 @@ export function subscribeStandardActivitiesOnly(groupId, onData, onError) {
   return onSnapshot(
     qStd,
     (snap) => {
+      const list = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((a) => a.isPersonal !== true)
+      onData(sortActivitiesBySortOrderThenName(list))
+    },
+    onError,
+  )
+}
+
+/**
+ * Non-advanced activities: **standard + personal** (Firestore rules still filter per reader).
+ * Use for standings so each member’s Y includes personal activities assigned to them.
+ */
+export function subscribeNonAdvancedActivitiesForStandings(groupId, onData, onError) {
+  const db = requireDb()
+  const qStd = query(collection(db, `groups/${groupId}/activities`), where('isAdvanced', '==', false))
+  return onSnapshot(
+    qStd,
+    (snap) => {
       onData(
-        sortActivitiesBySortOrderThenName(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+        sortActivitiesBySortOrderThenName(
+          snap.docs.map((d) => ({ id: d.id, ...d.data() })),
+        ),
       )
     },
     onError,
@@ -447,6 +468,30 @@ async function isTaskInPlayForCompoundEdit(db, groupId, activityId, taskId) {
   return false
 }
 
+async function activityHasAnyParticipation(db, groupId, activityId) {
+  const pendingSnap = await getDocs(
+    query(
+      collection(db, `groups/${groupId}/pending`),
+      where('activityId', '==', activityId),
+    ),
+  )
+  if (pendingSnap.docs.length > 0) return true
+  const mSnap = await getDocs(collection(db, `groups/${groupId}/members`))
+  for (const d of mSnap.docs) {
+    const data = d.data()
+    const prog = data.progress?.[activityId]
+    if (Number(prog?.tasksCompleted || 0) > 0) return true
+    if (Array.isArray(prog?.completedTaskIds) && prog.completedTaskIds.length > 0) return true
+    const cp = data.compoundProgress?.[activityId]
+    if (cp && typeof cp === 'object') {
+      for (const v of Object.values(cp)) {
+        if (typeof v === 'number' && v > 0) return true
+      }
+    }
+  }
+  return false
+}
+
 /**
  * Member adjusts compound task counter (+1 / -1). Trust-based; bounded by activity `targetCount`.
  */
@@ -484,12 +529,23 @@ export async function adjustMemberCompoundCount(groupId, memberId, activityId, t
 export async function updateActivityDocument(
   groupId,
   activityId,
-  { name, description, tasks, isAdvanced, prerequisiteActivityId } = {},
+  {
+    name,
+    description,
+    tasks,
+    isAdvanced,
+    prerequisiteActivityId,
+    isPersonal,
+    assignedUserId,
+  } = {},
 ) {
   const db = requireDb()
   const ref = doc(db, `groups/${groupId}/activities`, activityId)
   const snap = await getDoc(ref)
   if (!snap.exists()) throw new Error('Activity not found.')
+
+  const groupSnap = await getDoc(doc(db, 'groups', groupId))
+  const memberIds = groupSnap.exists() ? groupSnap.data().memberIds || [] : []
 
   const activityName = name?.trim()
   if (!activityName) throw new Error('Activity name is required.')
@@ -514,7 +570,11 @@ export async function updateActivityDocument(
     return { id, name: taskName, description: taskDescription, kind, targetCount }
   })
 
-  const locked = snap.data().isLocked === true
+  const prevData = snap.data()
+  const locked = prevData.isLocked === true
+  const prevIsPersonal = prevData.isPersonal === true
+  const prevAssigned =
+    typeof prevData.assignedUserId === 'string' ? prevData.assignedUserId : null
   const pendingTaskIds = await fetchPendingTaskIdsForActivity(db, groupId, activityId)
 
   for (let i = 0; i < 3; i += 1) {
@@ -554,6 +614,9 @@ export async function updateActivityDocument(
     }
     const nextIsAdvanced = isAdvanced === true
     if (nextIsAdvanced) {
+      if (prevData.isPersonal === true) {
+        throw new Error('Turn off personal before making this an advanced activity.')
+      }
       const pid =
         typeof prerequisiteActivityId === 'string' ? prerequisiteActivityId.trim() : ''
       if (!pid) {
@@ -567,12 +630,78 @@ export async function updateActivityDocument(
       if (prereqSnap.data()?.isAdvanced === true) {
         throw new Error('Prerequisite must be a standard activity.')
       }
+      if (prereqSnap.data()?.isPersonal === true) {
+        throw new Error('Prerequisite cannot be a personal activity.')
+      }
       patch.isAdvanced = true
       patch.prerequisiteActivityId = pid
     } else {
       patch.isAdvanced = false
       patch.prerequisiteActivityId = null
     }
+  }
+
+  const personalProvided = isPersonal !== undefined || assignedUserId !== undefined
+  if (personalProvided) {
+    const willBeAdvanced =
+      patch.isAdvanced !== undefined ? patch.isAdvanced === true : prevData.isAdvanced === true
+    const nextIsPersonalFlag =
+      isPersonal !== undefined ? isPersonal === true : prevIsPersonal
+
+    let nextAssignedResolved = prevAssigned
+    if (assignedUserId !== undefined) {
+      const raw = typeof assignedUserId === 'string' ? assignedUserId.trim() : ''
+      nextAssignedResolved = raw || null
+    }
+
+    if (nextIsPersonalFlag && willBeAdvanced) {
+      throw new Error('An activity cannot be both advanced and personal.')
+    }
+
+    if (nextIsPersonalFlag && nextIsPersonalFlag !== prevIsPersonal && locked) {
+      throw new Error('Cannot change personal settings after this activity has approved progress.')
+    }
+
+    if (nextIsPersonalFlag && !nextAssignedResolved) {
+      throw new Error('Personal activities require an assigned member.')
+    }
+    if (
+      nextIsPersonalFlag &&
+      nextAssignedResolved &&
+      !memberIds.includes(nextAssignedResolved)
+    ) {
+      throw new Error('Assignee must be a current group member.')
+    }
+
+    if (assignedUserId !== undefined && nextAssignedResolved !== prevAssigned) {
+      const pickup = prevAssigned == null && nextAssignedResolved != null
+      if (!pickup) {
+        if (locked) {
+          throw new Error('Cannot change assignee after this activity has approved progress.')
+        }
+        if (await activityHasAnyParticipation(db, groupId, activityId)) {
+          throw new Error('Cannot change assignee after members have progress on this activity.')
+        }
+      }
+    }
+
+    if (isPersonal !== undefined) {
+      if (nextIsPersonalFlag && prevData.isAdvanced === true && willBeAdvanced) {
+        throw new Error('Turn off advanced before making this a personal activity.')
+      }
+      patch.isPersonal = nextIsPersonalFlag
+      patch.assignedUserId = nextIsPersonalFlag ? nextAssignedResolved : null
+    } else if (assignedUserId !== undefined && prevIsPersonal) {
+      patch.assignedUserId = nextAssignedResolved
+    }
+  }
+
+  const finalAdv =
+    patch.isAdvanced !== undefined ? patch.isAdvanced === true : prevData.isAdvanced === true
+  const finalPer =
+    patch.isPersonal !== undefined ? patch.isPersonal === true : prevData.isPersonal === true
+  if (finalPer && finalAdv) {
+    throw new Error('An activity cannot be both advanced and personal.')
   }
 
   await updateDoc(ref, patch)

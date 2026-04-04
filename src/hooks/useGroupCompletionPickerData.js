@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from './useTranslation'
+import { activityVisibleOnParticipationSurfaces } from '../lib/activityVisibility'
 import { getGroup } from '../services/groupService'
 import { subscribeActivitiesForViewer, subscribeGroupMember } from '../services/activityService'
 import { subscribePendingSubmission } from '../services/pendingService'
@@ -60,7 +61,10 @@ export function useGroupCompletionPickerData(groupId, userId) {
       userId,
       group?.ownerId,
       (list) => {
-        setActivities(list)
+        const ownerId = group?.ownerId
+        setActivities(
+          list.filter((a) => activityVisibleOnParticipationSurfaces(a, userId, ownerId)),
+        )
         setActivitiesHydrated(true)
       },
       (e) => setError(e.message || t('activities.loadActivitiesFailed')),

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useLocation, useParams } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { useTranslation } from '../hooks/useTranslation'
+import { activityVisibleOnParticipationSurfaces } from '../lib/activityVisibility'
 import { getGroup } from '../services/groupService'
 import { ActivityListTaskRow } from '../components/ActivityListTaskRow'
 import {
@@ -168,14 +169,31 @@ export function ActivityListPage() {
     return () => unsub()
   }, [groupId, user?.uid, isMember, t])
 
-  const activityIdsKey = useMemo(() => activities.map((a) => a.id).sort().join(','), [activities])
+  const participationActivities = useMemo(
+    () =>
+      activities.filter((a) =>
+        activityVisibleOnParticipationSurfaces(a, user?.uid, group?.ownerId),
+      ),
+    [activities, user?.uid, group?.ownerId],
+  )
+  const activityIdsKey = useMemo(
+    () => participationActivities.map((a) => a.id).sort().join(','),
+    [participationActivities],
+  )
   const standardActivities = useMemo(
-    () => activities.filter((a) => a?.isAdvanced !== true),
-    [activities],
+    () =>
+      participationActivities.filter(
+        (a) => a?.isAdvanced !== true && a?.isPersonal !== true,
+      ),
+    [participationActivities],
+  )
+  const personalActivities = useMemo(
+    () => participationActivities.filter((a) => a?.isPersonal === true),
+    [participationActivities],
   )
   const enrolledAdvancedActivities = useMemo(
-    () => activities.filter((a) => a?.isAdvanced === true),
-    [activities],
+    () => participationActivities.filter((a) => a?.isAdvanced === true),
+    [participationActivities],
   )
   const activityNameById = useMemo(
     () => Object.fromEntries(activities.map((a) => [a.id, a.name || t('feed.activityFallback')])),
@@ -186,7 +204,7 @@ export function ActivityListPage() {
     if (!groupId || !user?.uid || !activityIdsKey) {
       return
     }
-    const ids = activities.map((a) => a.id)
+    const ids = participationActivities.map((a) => a.id)
     const unsubs = ids.map((activityId) =>
       subscribePendingSubmission(
         groupId,
@@ -201,7 +219,7 @@ export function ActivityListPage() {
       ),
     )
     return () => unsubs.forEach((u) => u())
-  }, [groupId, user?.uid, activityIdsKey, activities])
+  }, [groupId, user?.uid, activityIdsKey, participationActivities])
 
   return (
     <div className="text-tour-text">
@@ -343,7 +361,7 @@ export function ActivityListPage() {
             </section>
           )}
 
-          {activities.length === 0 && (
+          {participationActivities.length === 0 && (
             <p className="rounded-xl border border-black/10 bg-tour-surface p-4 text-sm text-tour-text-secondary">
               {t('activities.emptyList')}
             </p>
@@ -427,6 +445,94 @@ export function ActivityListPage() {
               )
             })}
           </div>
+          {personalActivities.length > 0 && (
+            <div className="mt-4">
+              <h3 className="mb-2 text-[12px] font-medium uppercase tracking-wide text-tour-text-secondary">
+                {t('activities.personalSectionTitle')}
+              </h3>
+              <div className="flex flex-col gap-3">
+                {personalActivities.map((activity) => {
+                  const progress = member?.progress?.[activity.id]
+                  const pendingDoc = pendingByActivityId[activity.id]
+                  const tasks = activity.tasks || []
+                  const tasksDone = progress?.tasksCompleted ?? 0
+                  const tier = medalTierFromTasksCompleted(tasksDone)
+                  const showAwaitingHint =
+                    Boolean(pendingDoc) &&
+                    tasks.some((tk) => getTaskStatus(tk, progress, pendingDoc) === 'blocked')
+
+                  return (
+                    <section
+                      key={activity.id}
+                      className="rounded-xl border border-amber-200 bg-amber-50/40 px-3.5 py-3"
+                    >
+                      <div
+                        className={[
+                          'flex items-center justify-between gap-3',
+                          activity.description ? 'mb-1' : 'mb-2',
+                        ].join(' ')}
+                      >
+                        <h2 className="min-w-0 flex-1 text-[14px] font-medium leading-snug text-tour-text">
+                          {activity.name}
+                          <span className="ml-2 align-middle rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
+                            {t('activities.personalBadge')}
+                          </span>
+                        </h2>
+                        <MedalBadge tier={tier} className="w-[4.75rem] shrink-0" />
+                      </div>
+                      {activity.description && (
+                        <p className="mb-4 text-[12px] leading-snug text-tour-text-secondary">
+                          {activity.description}
+                        </p>
+                      )}
+                      {showAwaitingHint && (
+                        <p className="mb-2 text-[11px] text-amber-900">
+                          {t('activities.awaitingApprovalHint')}
+                        </p>
+                      )}
+                      {pendingDoc && (
+                        <div className="mb-2 rounded-lg border border-black/10 bg-tour-muted/40 px-2.5 py-2">
+                          <p className="text-[11px] text-tour-text-secondary">
+                            {t('activities.waitingReviewBefore')}{' '}
+                            <span className="font-medium text-tour-text">
+                              {pendingDoc.taskName || t('activities.thisTaskFallback')}
+                            </span>
+                            .
+                          </p>
+                          <button
+                            type="button"
+                            disabled={withdrawBusyActivityId === activity.id}
+                            onClick={() => handleWithdrawSubmission(activity.id, pendingDoc)}
+                            className="mt-2 rounded-lg border border-red-200/90 bg-tour-surface px-2.5 py-1.5 text-[11px] font-medium text-red-900 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {withdrawBusyActivityId === activity.id
+                              ? t('activities.withdrawing')
+                              : t('activities.withdrawSubmission')}
+                          </button>
+                        </div>
+                      )}
+                      <ul className="divide-y divide-black/10">
+                        {tasks.map((task) => (
+                          <ActivityListTaskRow
+                            key={task.id}
+                            task={task}
+                            groupId={groupId}
+                            activityId={activity.id}
+                            progress={progress}
+                            pendingDoc={pendingDoc}
+                            member={member}
+                            t={t}
+                            onCompoundDelta={handleCompoundDelta}
+                            compoundBusy={compoundBusyKey === `${activity.id}-${task.id}`}
+                          />
+                        ))}
+                      </ul>
+                    </section>
+                  )
+                })}
+              </div>
+            </div>
+          )}
           {enrolledAdvancedActivities.length > 0 && (
             <div className="mt-4">
               <h3 className="mb-2 text-[12px] font-medium uppercase tracking-wide text-tour-text-secondary">

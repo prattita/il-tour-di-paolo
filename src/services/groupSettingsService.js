@@ -108,7 +108,17 @@ export async function deleteEntireGroup(groupId, ownerId) {
     }
   }
 
-  await deleteDoc(doc(db, 'groups', groupId))
+  try {
+    await deleteDoc(doc(db, 'groups', groupId))
+  } catch (e) {
+    const code = e?.code || e?.name
+    if (code === 'permission-denied') {
+      throw new Error(
+        'Could not remove the group record (permission denied). Deploy the latest firestore.rules to Firebase, then delete the empty group from the console if needed — or contact support.',
+      )
+    }
+    throw e
+  }
 }
 
 export async function updateGroupDetails(groupId, { name, description }) {
@@ -187,11 +197,24 @@ export async function removeGroupMember(groupId, memberUserId, ownerId) {
   const memberRef = doc(db, `groups/${groupId}/members/${memberUserId}`)
   const groupRef = doc(db, 'groups', groupId)
 
+  const personalActsSnap = await getDocs(
+    query(
+      collection(db, `groups/${groupId}/activities`),
+      where('assignedUserId', '==', memberUserId),
+    ),
+  )
+
   const enrollmentRef = doc(db, `groups/${groupId}/enrollments/${memberUserId}`)
   const batch = writeBatch(db)
   batch.delete(memberRef)
   batch.delete(enrollmentRef)
   batch.update(groupRef, { memberIds: arrayRemove(memberUserId) })
+  for (const d of personalActsSnap.docs) {
+    const data = d.data()
+    if (data?.isPersonal === true) {
+      batch.update(d.ref, { assignedUserId: null })
+    }
+  }
   await batch.commit()
 }
 
@@ -209,6 +232,8 @@ export async function ensureActivityAdvancedDefaults(groupId) {
     const patch = {}
     if (!('isAdvanced' in data)) patch.isAdvanced = false
     if (!('prerequisiteActivityId' in data)) patch.prerequisiteActivityId = null
+    if (!('isPersonal' in data)) patch.isPersonal = false
+    if (!('assignedUserId' in data)) patch.assignedUserId = null
     if (Object.keys(patch).length > 0) {
       batch.update(d.ref, patch)
       ops += 1
@@ -241,6 +266,13 @@ export async function addGroupActivity(groupId, activityInput, ownerDisplayName)
 
   const sortOrder = count
 
+  if (activityInput.isPersonal === true) {
+    const aid =
+      typeof activityInput.assignedUserId === 'string' ? activityInput.assignedUserId.trim() : ''
+    if (!aid || !(group.memberIds || []).includes(aid)) {
+      throw new Error('Choose a group member to assign this personal activity.')
+    }
+  }
   if (activityInput.isAdvanced === true) {
     const pid = activityInput.prerequisiteActivityId?.trim()
     if (!pid) {
@@ -252,6 +284,9 @@ export async function addGroupActivity(groupId, activityInput, ownerDisplayName)
     }
     if (prereqSnap.data()?.isAdvanced === true) {
       throw new Error('Prerequisite must be a standard activity.')
+    }
+    if (prereqSnap.data()?.isPersonal === true) {
+      throw new Error('Prerequisite cannot be a personal activity.')
     }
   }
 

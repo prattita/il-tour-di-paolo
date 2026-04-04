@@ -63,12 +63,27 @@ function buildTaskPayload(raw, index) {
 /** New activity document (3 tasks, fixed medal copy). `sortOrder` controls list ordering. */
 export function buildActivityDocument(input, sortOrder) {
   const isAdvanced = input.isAdvanced === true
+  const isPersonal = input.isPersonal === true
+  if (isAdvanced && isPersonal) {
+    throw new Error('An activity cannot be both advanced and personal.')
+  }
   const prereq =
     typeof input.prerequisiteActivityId === 'string' && input.prerequisiteActivityId.length > 0
       ? input.prerequisiteActivityId
       : null
   if (isAdvanced && !prereq) {
     throw new Error('Advanced activities require a prerequisite activity.')
+  }
+  let assignedUserId = null
+  if (isPersonal) {
+    const raw =
+      typeof input.assignedUserId === 'string' && input.assignedUserId.trim()
+        ? input.assignedUserId.trim()
+        : null
+    if (!raw) {
+      throw new Error('Personal activities require an assigned member.')
+    }
+    assignedUserId = raw
   }
   const taskPayloads = [0, 1, 2].map((i) => buildTaskPayload(input.tasks?.[i], i))
   return {
@@ -84,6 +99,8 @@ export function buildActivityDocument(input, sortOrder) {
     isLocked: false,
     isAdvanced,
     prerequisiteActivityId: isAdvanced ? prereq : null,
+    isPersonal,
+    assignedUserId: isPersonal ? assignedUserId : null,
     createdAt: serverTimestamp(),
   }
 }
@@ -104,7 +121,13 @@ export async function createGroup({
 
   const validActivities = activities
     .filter((activity) => activity.name?.trim())
-    .map((activity, index) => buildActivityDocument(activity, index))
+    .map((activity, index) => {
+      const input = { ...activity }
+      if (input.isPersonal === true && !input.assignedUserId) {
+        input.assignedUserId = ownerId
+      }
+      return buildActivityDocument(input, index)
+    })
 
   const memberAvatarUrl = await getUserAvatarUrlForMember(ownerId, ownerAvatarUrl)
 

@@ -5,6 +5,7 @@ import { FeedPhotoLightbox } from '../components/FeedPhotoLightbox'
 import { useAuth } from '../context/useAuth'
 import { useTranslation } from '../hooks/useTranslation'
 import { MedalBadge } from '../components/MedalBadge'
+import { filterActivitiesForSubjectProfile } from '../lib/activityVisibility'
 import {
   buildProfileActivityRows,
   subscribeActivitiesForProfile,
@@ -125,16 +126,27 @@ export function GroupProfilePage() {
     if (!subjectMember?.avatarUrl) setAvatarLightboxOpen(false)
   }, [subjectMember?.avatarUrl])
 
-  const total = activities.length
-  const counts = useMemo(
-    () => inclusiveMedalCounts(activities, subjectMember?.progress),
-    [activities, subjectMember?.progress],
+  const profileActivities = useMemo(
+    () => filterActivitiesForSubjectProfile(activities, userId),
+    [activities, userId],
   )
 
-  const profileActivityRows = useMemo(() => buildProfileActivityRows(activities), [activities])
+  const total = profileActivities.length
+  const counts = useMemo(
+    () => inclusiveMedalCounts(profileActivities, subjectMember?.progress),
+    [profileActivities, subjectMember?.progress],
+  )
+
+  const profileActivityRows = useMemo(
+    () => buildProfileActivityRows(profileActivities),
+    [profileActivities],
+  )
 
   const displayName = subjectMember?.displayName
   const isSelf = Boolean(user?.uid && userId && user.uid === userId)
+  const isOwnerViewer = Boolean(user?.uid && group?.ownerId && user.uid === group.ownerId)
+  const personalRowRedacted = (activity) =>
+    activity?.isPersonal === true && !isSelf && !isOwnerViewer
   const canExpandProfilePhoto = Boolean(
     subjectMember?.avatarUrl && !profileHeroPhotoFailed && !avatarUploading,
   )
@@ -323,7 +335,7 @@ export function GroupProfilePage() {
             <h2 className="text-[12px] font-medium uppercase tracking-wide text-tour-text-secondary">
               {t('profile.byActivityHeading')}
             </h2>
-            {activities.length === 0 ? (
+            {profileActivities.length === 0 ? (
               <p className="mt-2 text-sm text-tour-text-secondary">{t('profile.noActivitiesShort')}</p>
             ) : (
               <ul className="mt-3 divide-y divide-black/10">
@@ -333,6 +345,7 @@ export function GroupProfilePage() {
                   const tier = medalTierFromTasksCompleted(tasksDone)
                   const pad = depth > 0 ? { paddingLeft: `${depth * 0.75}rem` } : undefined
                   const nestedContentIndent = depth > 0 ? 'pl-4' : ''
+                  const redacted = personalRowRedacted(activity)
                   return (
                     <li
                       key={activity.id}
@@ -348,10 +361,19 @@ export function GroupProfilePage() {
                               {t('activities.advancedBadge')}
                             </span>
                           ) : null}
+                          {activity.isPersonal === true ? (
+                            <span className="ml-2 align-middle rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
+                              {t('activities.personalBadge')}
+                            </span>
+                          ) : null}
                         </p>
-                        <p className={`mt-0.5 text-[12px] text-tour-text-secondary ${nestedContentIndent}`.trim()}>
-                          {t('profile.tasksOfThree', { done: tasksDone })}
-                        </p>
+                        {!redacted ? (
+                          <p
+                            className={`mt-0.5 text-[12px] text-tour-text-secondary ${nestedContentIndent}`.trim()}
+                          >
+                            {t('profile.tasksOfThree', { done: tasksDone })}
+                          </p>
+                        ) : null}
                       </div>
                       <div className="flex items-center gap-3 sm:contents">
                         <div

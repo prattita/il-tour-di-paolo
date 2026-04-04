@@ -31,6 +31,8 @@ function emptyAddActivity() {
     ],
     isAdvanced: false,
     prerequisiteActivityId: '',
+    isPersonal: false,
+    assignedUserId: '',
   }
 }
 
@@ -269,6 +271,8 @@ export function GroupSettingsPage() {
       taskTargets: [0, 1, 2].map((i) => pad(i).targetCount ?? 10),
       isAdvanced: activity.isAdvanced === true,
       prerequisiteActivityId: activity.prerequisiteActivityId || '',
+      isPersonal: activity.isPersonal === true,
+      assignedUserId: activity.assignedUserId || '',
     })
   }
 
@@ -308,6 +312,17 @@ export function GroupSettingsPage() {
           targetCount: kind === 'compound' ? normalizeCompoundTargetInput(editForm.taskTargets[i]) : null,
         }
       })
+      const personalPayload =
+        activitySnap?.isLocked && activitySnap?.isPersonal && !activitySnap?.assignedUserId
+          ? { assignedUserId: editForm.assignedUserId || null }
+          : !activitySnap?.isLocked
+            ? {
+                isPersonal: editForm.isPersonal === true,
+                assignedUserId:
+                  editForm.isPersonal === true ? editForm.assignedUserId || null : null,
+              }
+            : {}
+
       await updateActivityDocument(groupId, editingActivity, {
         name: editForm.name,
         description: editForm.description,
@@ -318,6 +333,7 @@ export function GroupSettingsPage() {
               isAdvanced: editForm.isAdvanced === true,
               prerequisiteActivityId: editForm.prerequisiteActivityId,
             }),
+        ...personalPayload,
       })
       closeEditActivity()
     } catch (err) {
@@ -622,6 +638,8 @@ export function GroupSettingsPage() {
                           ...f,
                           isAdvanced: e.target.checked,
                           prerequisiteActivityId: e.target.checked ? f.prerequisiteActivityId : '',
+                          isPersonal: e.target.checked ? false : f.isPersonal,
+                          assignedUserId: e.target.checked ? '' : f.assignedUserId,
                         }))
                       }
                       className="mt-0.5"
@@ -641,12 +659,51 @@ export function GroupSettingsPage() {
                       >
                         <option value="">{t('groupSettings.selectPrerequisitePlaceholder')}</option>
                         {activities
-                          .filter((x) => !x.isAdvanced)
+                          .filter((x) => !x.isAdvanced && !x.isPersonal)
                           .map((x) => (
                             <option key={x.id} value={x.id}>
                               {x.name}
                             </option>
                           ))}
+                      </select>
+                    </label>
+                  )}
+                  <label className="flex items-start gap-2 text-[12px] font-medium text-tour-text-secondary">
+                    <input
+                      type="checkbox"
+                      checked={addForm.isPersonal === true}
+                      onChange={(e) =>
+                        setAddForm((f) => ({
+                          ...f,
+                          isPersonal: e.target.checked,
+                          isAdvanced: e.target.checked ? false : f.isAdvanced,
+                          prerequisiteActivityId: e.target.checked ? '' : f.prerequisiteActivityId,
+                          assignedUserId: e.target.checked
+                            ? f.assignedUserId || user?.uid || ''
+                            : '',
+                        }))
+                      }
+                      className="mt-0.5"
+                    />
+                    <span>{t('groupSettings.personalCheckboxAdd')}</span>
+                  </label>
+                  {addForm.isPersonal && (
+                    <label className="block text-[12px] font-medium text-tour-text-secondary">
+                      {t('groupSettings.assigneeLabel')}
+                      <select
+                        value={addForm.assignedUserId}
+                        onChange={(e) =>
+                          setAddForm((f) => ({ ...f, assignedUserId: e.target.value }))
+                        }
+                        className="mt-1 w-full rounded-lg border border-black/18 bg-tour-surface px-3 py-2 text-[13px] text-tour-text"
+                        required={addForm.isPersonal}
+                      >
+                        <option value="">{t('groupSettings.selectAssigneePlaceholder')}</option>
+                        {members.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.displayName || t('groupShell.displayNameFallback')}
+                          </option>
+                        ))}
                       </select>
                     </label>
                   )}
@@ -676,8 +733,17 @@ export function GroupSettingsPage() {
               </p>
             ) : (
               <ul className="mt-3 space-y-2">
-                {activities.map((a) => (
-                  <li key={a.id} className="rounded-lg border border-black/10 p-3">
+                {activities.map((a) => {
+                  const rowTint = a.isPersonal
+                    ? 'border-amber-200 bg-amber-50/30'
+                    : a.isAdvanced === true
+                      ? 'border-violet-200 bg-violet-50/40'
+                      : 'border-black/10'
+                  return (
+                  <li
+                    key={a.id}
+                    className={['rounded-lg border p-3', rowTint].join(' ')}
+                  >
                     {editingActivity === a.id && editForm ? (
                       <form onSubmit={handleSaveActivity} className="space-y-3">
                         <label className="block text-[12px] font-medium text-tour-text-secondary">
@@ -804,6 +870,8 @@ export function GroupSettingsPage() {
                                       prerequisiteActivityId: e.target.checked
                                         ? f.prerequisiteActivityId
                                         : '',
+                                      isPersonal: e.target.checked ? false : f.isPersonal,
+                                      assignedUserId: e.target.checked ? '' : f.assignedUserId,
                                     }))
                                   }
                                   className="mt-0.5"
@@ -828,7 +896,10 @@ export function GroupSettingsPage() {
                                       {t('groupSettings.selectPrerequisitePlaceholder')}
                                     </option>
                                     {activities
-                                      .filter((x) => !x.isAdvanced && x.id !== editingActivity)
+                                      .filter(
+                                        (x) =>
+                                          !x.isAdvanced && !x.isPersonal && x.id !== editingActivity,
+                                      )
                                       .map((x) => (
                                         <option key={x.id} value={x.id}>
                                           {x.name}
@@ -837,7 +908,74 @@ export function GroupSettingsPage() {
                                   </select>
                                 </label>
                               )}
+                              <label className="flex items-start gap-2 text-[12px] font-medium text-tour-text-secondary">
+                                <input
+                                  type="checkbox"
+                                  checked={editForm.isPersonal === true}
+                                  onChange={(e) =>
+                                    setEditForm((f) => ({
+                                      ...f,
+                                      isPersonal: e.target.checked,
+                                      isAdvanced: e.target.checked ? false : f.isAdvanced,
+                                      prerequisiteActivityId: e.target.checked
+                                        ? ''
+                                        : f.prerequisiteActivityId,
+                                      assignedUserId: e.target.checked
+                                        ? f.assignedUserId || user?.uid || ''
+                                        : '',
+                                    }))
+                                  }
+                                  className="mt-0.5"
+                                />
+                                <span>{t('groupSettings.personalCheckboxEdit')}</span>
+                              </label>
+                              {editForm.isPersonal && (
+                                <label className="block text-[12px] font-medium text-tour-text-secondary">
+                                  {t('groupSettings.assigneeLabel')}
+                                  <select
+                                    value={editForm.assignedUserId || ''}
+                                    onChange={(e) =>
+                                      setEditForm((f) => ({ ...f, assignedUserId: e.target.value }))
+                                    }
+                                    className="mt-1 w-full rounded-lg border border-black/18 bg-tour-surface px-3 py-2 text-[13px] text-tour-text"
+                                    required={editForm.isPersonal}
+                                  >
+                                    <option value="">{t('groupSettings.selectAssigneePlaceholder')}</option>
+                                    {members.map((m) => (
+                                      <option key={m.id} value={m.id}>
+                                        {m.displayName || t('groupShell.displayNameFallback')}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              )}
                             </>
+                          )
+                        })()}
+                        {(() => {
+                          const snap = activities.find((x) => x.id === editingActivity)
+                          const pickupOnly =
+                            snap?.isLocked && snap?.isPersonal === true && !snap?.assignedUserId
+                          if (!pickupOnly) return null
+                          return (
+                            <label className="block text-[12px] font-medium text-tour-text-secondary">
+                              {t('groupSettings.assigneePickupLabel')}
+                              <select
+                                value={editForm.assignedUserId || ''}
+                                onChange={(e) =>
+                                  setEditForm((f) => ({ ...f, assignedUserId: e.target.value }))
+                                }
+                                className="mt-1 w-full rounded-lg border border-black/18 bg-tour-surface px-3 py-2 text-[13px] text-tour-text"
+                                required
+                              >
+                                <option value="">{t('groupSettings.selectAssigneePlaceholder')}</option>
+                                {members.map((m) => (
+                                  <option key={m.id} value={m.id}>
+                                    {m.displayName || t('groupShell.displayNameFallback')}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
                           )
                         })()}
                         {editError && <p className="text-[12px] text-red-700">{editError}</p>}
@@ -868,7 +1006,23 @@ export function GroupSettingsPage() {
                                 {t('activities.advancedBadge')}
                               </span>
                             ) : null}
+                            {a.isPersonal === true ? (
+                              <span className="ml-2 align-middle rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
+                                {t('activities.personalBadge')}
+                              </span>
+                            ) : null}
                           </p>
+                          {a.isPersonal === true ? (
+                            <p className="mt-0.5 text-[11px] text-amber-900/90">
+                              {!a.assignedUserId
+                                ? t('groupSettings.personalUnassignedShort')
+                                : t('groupSettings.personalAssignedTo', {
+                                    name:
+                                      members.find((m) => m.id === a.assignedUserId)?.displayName ||
+                                      t('groupShell.displayNameFallback'),
+                                  })}
+                            </p>
+                          ) : null}
                           <p className="mt-0.5 text-[11px] leading-snug text-tour-text-secondary">
                             {a.isLocked ? (
                               <>
@@ -897,7 +1051,8 @@ export function GroupSettingsPage() {
                       </div>
                     )}
                   </li>
-                ))}
+                  )
+                })}
               </ul>
             )}
           </section>

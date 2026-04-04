@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Avatar } from '../components/Avatar'
+import { activityVisibleOnParticipationSurfaces } from '../lib/activityVisibility'
 import { useAuth } from '../context/useAuth'
 import { useTranslation } from '../hooks/useTranslation'
 import {
@@ -45,8 +46,27 @@ export function GroupInfoPage() {
 
   const isMember = Boolean(user?.uid && group?.memberIds?.includes(user.uid))
   const isOwner = Boolean(user?.uid && group?.ownerId === user.uid)
+  const visibleActivities = useMemo(() => {
+    if (isOwner) return activities
+    if (!user?.uid) return []
+    return activities.filter((a) =>
+      activityVisibleOnParticipationSurfaces(a, user.uid, group?.ownerId),
+    )
+  }, [activities, isOwner, user?.uid, group?.ownerId])
+
   const activityNameById = Object.fromEntries(
     activities.map((a) => [a.id, a.name || t('feed.activityFallback')]),
+  )
+
+  const memberDisplayNameById = useMemo(
+    () =>
+      Object.fromEntries(
+        members.map((m) => [
+          m.id,
+          m.displayName || t('groupShell.displayNameFallback'),
+        ]),
+      ),
+    [members, t],
   )
 
   useEffect(() => {
@@ -165,31 +185,38 @@ export function GroupInfoPage() {
             {t('groupInfo.viewAllActivities')}
           </Link>
         </div>
-        {activities.length === 0 ? (
+        {visibleActivities.length === 0 ? (
           <p className="mt-2 text-sm text-tour-text-secondary">
             {isOwner ? t('groupInfo.noActivitiesOwner') : t('groupInfo.noActivitiesMember')}
           </p>
         ) : (
           <ul className="mt-3 space-y-2">
-            {activities.map((a) => {
+            {visibleActivities.map((a) => {
               const open = expandedActivityIds.has(a.id)
               const advanced = a.isAdvanced === true
+              const personal = a.isPersonal === true
+              const cardClass = advanced
+                ? 'border-violet-200 bg-violet-50/40'
+                : personal
+                  ? 'border-amber-200 bg-amber-50/40'
+                  : 'border-black/10'
+              const hoverClass = advanced
+                ? 'hover:bg-violet-100/50'
+                : personal
+                  ? 'hover:bg-amber-100/50'
+                  : 'hover:bg-black/[0.03]'
               return (
                 <li
                   key={a.id}
-                  className={[
-                    'overflow-hidden rounded-lg border',
-                    advanced ? 'border-violet-200 bg-violet-50/40' : 'border-black/10',
-                  ].join(' ')}
+                  className={['overflow-hidden rounded-lg border', cardClass].join(' ')}
                 >
                   <button
                     type="button"
                     aria-expanded={open}
                     onClick={() => toggleActivityExpanded(a.id)}
-                    className={[
-                      'flex w-full items-center gap-2 px-3 py-2.5 text-left',
-                      advanced ? 'hover:bg-violet-100/50' : 'hover:bg-black/[0.03]',
-                    ].join(' ')}
+                    className={['flex w-full items-center gap-2 px-3 py-2.5 text-left', hoverClass].join(
+                      ' ',
+                    )}
                   >
                     <span className="min-w-0 flex-1">
                       <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
@@ -201,6 +228,11 @@ export function GroupInfoPage() {
                             {t('activities.advancedBadge')}
                           </span>
                         ) : null}
+                        {personal ? (
+                          <span className="inline-flex shrink-0 items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-wide text-amber-900">
+                            {t('activities.personalBadge')}
+                          </span>
+                        ) : null}
                       </span>
                       {advanced && a.prerequisiteActivityId ? (
                         <span className="mt-0.5 block text-[11px] font-normal text-violet-800/85">
@@ -209,6 +241,17 @@ export function GroupInfoPage() {
                               activityNameById[a.prerequisiteActivityId] ||
                               t('activities.prerequisiteFallback'),
                           })}
+                        </span>
+                      ) : null}
+                      {personal ? (
+                        <span className="mt-0.5 block text-[11px] font-normal text-amber-900/85">
+                          {typeof a.assignedUserId === 'string' && a.assignedUserId
+                            ? t('activities.personalAssignedToLine', {
+                                name:
+                                  memberDisplayNameById[a.assignedUserId] ||
+                                  t('groupShell.displayNameFallback'),
+                              })
+                            : t('activities.personalUnassignedGroupInfo')}
                         </span>
                       ) : null}
                     </span>

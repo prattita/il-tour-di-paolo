@@ -6,7 +6,12 @@ import { getTaskStatus } from './taskStatus'
  * @param {{ selectedActivityIds?: string[] | null } | null | undefined} member
  * @param {string} activityId
  */
-export function memberParticipatesInActivity(member, activityId) {
+export function memberParticipatesInActivity(member, activityId, activity = null) {
+  if (activity?.isPersonal === true) {
+    return (
+      typeof activity.assignedUserId === 'string' && activity.assignedUserId === member?.id
+    )
+  }
   const sel = member?.selectedActivityIds
   if (sel == null) return true
   if (Array.isArray(sel) && sel.length === 0) return false
@@ -17,7 +22,7 @@ export function memberParticipatesInActivity(member, activityId) {
  * Activity appears in FAB / picker list: user participates, no pending for activity, not all tasks approved, at least one task submittable.
  */
 export function isActivityEligibleForCompletionPicker(activity, member, pendingDoc) {
-  if (!activity?.id || !memberParticipatesInActivity(member, activity.id)) return false
+  if (!activity?.id || !memberParticipatesInActivity(member, activity.id, activity)) return false
   if (pendingDoc) return false
   const progress = member?.progress?.[activity.id]
   const tasks = activity.tasks || []
