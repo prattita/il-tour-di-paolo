@@ -12,6 +12,11 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore'
+import {
+  getCompoundTarget,
+  isCompoundTask,
+  normalizeCompoundTargetInput,
+} from '../lib/compoundTask'
 import { getFirebaseDb } from '../lib/firebase'
 
 function requireDb() {
@@ -416,10 +421,65 @@ export function subscribeGroupEnrollments(groupId, onData, onError) {
 
 const TASK_IDS = ['task-1', 'task-2', 'task-3']
 
+async function fetchPendingTaskIdsForActivity(db, groupId, activityId) {
+  const q = query(
+    collection(db, `groups/${groupId}/pending`),
+    where('activityId', '==', activityId),
+  )
+  const snap = await getDocs(q)
+  const ids = new Set()
+  for (const d of snap.docs) {
+    const tid = d.data()?.taskId
+    if (typeof tid === 'string' && tid) ids.add(tid)
+  }
+  return ids
+}
+
+async function isTaskInPlayForCompoundEdit(db, groupId, activityId, taskId) {
+  const mSnap = await getDocs(collection(db, `groups/${groupId}/members`))
+  for (const d of mSnap.docs) {
+    const data = d.data()
+    const prog = data.progress?.[activityId]
+    if (prog?.completedTaskIds?.includes(taskId)) return true
+    const x = data.compoundProgress?.[activityId]?.[taskId]
+    if (typeof x === 'number' && x > 0) return true
+  }
+  return false
+}
+
+/**
+ * Member adjusts compound task counter (+1 / -1). Trust-based; bounded by activity `targetCount`.
+ */
+export async function adjustMemberCompoundCount(groupId, memberId, activityId, taskId, delta) {
+  const db = requireDb()
+  const step = delta > 0 ? 1 : delta < 0 ? -1 : 0
+  if (step === 0) return
+  const activityRef = doc(db, `groups/${groupId}/activities`, activityId)
+  const memberRef = doc(db, `groups/${groupId}/members`, memberId)
+  await runTransaction(db, async (transaction) => {
+    const actSnap = await transaction.get(activityRef)
+    const memSnap = await transaction.get(memberRef)
+    if (!actSnap.exists() || !memSnap.exists()) throw new Error('Not found.')
+    const tasks = actSnap.data().tasks || []
+    const task = tasks.find((x) => x.id === taskId)
+    if (!isCompoundTask(task)) throw new Error('This task does not use a counter.')
+    const y = getCompoundTarget(task)
+    const cpRoot = { ...(memSnap.data().compoundProgress || {}) }
+    const inner = { ...(cpRoot[activityId] || {}) }
+    const cur = typeof inner[taskId] === 'number' ? inner[taskId] : 0
+    const next = Math.min(y, Math.max(0, cur + step))
+    if (next === cur) return
+    inner[taskId] = next
+    cpRoot[activityId] = inner
+    transaction.update(memberRef, { compoundProgress: cpRoot })
+  })
+}
+
 /**
  * Owner-only: update activity name/description and task labels. Task ids and count stay fixed.
  * `isLocked` only blocks changing task structure; names remain editable per DESIGN §8.
  * Advanced flags (`isAdvanced`, `prerequisiteActivityId`) may change only while `isLocked == false`.
+ * Compound `kind` / `targetCount` follow docs/phase-three/compoundTasks-onepager.md (middle-ground edit).
  */
 export async function updateActivityDocument(
   groupId,
@@ -438,13 +498,48 @@ export async function updateActivityDocument(
     throw new Error('Each activity must have exactly three tasks.')
   }
 
-  const nextTasks = TASK_IDS.map((id, i) => {
+  const prevTasks = snap.data().tasks || []
+  const nextTasks = [0, 1, 2].map((i) => {
+    const id = prevTasks[i]?.id || TASK_IDS[i]
     const t = tasks[i]
     const taskName = (typeof t?.name === 'string' ? t.name : '').trim() || `Task ${i + 1}`
     const taskDescription =
       typeof t?.description === 'string' && t.description.trim() ? t.description.trim() : null
-    return { id, name: taskName, description: taskDescription }
+    const prev = prevTasks[i] || {}
+    const kind = t?.kind === 'compound' ? 'compound' : 'simple'
+    let targetCount = null
+    if (kind === 'compound') {
+      targetCount = normalizeCompoundTargetInput(t?.targetCount ?? prev.targetCount)
+    }
+    return { id, name: taskName, description: taskDescription, kind, targetCount }
   })
+
+  const locked = snap.data().isLocked === true
+  const pendingTaskIds = await fetchPendingTaskIdsForActivity(db, groupId, activityId)
+
+  for (let i = 0; i < 3; i += 1) {
+    const prevT = prevTasks[i] || {}
+    const nextT = nextTasks[i]
+    const prevKind = prevT.kind === 'compound' ? 'compound' : 'simple'
+    const nextKind = nextT.kind
+    const prevY = prevKind === 'compound' ? getCompoundTarget(prevT) : null
+    const nextY = nextKind === 'compound' ? getCompoundTarget(nextT) : null
+    const compoundMetaChanged = prevKind !== nextKind || prevY !== nextY
+
+    if (!compoundMetaChanged) continue
+
+    if (locked) {
+      throw new Error(
+        'Cannot change compound task settings after this activity has approved progress.',
+      )
+    }
+    if (pendingTaskIds.has(nextT.id)) {
+      throw new Error('Cannot change this task type while a submission is pending for it.')
+    }
+    if (await isTaskInPlayForCompoundEdit(db, groupId, activityId, nextT.id)) {
+      throw new Error('Cannot change compound settings after members have started this task.')
+    }
+  }
 
   const patch = {
     name: activityName,
@@ -452,7 +547,6 @@ export async function updateActivityDocument(
     tasks: nextTasks,
   }
 
-  const locked = snap.data().isLocked === true
   const advProvided = isAdvanced !== undefined || prerequisiteActivityId !== undefined
   if (advProvided) {
     if (locked) {

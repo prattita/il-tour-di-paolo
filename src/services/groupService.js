@@ -6,6 +6,7 @@ import {
   serverTimestamp,
   writeBatch,
 } from 'firebase/firestore'
+import { normalizeCompoundTargetInput } from '../lib/compoundTask'
 import { getFirebaseDb } from '../lib/firebase'
 
 function requireDb() {
@@ -39,11 +40,27 @@ export async function generateUniqueInviteCode() {
   throw new Error('Unable to generate unique invite code. Please try again.')
 }
 
+const TASK_IDS = ['task-1', 'task-2', 'task-3']
+
+function buildTaskPayload(raw, index) {
+  const id = TASK_IDS[index]
+  if (typeof raw === 'string') {
+    const name = raw.trim() || `Task ${index + 1}`
+    return { id, name, description: null, kind: 'simple', targetCount: null }
+  }
+  const name = (raw?.name || '').trim() || `Task ${index + 1}`
+  const description =
+    typeof raw?.description === 'string' && raw.description.trim() ? raw.description.trim() : null
+  const kind = raw?.kind === 'compound' ? 'compound' : 'simple'
+  let targetCount = null
+  if (kind === 'compound') {
+    targetCount = normalizeCompoundTargetInput(raw?.targetCount)
+  }
+  return { id, name, description, kind, targetCount }
+}
+
 /** New activity document (3 tasks, fixed medal copy). `sortOrder` controls list ordering. */
 export function buildActivityDocument(input, sortOrder) {
-  const taskA = input.tasks?.[0]?.trim() || `Task 1`
-  const taskB = input.tasks?.[1]?.trim() || `Task 2`
-  const taskC = input.tasks?.[2]?.trim() || `Task 3`
   const isAdvanced = input.isAdvanced === true
   const prereq =
     typeof input.prerequisiteActivityId === 'string' && input.prerequisiteActivityId.length > 0
@@ -52,14 +69,11 @@ export function buildActivityDocument(input, sortOrder) {
   if (isAdvanced && !prereq) {
     throw new Error('Advanced activities require a prerequisite activity.')
   }
+  const taskPayloads = [0, 1, 2].map((i) => buildTaskPayload(input.tasks?.[i], i))
   return {
     name: input.name.trim(),
     description: input.description?.trim() || null,
-    tasks: [
-      { id: 'task-1', name: taskA, description: null },
-      { id: 'task-2', name: taskB, description: null },
-      { id: 'task-3', name: taskC, description: null },
-    ],
+    tasks: taskPayloads,
     medalConditions: {
       bronze: 'Complete 1 of 3 tasks',
       silver: 'Complete 2 of 3 tasks',

@@ -116,6 +116,7 @@ export async function approvePendingSubmission(groupId, pendingId, pending) {
     const completedTaskIds = [...completed]
     const tasksCompleted = Math.min(3, completedTaskIds.length)
     progress[pending.activityId] = {
+      ...prev,
       tasksCompleted,
       completedTaskIds,
     }

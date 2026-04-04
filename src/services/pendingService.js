@@ -1,4 +1,5 @@
 import { deleteDoc, doc, getDoc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore'
+import { getCompoundCount, getCompoundTarget, isCompoundTask } from '../lib/compoundTask'
 import { getFirebaseDb } from '../lib/firebase'
 import { getImageDimensionsFromFile } from '../lib/imageDimensions'
 import { pendingPhotoStoragePaths } from '../lib/feedPhotos'
@@ -78,6 +79,26 @@ export async function createPendingSubmission({
     throw new Error('You already have a submission awaiting review for this activity.')
   }
 
+  const activityRef = doc(db, `groups/${groupId}/activities`, activityId)
+  const activitySnap = await getDoc(activityRef)
+  if (!activitySnap.exists()) {
+    throw new Error('Activity not found.')
+  }
+  const actTasks = activitySnap.data().tasks || []
+  const taskDef = actTasks.find((x) => x.id === taskId)
+  if (!taskDef) {
+    throw new Error('Task not found.')
+  }
+
+  const member = await getGroupMember(groupId, userId)
+  if (isCompoundTask(taskDef)) {
+    const x = getCompoundCount(member, activityId, taskId)
+    const y = getCompoundTarget(taskDef)
+    if (x !== y) {
+      throw new Error('Track all steps before submitting (counter must reach the goal).')
+    }
+  }
+
   const photos = []
   for (let i = 0; i < files.length; i++) {
     const slot = i + 1
@@ -87,7 +108,6 @@ export async function createPendingSubmission({
     photos.push({ url: imageUrl, path: imagePath, width, height })
   }
 
-  const member = await getGroupMember(groupId, userId)
   const avatarUrl = member?.avatarUrl ?? null
 
   await setDoc(pendingRef, {

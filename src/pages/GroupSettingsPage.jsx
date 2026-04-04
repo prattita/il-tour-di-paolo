@@ -3,6 +3,7 @@ import { Link, Navigate, useParams } from 'react-router-dom'
 import { Avatar } from '../components/Avatar'
 import { useAuth } from '../context/useAuth'
 import { useTranslation } from '../hooks/useTranslation'
+import { normalizeCompoundTargetInput } from '../lib/compoundTask'
 import { subscribePendingCount } from '../services/approvalService'
 import {
   subscribeActivities,
@@ -19,7 +20,17 @@ import {
 } from '../services/groupSettingsService'
 
 function emptyAddActivity() {
-  return { name: '', description: '', tasks: ['', '', ''], isAdvanced: false, prerequisiteActivityId: '' }
+  return {
+    name: '',
+    description: '',
+    tasks: [
+      { name: '', kind: 'simple', targetCount: 10 },
+      { name: '', kind: 'simple', targetCount: 10 },
+      { name: '', kind: 'simple', targetCount: 10 },
+    ],
+    isAdvanced: false,
+    prerequisiteActivityId: '',
+  }
 }
 
 export function GroupSettingsPage() {
@@ -222,12 +233,15 @@ export function GroupSettingsPage() {
   function openEditActivity(activity) {
     setEditingActivity(activity.id)
     setEditError('')
-    const names = (activity.tasks || []).slice(0, 3).map((task) => task.name || '')
-    while (names.length < 3) names.push('')
+    const tks = (activity.tasks || []).slice(0, 3)
+    const pad = (i) => tks[i] || {}
+    const names = [0, 1, 2].map((i) => pad(i).name || '')
     setEditForm({
       name: activity.name || '',
       description: activity.description || '',
       taskNames: names,
+      taskKinds: [0, 1, 2].map((i) => (pad(i).kind === 'compound' ? 'compound' : 'simple')),
+      taskTargets: [0, 1, 2].map((i) => pad(i).targetCount ?? 10),
       isAdvanced: activity.isAdvanced === true,
       prerequisiteActivityId: activity.prerequisiteActivityId || '',
     })
@@ -247,10 +261,28 @@ export function GroupSettingsPage() {
       const activitySnap = activities.find((x) => x.id === editingActivity)
       const taskNames = [...(editForm.taskNames || [])]
       while (taskNames.length < 3) taskNames.push('')
-      const tasksPayload = [0, 1, 2].map((i) => ({
-        name: taskNames[i]?.trim() || t('groupNew.taskLabel', { n: i + 1 }),
-        description: activitySnap?.tasks?.[i]?.description ?? null,
-      }))
+      const locked = activitySnap?.isLocked === true
+      const tasksPayload = [0, 1, 2].map((i) => {
+        const st = activitySnap?.tasks?.[i] || {}
+        const name = taskNames[i]?.trim() || t('groupNew.taskLabel', { n: i + 1 })
+        const description = st.description ?? null
+        if (locked) {
+          const kind = st.kind === 'compound' ? 'compound' : 'simple'
+          return {
+            name,
+            description,
+            kind,
+            targetCount: kind === 'compound' ? normalizeCompoundTargetInput(st.targetCount) : null,
+          }
+        }
+        const kind = editForm.taskKinds[i] === 'compound' ? 'compound' : 'simple'
+        return {
+          name,
+          description,
+          kind,
+          targetCount: kind === 'compound' ? normalizeCompoundTargetInput(editForm.taskTargets[i]) : null,
+        }
+      })
       await updateActivityDocument(groupId, editingActivity, {
         name: editForm.name,
         description: editForm.description,
@@ -473,23 +505,88 @@ export function GroupSettingsPage() {
                       className="mt-1 w-full rounded-lg border border-black/18 px-3 py-2 text-[13px] text-tour-text"
                     />
                   </label>
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    {[0, 1, 2].map((i) => (
-                      <label key={i} className="block text-[12px] font-medium text-tour-text-secondary">
-                        {t('groupNew.taskLabel', { n: i + 1 })}
-                        <input
-                          value={addForm.tasks[i]}
-                          onChange={(e) =>
-                            setAddForm((f) => {
-                              const next = [...f.tasks]
-                              next[i] = e.target.value
-                              return { ...f, tasks: next }
-                            })
-                          }
-                          className="mt-1 w-full rounded-lg border border-black/18 px-3 py-2 text-[13px] text-tour-text"
-                        />
-                      </label>
-                    ))}
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {[0, 1, 2].map((i) => {
+                      const row = addForm.tasks[i] || { name: '', kind: 'simple', targetCount: 10 }
+                      const name = typeof row === 'string' ? row : row.name || ''
+                      const kind = typeof row === 'string' ? 'simple' : row.kind || 'simple'
+                      const targetCount = typeof row === 'string' ? 10 : row.targetCount ?? 10
+                      return (
+                        <div key={i} className="rounded-lg border border-black/10 p-2.5">
+                          <label className="block text-[12px] font-medium text-tour-text-secondary">
+                            {t('groupNew.taskLabel', { n: i + 1 })}
+                            <input
+                              value={name}
+                              onChange={(e) =>
+                                setAddForm((f) => {
+                                  const next = [...f.tasks]
+                                  const prev = next[i]
+                                  const base =
+                                    typeof prev === 'string'
+                                      ? { name: prev, kind: 'simple', targetCount: 10 }
+                                      : { name: '', kind: 'simple', targetCount: 10, ...prev }
+                                  next[i] = { ...base, name: e.target.value }
+                                  return { ...f, tasks: next }
+                                })
+                              }
+                              className="mt-1 w-full rounded-lg border border-black/18 px-3 py-2 text-[13px] text-tour-text"
+                            />
+                          </label>
+                          <label className="mt-2 flex items-center gap-2 text-[11px] font-medium text-tour-text-secondary">
+                            <input
+                              type="checkbox"
+                              checked={kind === 'compound'}
+                              onChange={(e) =>
+                                setAddForm((f) => {
+                                  const next = [...f.tasks]
+                                  const prev = next[i]
+                                  const base =
+                                    typeof prev === 'string'
+                                      ? { name: prev, kind: 'simple', targetCount: 10 }
+                                      : { name: '', kind: 'simple', targetCount: 10, ...prev }
+                                  next[i] = {
+                                    ...base,
+                                    kind: e.target.checked ? 'compound' : 'simple',
+                                    targetCount: e.target.checked ? base.targetCount || 10 : 10,
+                                  }
+                                  return { ...f, tasks: next }
+                                })
+                              }
+                              className="mt-0.5"
+                            />
+                            <span>{t('groupNew.taskCompoundToggle')}</span>
+                          </label>
+                          {kind === 'compound' ? (
+                            <label className="mt-2 block text-[11px] font-medium text-tour-text-secondary">
+                              {t('groupNew.taskCompoundTargetLabel')}
+                              <input
+                                type="number"
+                                min={1}
+                                max={100}
+                                value={targetCount}
+                                onChange={(e) =>
+                                  setAddForm((f) => {
+                                    const next = [...f.tasks]
+                                    const prev = next[i]
+                                    const base =
+                                      typeof prev === 'string'
+                                        ? { name: prev, kind: 'compound', targetCount: 10 }
+                                        : { name: '', kind: 'simple', targetCount: 10, ...prev }
+                                    const n = parseInt(e.target.value, 10)
+                                    next[i] = {
+                                      ...base,
+                                      targetCount: Number.isFinite(n) ? n : 10,
+                                    }
+                                    return { ...f, tasks: next }
+                                  })
+                                }
+                                className="mt-1 w-full rounded-lg border border-black/18 px-3 py-2 text-[13px] text-tour-text"
+                              />
+                            </label>
+                          ) : null}
+                        </div>
+                      )
+                    })}
                   </div>
                   <label className="flex items-start gap-2 text-[12px] font-medium text-tour-text-secondary">
                     <input
@@ -597,6 +694,55 @@ export function GroupSettingsPage() {
                             </label>
                           ))}
                         </div>
+                        {(() => {
+                          const snap = activities.find((x) => x.id === editingActivity)
+                          if (snap?.isLocked) return null
+                          const kinds = editForm.taskKinds || ['simple', 'simple', 'simple']
+                          const targets = editForm.taskTargets || [10, 10, 10]
+                          return (
+                            <div className="grid gap-3 sm:grid-cols-3">
+                              {[0, 1, 2].map((i) => (
+                                <div key={i} className="rounded-lg border border-black/10 p-2.5">
+                                  <label className="flex items-center gap-2 text-[11px] font-medium text-tour-text-secondary">
+                                    <input
+                                      type="checkbox"
+                                      checked={kinds[i] === 'compound'}
+                                      onChange={(e) =>
+                                        setEditForm((f) => {
+                                          const nk = [...(f.taskKinds || ['simple', 'simple', 'simple'])]
+                                          nk[i] = e.target.checked ? 'compound' : 'simple'
+                                          return { ...f, taskKinds: nk }
+                                        })
+                                      }
+                                      className="mt-0.5"
+                                    />
+                                    <span>{t('groupNew.taskCompoundToggle')}</span>
+                                  </label>
+                                  {kinds[i] === 'compound' ? (
+                                    <label className="mt-2 block text-[11px] font-medium text-tour-text-secondary">
+                                      {t('groupNew.taskCompoundTargetLabel')}
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        max={100}
+                                        value={targets[i]}
+                                        onChange={(e) =>
+                                          setEditForm((f) => {
+                                            const nt = [...(f.taskTargets || [10, 10, 10])]
+                                            const n = parseInt(e.target.value, 10)
+                                            nt[i] = Number.isFinite(n) ? n : 10
+                                            return { ...f, taskTargets: nt }
+                                          })
+                                        }
+                                        className="mt-1 w-full rounded-lg border border-black/18 px-3 py-2 text-[13px] text-tour-text"
+                                      />
+                                    </label>
+                                  ) : null}
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        })()}
                         {(() => {
                           const snap = activities.find((x) => x.id === editingActivity)
                           if (snap?.isLocked) return null

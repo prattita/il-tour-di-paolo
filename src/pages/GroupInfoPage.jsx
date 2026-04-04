@@ -8,6 +8,7 @@ import {
   subscribeActivitiesForViewer,
   subscribeGroupMembers,
 } from '../services/activityService'
+import { getCompoundTarget, isCompoundTask } from '../lib/compoundTask'
 import { getGroup } from '../services/groupService'
 
 export function GroupInfoPage() {
@@ -230,7 +231,15 @@ export function GroupInfoPage() {
                         {(a.tasks || []).map((task) => (
                           <li key={task.id} className="flex gap-2 text-[12px] text-tour-text">
                             <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-tour-accent" />
-                            <span>{task.name}</span>
+                            <span>
+                              {task.name}
+                              {isCompoundTask(task) ? (
+                                <span className="text-tour-text-secondary">
+                                  {' '}
+                                  ({t('groupInfo.compoundTimes', { n: getCompoundTarget(task) })})
+                                </span>
+                              ) : null}
+                            </span>
                           </li>
                         ))}
                       </ul>

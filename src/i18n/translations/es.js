@@ -119,6 +119,9 @@ export default {
     activityNameLabel: L.activityName,
     activityDescriptionLabel: 'Descripción de la actividad (opcional)',
     taskLabel: 'Tarea {{n}}',
+    taskCompoundToggle: 'Varias veces (tarea acumulativa)',
+    taskCompoundTargetLabel: '¿Cuántas veces?',
+    taskCompoundTargetHint: 'Entre 1 y 100.',
     creating: 'Creando grupo…',
     createSubmit: L.createGroup,
   },
@@ -242,6 +245,10 @@ export default {
     withdrawSubmission: 'Retirar entrega',
     taskComplete: 'Completar',
     taskPending: 'Pendiente',
+    compoundHint: 'Marca las veces; al llegar al objetivo, envía una sola vez.',
+    compoundDecrementAria: 'Disminuir contador',
+    compoundIncrementAria: 'Aumentar contador',
+    compoundUpdateFailed: 'No se pudo actualizar el contador.',
     advancedSectionTitle: 'Actividades avanzadas',
     advancedBadge: 'Avanzada',
   },
@@ -255,6 +262,8 @@ export default {
       'Esta tarea está pendiente. Para cancelar, ve a Actividades y pulsa Retirar entrega en esa actividad.',
     finishPendingOtherFirst:
       'Primero termina la entrega pendiente de otra tarea en esta actividad.',
+    compoundNotReady:
+      'Esta tarea usa un contador en Actividades. Llega a {{y}} antes de enviar (estás en {{x}}).',
     backToActivities: 'Volver a actividades',
     noTasksLeft: 'No te quedan tareas por enviar.',
     allCompleteOrPending: 'Todas tus actividades están completas o pendientes.',
@@ -292,6 +301,7 @@ export default {
     viewAllActivities: 'Ver todas →',
     noActivitiesOwner: 'Aún no hay actividades. Añádelas en Ajustes del grupo.',
     noActivitiesMember: 'Aún no hay actividades. Pídele al administrador que añada alguna.',
+    compoundTimes: '{{n}} veces',
   },
   profile: {
     loadProfileFailed: 'No se pudo cargar el perfil.',

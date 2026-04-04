@@ -123,6 +123,9 @@ export default {
     activityNameLabel: L.activityName,
     activityDescriptionLabel: 'Activity description (optional)',
     taskLabel: 'Task {{n}}',
+    taskCompoundToggle: 'Track multiple times (compound task)',
+    taskCompoundTargetLabel: 'How many times?',
+    taskCompoundTargetHint: 'Between 1 and 100.',
     creating: 'Creating group…',
     createSubmit: L.createGroup,
   },
@@ -245,6 +248,10 @@ export default {
     withdrawSubmission: 'Withdraw submission',
     taskComplete: 'Complete',
     taskPending: 'Pending',
+    compoundHint: 'Track times, then submit once when you reach the goal.',
+    compoundDecrementAria: 'Decrease count',
+    compoundIncrementAria: 'Increase count',
+    compoundUpdateFailed: 'Could not update counter.',
     advancedSectionTitle: 'Advanced activities',
     advancedBadge: 'Advanced',
   },
@@ -257,6 +264,8 @@ export default {
     taskPendingReview:
       'This task is already submitted for review. To cancel, go to Activities and tap Withdraw submission on that activity.',
     finishPendingOtherFirst: 'Finish your pending submission for another task in this activity first.',
+    compoundNotReady:
+      'This task uses a counter on Activities. Reach {{y}} before submitting (you are at {{x}}).',
     backToActivities: 'Back to activities',
     noTasksLeft: 'You have no remaining tasks to submit.',
     allCompleteOrPending: 'All your activities are complete or pending review.',
@@ -294,6 +303,7 @@ export default {
     viewAllActivities: 'View all →',
     noActivitiesOwner: 'No activities yet. Add them in Group settings.',
     noActivitiesMember: 'No activities yet. Ask the owner to add some.',
+    compoundTimes: '{{n}} times',
   },
   profile: {
     loadProfileFailed: 'Failed to load profile.',

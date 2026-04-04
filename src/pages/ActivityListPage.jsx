@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { useTranslation } from '../hooks/useTranslation'
 import { getGroup } from '../services/groupService'
+import { ActivityListTaskRow } from '../components/ActivityListTaskRow'
 import {
+  adjustMemberCompoundCount,
   joinAdvancedActivity,
   subscribeEligibleAdvancedActivities,
   subscribeEnrollmentActivityIds,
@@ -11,39 +13,11 @@ import {
   subscribeMemberVisibleActivities,
 } from '../services/activityService'
 import { subscribePendingSubmission, withdrawPendingSubmission } from '../services/pendingService'
-import { getTaskStatus } from '../lib/taskStatus'
 import { medalTierFromTasksCompleted } from '../lib/medalTier'
 import { MedalBadge } from '../components/MedalBadge'
 import { PageLoading } from '../components/PageLoading'
 
-function TaskStatusDot({ status }) {
-  if (status === 'approved') {
-    return (
-      <div
-        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#C0DD97] text-[10px] text-[#173404]"
-        aria-hidden
-      >
-        ✓
-      </div>
-    )
-  }
-  if (status === 'pending') {
-    return (
-      <div
-        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#FAEEDA] text-[10px] text-[#633806]"
-        aria-hidden
-      >
-        ⏳
-      </div>
-    )
-  }
-  return (
-    <div
-      className="h-5 w-5 shrink-0 rounded-full border border-black/18 bg-tour-muted"
-      aria-hidden
-    />
-  )
-}
+import { getTaskStatus } from '../lib/taskStatus'
 
 export function ActivityListPage() {
   const { t } = useTranslation()
@@ -58,6 +32,7 @@ export function ActivityListPage() {
   const [error, setError] = useState('')
   const [withdrawBusyActivityId, setWithdrawBusyActivityId] = useState(null)
   const [joinBusyActivityId, setJoinBusyActivityId] = useState(null)
+  const [compoundBusyKey, setCompoundBusyKey] = useState(null)
   const [eligibleAdvancedActivities, setEligibleAdvancedActivities] = useState([])
   const [enrolledIds, setEnrolledIds] = useState([])
   const [unlockTick, setUnlockTick] = useState(0)
@@ -86,6 +61,22 @@ export function ActivityListPage() {
     }
     setBannerDismissed(true)
   }, [dismissStorageKey])
+
+  const handleCompoundDelta = useCallback(
+    async (activityId, taskId, delta) => {
+      if (!groupId || !user?.uid) return
+      const key = `${activityId}-${taskId}`
+      setCompoundBusyKey(key)
+      try {
+        await adjustMemberCompoundCount(groupId, user.uid, activityId, taskId, delta)
+      } catch (e) {
+        window.alert(e.message || t('activities.compoundUpdateFailed'))
+      } finally {
+        setCompoundBusyKey(null)
+      }
+    },
+    [groupId, user?.uid, t],
+  )
 
   const handleWithdrawSubmission = useCallback(
     async (activityId, pendingDoc) => {
@@ -417,54 +408,20 @@ export function ActivityListPage() {
                     </div>
                   )}
                   <ul className="divide-y divide-black/10">
-                    {tasks.map((task) => {
-                      const status = getTaskStatus(task, progress, pendingDoc)
-                      const completePath = `/group/${groupId}/complete?${new URLSearchParams({
-                        activityId: activity.id,
-                        taskId: task.id,
-                      }).toString()}`
-
-                      const completePillClass =
-                        'shrink-0 rounded-full border border-tour-accent px-2.5 py-1 text-[11px] font-medium text-tour-accent-foreground'
-
-                      return (
-                        <li key={task.id} className="min-w-0 first:pt-0 last:pb-0">
-                          {status === 'empty' ? (
-                            <Link
-                              to={completePath}
-                              className="-mx-2 flex min-w-0 items-center gap-2.5 rounded-lg px-2 py-2 text-left text-inherit no-underline hover:bg-black/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-tour-accent"
-                            >
-                              <TaskStatusDot status={status} />
-                              <div className="min-w-0 flex-1">
-                                <p className="text-[13px] text-tour-text">{task.name}</p>
-                              </div>
-                              <span className={completePillClass}>{t('activities.taskComplete')}</span>
-                            </Link>
-                          ) : (
-                            <div className="flex items-center gap-2.5 py-2">
-                              <TaskStatusDot status={status} />
-                              <div className="min-w-0 flex-1">
-                                <p className="text-[13px] text-tour-text">{task.name}</p>
-                                {status === 'pending' && (
-                                  <p className="mt-0.5 text-[11px] text-tour-text-secondary">
-                                    {t('activities.taskPending')}
-                                  </p>
-                                )}
-                              </div>
-                              {status === 'blocked' && (
-                                <button
-                                  type="button"
-                                  disabled
-                                  className="shrink-0 cursor-not-allowed rounded-full border border-black/10 px-2.5 py-1 text-[11px] font-medium text-tour-text-secondary opacity-60"
-                                >
-                                  {t('activities.taskComplete')}
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </li>
-                      )
-                    })}
+                    {tasks.map((task) => (
+                      <ActivityListTaskRow
+                        key={task.id}
+                        task={task}
+                        groupId={groupId}
+                        activityId={activity.id}
+                        progress={progress}
+                        pendingDoc={pendingDoc}
+                        member={member}
+                        t={t}
+                        onCompoundDelta={handleCompoundDelta}
+                        compoundBusy={compoundBusyKey === `${activity.id}-${task.id}`}
+                      />
+                    ))}
                   </ul>
                 </section>
               )
@@ -546,54 +503,20 @@ export function ActivityListPage() {
                         </div>
                       )}
                       <ul className="divide-y divide-black/10">
-                        {tasks.map((task) => {
-                          const status = getTaskStatus(task, progress, pendingDoc)
-                          const completePath = `/group/${groupId}/complete?${new URLSearchParams({
-                            activityId: activity.id,
-                            taskId: task.id,
-                          }).toString()}`
-
-                          const completePillClass =
-                            'shrink-0 rounded-full border border-tour-accent px-2.5 py-1 text-[11px] font-medium text-tour-accent-foreground'
-
-                          return (
-                            <li key={task.id} className="min-w-0 first:pt-0 last:pb-0">
-                              {status === 'empty' ? (
-                                <Link
-                                  to={completePath}
-                                  className="-mx-2 flex min-w-0 items-center gap-2.5 rounded-lg px-2 py-2 text-left text-inherit no-underline hover:bg-black/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-tour-accent"
-                                >
-                                  <TaskStatusDot status={status} />
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-[13px] text-tour-text">{task.name}</p>
-                                  </div>
-                                  <span className={completePillClass}>{t('activities.taskComplete')}</span>
-                                </Link>
-                              ) : (
-                                <div className="flex items-center gap-2.5 py-2">
-                                  <TaskStatusDot status={status} />
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-[13px] text-tour-text">{task.name}</p>
-                                    {status === 'pending' && (
-                                      <p className="mt-0.5 text-[11px] text-tour-text-secondary">
-                                        {t('activities.taskPending')}
-                                      </p>
-                                    )}
-                                  </div>
-                                  {status === 'blocked' && (
-                                    <button
-                                      type="button"
-                                      disabled
-                                      className="shrink-0 cursor-not-allowed rounded-full border border-black/10 px-2.5 py-1 text-[11px] font-medium text-tour-text-secondary opacity-60"
-                                    >
-                                      {t('activities.taskComplete')}
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </li>
-                          )
-                        })}
+                        {tasks.map((task) => (
+                          <ActivityListTaskRow
+                            key={task.id}
+                            task={task}
+                            groupId={groupId}
+                            activityId={activity.id}
+                            progress={progress}
+                            pendingDoc={pendingDoc}
+                            member={member}
+                            t={t}
+                            onCompoundDelta={handleCompoundDelta}
+                            compoundBusy={compoundBusyKey === `${activity.id}-${task.id}`}
+                          />
+                        ))}
                       </ul>
                     </section>
                   )

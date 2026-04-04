@@ -9,6 +9,7 @@ import {
   memberParticipatesInActivity,
   sortActivitiesByName,
 } from '../lib/completionEligibility'
+import { getCompoundCount, getCompoundTarget, isCompoundTask } from '../lib/compoundTask'
 import { getTaskStatus } from '../lib/taskStatus'
 import { createPendingSubmission, MAX_SUBMISSION_PHOTOS } from '../services/pendingService'
 import { PageLoading } from '../components/PageLoading'
@@ -116,6 +117,13 @@ export function TaskCompletePage() {
         return t('taskComplete.taskPendingReview')
       }
       return t('taskComplete.finishPendingOtherFirst')
+    }
+    if (isCompoundTask(tsk)) {
+      const x = getCompoundCount(member, activityIdParam, taskIdParam)
+      const y = getCompoundTarget(tsk)
+      if (x !== y) {
+        return t('taskComplete.compoundNotReady', { x, y })
+      }
     }
     return ''
   }, [

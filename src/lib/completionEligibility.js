@@ -1,3 +1,4 @@
+import { getCompoundTarget, getCompoundCount, isCompoundTask, isCompoundReadyToSubmit } from './compoundTask'
 import { getTaskStatus } from './taskStatus'
 
 /**
@@ -23,7 +24,15 @@ export function isActivityEligibleForCompletionPicker(activity, member, pendingD
   if (tasks.length === 0) return false
   const allApproved = tasks.every((t) => getTaskStatus(t, progress, null) === 'approved')
   if (allApproved) return false
-  return tasks.some((t) => getTaskStatus(t, progress, null) === 'empty')
+  return tasks.some((t) => {
+    if (getTaskStatus(t, progress, null) !== 'empty') return false
+    if (isCompoundTask(t)) {
+      const y = getCompoundTarget(t)
+      const x = getCompoundCount(member, activity.id, t.id)
+      return x === y
+    }
+    return true
+  })
 }
 
 /** Alphabetically by activity name (stable tie-break on id). */
@@ -42,7 +51,11 @@ export function sortActivitiesByName(activities) {
 export function getEligibleTasksForPicker(activity, member, pendingDoc) {
   if (!activity?.tasks?.length) return []
   const progress = member?.progress?.[activity.id]
-  return activity.tasks.filter((t) => getTaskStatus(t, progress, pendingDoc) === 'empty')
+  return activity.tasks.filter((t) => {
+    if (getTaskStatus(t, progress, pendingDoc) !== 'empty') return false
+    if (isCompoundTask(t)) return isCompoundReadyToSubmit(t, progress, pendingDoc, member, activity.id)
+    return true
+  })
 }
 
 export function hasAnyEligibleCompletionActivity(activities, member, pendingByActivityId) {

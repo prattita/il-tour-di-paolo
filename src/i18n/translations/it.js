@@ -118,6 +118,9 @@ export default {
     activityNameLabel: L.activityName,
     activityDescriptionLabel: 'Descrizione attività (facoltativa)',
     taskLabel: 'Compito {{n}}',
+    taskCompoundToggle: 'Traccia più volte (compito cumulativo)',
+    taskCompoundTargetLabel: 'Quante volte?',
+    taskCompoundTargetHint: 'Tra 1 e 100.',
     creating: 'Creazione gruppo…',
     createSubmit: L.createGroup,
   },
@@ -242,6 +245,10 @@ export default {
     withdrawSubmission: 'Ritira consegna',
     taskComplete: 'Completa',
     taskPending: 'In attesa',
+    compoundHint: 'Segna le volte, poi invia una sola volta al traguardo.',
+    compoundDecrementAria: 'Diminuisci conteggio',
+    compoundIncrementAria: 'Aumenta conteggio',
+    compoundUpdateFailed: 'Impossibile aggiornare il contatore.',
     advancedSectionTitle: 'Attività avanzate',
     advancedBadge: 'Avanzata',
   },
@@ -255,6 +262,8 @@ export default {
       'Questo compito è già stato inviato in revisione. Per annullare, vai su Attività e tocca Ritira consegna su quell’attività.',
     finishPendingOtherFirst:
       'Completa prima la consegna in attesa per un altro compito di questa attività.',
+    compoundNotReady:
+      'Questo compito usa un contatore in Attività. Raggiungi {{y}} prima di inviare (sei a {{x}}).',
     backToActivities: 'Torna alle attività',
     noTasksLeft: 'Non hai altri compiti da inviare.',
     allCompleteOrPending: 'Le tue attività sono complete o in attesa di revisione.',
@@ -292,6 +301,7 @@ export default {
     viewAllActivities: 'Vedi tutte →',
     noActivitiesOwner: 'Nessuna attività ancora. Aggiungile in Impostazioni gruppo.',
     noActivitiesMember: 'Nessuna attività ancora. Chiedi al proprietario di aggiungerne.',
+    compoundTimes: '{{n}} volte',
   },
   profile: {
     loadProfileFailed: 'Impossibile caricare il profilo.',

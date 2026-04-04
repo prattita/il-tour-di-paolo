@@ -181,6 +181,17 @@ service cloud.firestore {
               request.resource.data.avatarUrl == null
               || request.resource.data.avatarUrl is string
             )
+          )
+          // Compound task counters (Phase Three) — separate from medal `progress`; family trust tier.
+          || (
+            request.auth != null
+            && request.auth.uid == memberId
+            && isGroupMember(groupId)
+            && request.resource.data.diff(resource.data).changedKeys().hasOnly(['compoundProgress'])
+            && (
+              request.resource.data.compoundProgress == null
+              || request.resource.data.compoundProgress is map
+            )
           );
         allow delete: if isGroupOwner(groupId);
       }

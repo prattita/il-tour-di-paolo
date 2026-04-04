@@ -5,11 +5,15 @@ import { useTranslation } from '../hooks/useTranslation'
 import { translateGroupServiceError } from '../i18n/groupServiceErrors'
 import { createGroup } from '../services/groupService'
 
+function defaultTaskRow() {
+  return { name: '', kind: 'simple', targetCount: 10 }
+}
+
 function makeEmptyActivity() {
   return {
     name: '',
     description: '',
-    tasks: ['', '', ''],
+    tasks: [defaultTaskRow(), defaultTaskRow(), defaultTaskRow()],
   }
 }
 
@@ -178,23 +182,85 @@ export function CreateGroupPage() {
                     className="min-h-11 w-full rounded-lg border border-black/18 px-3 py-2.5 text-sm text-tour-text"
                   />
 
-                  <div className="mt-3 grid gap-3 md:grid-cols-3">
+                  <div className="mt-3 grid gap-4 md:grid-cols-3">
                     {activity.tasks.map((task, taskIndex) => (
-                      <label key={taskIndex} className="block text-sm font-medium text-tour-text">
-                        {t('groupNew.taskLabel', { n: taskIndex + 1 })}
-                        <input
-                          type="text"
-                          value={task}
-                          onChange={(e) =>
-                            updateActivity(index, (curr) => {
-                              const nextTasks = [...curr.tasks]
-                              nextTasks[taskIndex] = e.target.value
-                              return { ...curr, tasks: nextTasks }
-                            })
-                          }
-                          className="mt-1 min-h-11 w-full rounded-lg border border-black/18 px-3 py-2.5 text-sm text-tour-text"
-                        />
-                      </label>
+                      <div key={taskIndex} className="rounded-lg border border-black/10 p-2.5">
+                        <label className="block text-sm font-medium text-tour-text">
+                          {t('groupNew.taskLabel', { n: taskIndex + 1 })}
+                          <input
+                            type="text"
+                            value={typeof task === 'string' ? task : task?.name ?? ''}
+                            onChange={(e) =>
+                              updateActivity(index, (curr) => {
+                                const nextTasks = [...curr.tasks]
+                                const prev = nextTasks[taskIndex]
+                                const base =
+                                  typeof prev === 'string'
+                                    ? { name: prev, kind: 'simple', targetCount: 10 }
+                                    : { ...defaultTaskRow(), ...prev }
+                                nextTasks[taskIndex] = { ...base, name: e.target.value }
+                                return { ...curr, tasks: nextTasks }
+                              })
+                            }
+                            className="mt-1 min-h-11 w-full rounded-lg border border-black/18 px-3 py-2.5 text-sm text-tour-text"
+                          />
+                        </label>
+                        <label className="mt-2 flex items-center gap-2 text-[12px] font-medium text-tour-text-secondary">
+                          <input
+                            type="checkbox"
+                            checked={(typeof task === 'object' ? task?.kind : null) === 'compound'}
+                            onChange={(e) =>
+                              updateActivity(index, (curr) => {
+                                const nextTasks = [...curr.tasks]
+                                const prev = nextTasks[taskIndex]
+                                const base =
+                                  typeof prev === 'string'
+                                    ? { name: prev, kind: 'simple', targetCount: 10 }
+                                    : { ...defaultTaskRow(), ...prev }
+                                nextTasks[taskIndex] = {
+                                  ...base,
+                                  kind: e.target.checked ? 'compound' : 'simple',
+                                  targetCount: e.target.checked ? base.targetCount || 10 : 10,
+                                }
+                                return { ...curr, tasks: nextTasks }
+                              })
+                            }
+                            className="mt-0.5"
+                          />
+                          <span>{t('groupNew.taskCompoundToggle')}</span>
+                        </label>
+                        {(typeof task === 'object' ? task?.kind : null) === 'compound' ? (
+                          <label className="mt-2 block text-[12px] font-medium text-tour-text-secondary">
+                            {t('groupNew.taskCompoundTargetLabel')}
+                            <input
+                              type="number"
+                              min={1}
+                              max={100}
+                              value={(typeof task === 'object' ? task?.targetCount : null) ?? 10}
+                              onChange={(e) =>
+                                updateActivity(index, (curr) => {
+                                  const nextTasks = [...curr.tasks]
+                                  const prev = nextTasks[taskIndex]
+                                  const base =
+                                    typeof prev === 'string'
+                                      ? { name: prev, kind: 'compound', targetCount: 10 }
+                                      : { ...defaultTaskRow(), ...prev }
+                                  const n = parseInt(e.target.value, 10)
+                                  nextTasks[taskIndex] = {
+                                    ...base,
+                                    targetCount: Number.isFinite(n) ? n : 10,
+                                  }
+                                  return { ...curr, tasks: nextTasks }
+                                })
+                              }
+                              className="mt-1 min-h-11 w-full rounded-lg border border-black/18 px-3 py-2.5 text-sm text-tour-text"
+                            />
+                            <span className="mt-0.5 block text-[11px] font-normal text-tour-text-tertiary">
+                              {t('groupNew.taskCompoundTargetHint')}
+                            </span>
+                          </label>
+                        ) : null}
+                      </div>
                     ))}
                   </div>
 
