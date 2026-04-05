@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Avatar } from '../components/Avatar'
 import { useAuth } from '../context/useAuth'
+import { translateGroupServiceError } from '../i18n/groupServiceErrors'
 import { useTranslation } from '../hooks/useTranslation'
 import { normalizeCompoundTargetInput } from '../lib/compoundTask'
 import { subscribePendingCount } from '../services/approvalService'
@@ -251,7 +252,7 @@ export function GroupSettingsPage() {
       setAddForm(emptyAddActivity())
       setAddActivityExpanded(false)
     } catch (err) {
-      setAddError(err.message || t('groupSettings.addActivityFailed'))
+      setAddError(translateGroupServiceError(err, t, 'groupSettings.addActivityFailed'))
     } finally {
       setAddBusy(false)
     }

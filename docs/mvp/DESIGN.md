@@ -30,7 +30,7 @@
 **Il Tour di Paolo** is a private family competition web app. Participants complete tasks across a set of activity categories to earn medals. Progress is tracked per user, and approved completions are shared in a group feed with photos and optional descriptions.
 
 **Competition structure:**
-- 0+ activities at group creation (owner can add/edit later; soft guidance: start with 4–6, expandable up to ~10)
+- 0+ activities at group creation (owner can add/edit later; soft guidance: start with 4–6, expandable up to **50** per group)
 - Exactly 3 tasks per activity
 - Completing 1 task → Bronze medal
 - Completing 2 tasks → Silver medal
@@ -179,7 +179,7 @@ batch.commit()
 | **Owner adds an activity** | Increment by **1** in the **same batch** as creating the new `activities/{activityId}` doc, writing the system feed post, and any other related updates. |
 | **Never** | Decremented — activities are not deleted in MVP (see §7.9). |
 
-**Uses:** medal summary denominators (e.g. “Gold X of Y activities” where Y = `activityCount`), home/group summaries, soft warnings near the ~10 activity cap. If this field drifts, recompute from a one-off query or Cloud Function later; for MVP, correct batch writes on create/add keep it accurate.
+**Uses:** medal summary denominators (e.g. “Gold X of Y activities” where Y = `activityCount`), home/group summaries, enforcement of the **50**-activity cap when adding activities. If this field drifts, recompute from a one-off query or Cloud Function later; for MVP, correct batch writes on create/add keep it accurate.
 
 ### `groups/{groupId}/activities/{activityId}`
 ```

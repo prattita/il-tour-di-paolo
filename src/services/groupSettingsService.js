@@ -27,6 +27,9 @@ function requireDb() {
 
 const BATCH_LIMIT = 400
 
+/** Hard cap on activities per group (enforced in `addGroupActivity`). */
+export const MAX_ACTIVITIES_PER_GROUP = 50
+
 async function deleteDocumentRefsInChunks(db, refs) {
   const list = refs.filter(Boolean)
   for (let i = 0; i < list.length; i += BATCH_LIMIT) {
@@ -260,8 +263,10 @@ export async function addGroupActivity(groupId, activityInput, ownerDisplayName)
   if (!name) throw new Error('Activity name is required.')
 
   const count = typeof group.activityCount === 'number' ? group.activityCount : 0
-  if (count >= 10) {
-    throw new Error('This group already has many activities (~10). Add only if you really need another.')
+  if (count >= MAX_ACTIVITIES_PER_GROUP) {
+    throw new Error(
+      `This group already has the maximum number of activities (${MAX_ACTIVITIES_PER_GROUP}).`,
+    )
   }
 
   const sortOrder = count

@@ -55,6 +55,8 @@ export default {
     inviteCodeGenerateFailed: 'Unable to generate unique invite code. Please try again.',
     joinFailed: 'Failed to join group.',
     createGroupFailed: 'Failed to create group.',
+    maxActivitiesPerGroup:
+      'This group already has the maximum number of activities ({{max}}).',
   },
   auth: {
     signInTitle: L.signIn,

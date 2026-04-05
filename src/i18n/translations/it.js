@@ -50,6 +50,8 @@ export default {
     inviteCodeGenerateFailed: 'Impossibile generare un codice univoco. Riprova.',
     joinFailed: 'Impossibile unirsi al gruppo.',
     createGroupFailed: 'Impossibile creare il gruppo.',
+    maxActivitiesPerGroup:
+      'Questo gruppo ha già il numero massimo di attività ({{max}}).',
   },
   auth: {
     signInTitle: L.signIn,

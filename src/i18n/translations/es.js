@@ -51,6 +51,8 @@ export default {
     inviteCodeGenerateFailed: 'No se pudo generar un código único. Inténtalo de nuevo.',
     joinFailed: 'No se pudo unir al grupo.',
     createGroupFailed: 'No se pudo crear el grupo.',
+    maxActivitiesPerGroup:
+      'Este grupo ya tiene el número máximo de actividades ({{max}}).',
   },
   auth: {
     signInTitle: L.signIn,

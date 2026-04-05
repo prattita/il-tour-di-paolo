@@ -18,5 +18,9 @@ export function translateGroupServiceError(err, t, fallbackKey) {
   const msg = err && typeof err === 'object' && 'message' in err ? String(err.message) : ''
   const key = msg && MESSAGE_TO_KEY[msg]
   if (key) return t(key)
+  const maxActivities = msg.match(
+    /^This group already has the maximum number of activities \((\d+)\)\.$/,
+  )
+  if (maxActivities) return t('errors.maxActivitiesPerGroup', { max: maxActivities[1] })
   return msg || t(fallbackKey)
 }
