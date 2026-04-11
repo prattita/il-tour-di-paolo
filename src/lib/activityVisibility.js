@@ -4,7 +4,8 @@
  * manage them in Group settings / see roster in Group info (`GroupInfoPage` uses its own owner rule).
  * Firestore may still return personal docs to all members (read for profile/feed); this filter is UI.
  */
-export function activityVisibleOnParticipationSurfaces(activity, viewerUid, _ownerId) {
+export function activityVisibleOnParticipationSurfaces(activity, viewerUid, ownerId) {
+  void ownerId
   if (!activity || !viewerUid) return false
   if (activity.isPersonal === true) {
     return typeof activity.assignedUserId === 'string' && activity.assignedUserId === viewerUid

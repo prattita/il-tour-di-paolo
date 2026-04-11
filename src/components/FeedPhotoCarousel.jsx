@@ -63,7 +63,15 @@ export function FeedPhotoCarousel({ photos, isHeroImage }) {
             getImgProps={(i) => ({
               decoding: 'async',
               fetchPriority:
-                isHeroImage && i === 0 ? 'high' : prefetchSiblings && i > 0 ? 'low' : undefined,
+                isHeroImage && i === 0
+                  ? 'high'
+                  : isHeroImage && i === 1 && prefetchSiblings
+                    ? 'high'
+                    : prefetchSiblings && i > 0 && photoUrls.length > 2 && i === photoUrls.length - 1
+                      ? 'low'
+                      : prefetchSiblings && i > 0
+                        ? 'auto'
+                        : undefined,
               loading: prefetchSiblings || (isHeroImage && i === 0) ? 'eager' : 'lazy',
             })}
           />

@@ -4,6 +4,8 @@
  * FeedPhotoCommitTransition unmounts non-active slides.
  *
  * Render as z-0 under the visible transition layer (z-1). pointer-events-none + aria-hidden.
+ * Fetch: visible layer owns LCP (high on hero slide 0). Strip slot 0 uses auto on hero to avoid starving slide 1.
+ * Hero slide 1 = high so first 0→1 swipe isn’t janky; last slide when 3-up = low; else auto.
  *
  * @param {{
  *   urls: string[],
@@ -11,6 +13,13 @@
  *   isHeroImage?: boolean,
  * }} props
  */
+function warmStripFetchPriority(i, urls, isHeroImage) {
+  if (isHeroImage && i === 0) return 'auto'
+  if (isHeroImage && i === 1 && urls.length >= 2) return 'high'
+  if (urls.length > 2 && i === urls.length - 1) return 'low'
+  return 'auto'
+}
+
 export function FeedPhotoWarmStrip({ urls, variant, isHeroImage = false }) {
   if (urls.length < 2) return null
 
@@ -30,7 +39,7 @@ export function FeedPhotoWarmStrip({ urls, variant, isHeroImage = false }) {
           src={url}
           alt=""
           decoding="async"
-          fetchPriority={isHeroImage && i === 0 ? 'high' : 'low'}
+          fetchPriority={warmStripFetchPriority(i, urls, isHeroImage)}
           loading="eager"
           className={variant === 'cover' ? imgClassCover : imgClassContain}
         />

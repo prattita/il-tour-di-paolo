@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- context module: Provider + useLanguage */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { DEFAULT_LANGUAGE, translations } from '../i18n/index.js'
 import { getStoredLanguage, storeLanguage } from '../i18n/storage.js'
