@@ -1,8 +1,10 @@
 # Performance & Firestore efficiency — Phase Four
 
-> Status: **Planning** — not yet implemented  
+> Status: **Planning** — Firestore/read work not yet implemented; **client bundle** (lazy routes) shipped  
 > Last updated: April 2026  
 > Parent doc: [DESIGN.md](../mvp/DESIGN.md)
+
+**Scope:** This is the **only** optimization planning doc for the app (bundle size, Firestore reads, listeners, maintainability). Feature onepagers (e.g. [compound tasks](../phase-three/compoundTasks-onepager.md)) stay in their phase folders.
 
 ---
 
@@ -14,8 +16,32 @@ This phase aims to:
 
 1. **Reduce Firestore reads** where it is cheap to do so (client caching, fewer redundant queries, denormalized counters, pagination).
 2. **Improve perceived performance and maintainability** (fewer duplicate subscriptions, clearer data ownership, predictable loading).
+3. **Client JS bundle** — route-level code splitting where it helps (see **Client bundle** below).
 
 **Non-goals for this phase:** rewriting the approval flow in Cloud Functions (see DESIGN §2 / §13 — separate initiative), tightening Storage rules, or large schema migrations unless a read win clearly justifies them.
+
+---
+
+## Client bundle — route code splitting (shipped)
+
+**Problem:** `npm run build` warned that some chunks exceeded **500 kB** after minification (Vite default).
+
+**Change:** `React.lazy()` + `Suspense` in `src/App.jsx` for route pages and `GroupLayout`, with `PageLoading` as the fallback. Smaller **initial** JS download; route code loads when first needed.
+
+### Firestore impact
+
+**None.** Lazy loading only affects **when JavaScript bundles are fetched and parsed**. It does **not** change how often the app calls `getDoc`, `getDocs`, `onSnapshot`, or write paths. Same components and hooks after load → same Firestore behavior.
+
+### UX / product impact
+
+| Area | Effect |
+| --- | --- |
+| **First visit to a route** | Browser may fetch that route’s chunk; user might see the `Suspense` fallback briefly on slow or cold loads. |
+| **Repeat navigation** | Chunks are usually cached; feels the same as a single bundle after the first load. |
+| **Pagination, submit, approve, reject, withdraw** | Unchanged — they run in code already loaded on that screen; no extra chunk fetches per action. |
+| **Initial app open** | Tends to improve (less JS to parse on first paint) vs. one monolithic bundle. |
+
+**Tradeoff:** occasional short spinner on **first** entry to a heavy route vs. lighter first load overall. Revisit if the fallback feels noisy (e.g. slimmer fallback without pulling large shared chunks, or prefetch on intent).
 
 ---
 
@@ -96,6 +122,7 @@ These are **candidates for review**, not a commitment to change every line.
 
 ## Suggested implementation checklist
 
+- [x] **Route code splitting:** `App.jsx` lazy routes — clears Vite 500 kB warning; no Firestore impact (see **Client bundle** above).
 - [ ] **Inventory:** Document per-journey Firestore calls (read map).
 - [ ] **Shell / group entry:** Audit `GroupLayout` + hooks for duplicate `onSnapshot` on the same collections.
 - [ ] **Owner badge:** Compare `getOwnerPendingSubmissionCount` vs denormalized counter on `groups` (or cached result with TTL in memory for non-owners).
