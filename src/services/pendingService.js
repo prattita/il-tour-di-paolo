@@ -112,7 +112,7 @@ export async function createPendingSubmission({
   for (let i = 0; i < files.length; i++) {
     const slot = i + 1
     const file = files[i]
-    const { imageUrl, imagePath } = await uploadPendingPhotoSlot(pendingId, slot, file)
+    const { imageUrl, imagePath } = await uploadPendingPhotoSlot(pendingId, taskId, slot, file)
     const { width, height } = await getImageDimensionsFromFile(file)
     photos.push({ url: imageUrl, path: imagePath, width, height })
   }
