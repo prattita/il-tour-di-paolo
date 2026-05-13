@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/useAuth'
 import { signOutUser } from '../services/authService'
 import { Link } from 'react-router-dom'
-import { getUserGroupIds, pruneStaleGroupIdsFromUser } from '../services/userService'
-import { getGroupsByIds } from '../services/groupService'
+import { loadUserGroupsForHome } from '../services/userService'
 import { PageLoading } from '../components/PageLoading'
 import { firstNameFromUser } from '../lib/userDisplay'
 import { useTranslation } from '../hooks/useTranslation'
@@ -38,9 +37,7 @@ export function HomePage() {
       setLoadingGroups(true)
       setGroupError('')
       try {
-        await pruneStaleGroupIdsFromUser(user.uid)
-        const groupIds = await getUserGroupIds(user.uid)
-        const groupDocs = await getGroupsByIds(groupIds)
+        const groupDocs = await loadUserGroupsForHome(user.uid)
         if (active) {
           setGroups(groupDocs)
         }

@@ -1,8 +1,51 @@
 import { arrayRemove, doc, getDoc, onSnapshot, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { getFirebaseDb } from '../lib/firebase'
 
+const DEFAULT_NOTIFICATIONS = {
+  pushEnabled: false,
+  pushToken: null,
+}
+
+function buildNewUserDocument({ email, displayName, avatarUrl = null }) {
+  const name =
+    (displayName && displayName.trim()) ||
+    (email && email.split('@')[0]) ||
+    'Member'
+  return {
+    displayName: name,
+    email: email || '',
+    avatarUrl,
+    groupIds: [],
+    createdAt: serverTimestamp(),
+    notifications: { ...DEFAULT_NOTIFICATIONS },
+  }
+}
+
+/**
+ * Single `getDoc` on `users/{uid}` after Firebase Auth resolves: create profile if missing
+ * (DESIGN §5), or add `notifications` for legacy docs. Prefer this on sign-in instead of calling
+ * {@link ensureUserProfile} and {@link ensureNotificationDefaults} separately.
+ */
+export async function ensureUserDocumentOnAuth(uid, { email, displayName, avatarUrl = null }) {
+  const db = getFirebaseDb()
+  if (!db) {
+    throw new Error('Firestore is not available. Check Firebase configuration.')
+  }
+  const ref = doc(db, 'users', uid)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) {
+    await setDoc(ref, buildNewUserDocument({ email, displayName, avatarUrl }))
+    return
+  }
+  if (snap.data().notifications != null) return
+  await updateDoc(ref, {
+    notifications: { ...DEFAULT_NOTIFICATIONS },
+  })
+}
+
 /**
  * Create `users/{uid}` on first sign-in if it does not exist (DESIGN §5).
+ * For auth bootstrap, use {@link ensureUserDocumentOnAuth} to avoid a second read for notifications.
  */
 export async function ensureUserProfile(uid, { email, displayName, avatarUrl = null }) {
   const db = getFirebaseDb()
@@ -14,21 +57,7 @@ export async function ensureUserProfile(uid, { email, displayName, avatarUrl = n
   if (snap.exists()) {
     return
   }
-  const name =
-    (displayName && displayName.trim()) ||
-    (email && email.split('@')[0]) ||
-    'Member'
-  await setDoc(ref, {
-    displayName: name,
-    email: email || '',
-    avatarUrl,
-    groupIds: [],
-    createdAt: serverTimestamp(),
-    notifications: {
-      pushEnabled: false,
-      pushToken: null,
-    },
-  })
+  await setDoc(ref, buildNewUserDocument({ email, displayName, avatarUrl }))
 }
 
 /** Adds `notifications` to legacy `users/{uid}` docs that predate the notifications feature. */
@@ -40,10 +69,7 @@ export async function ensureNotificationDefaults(uid) {
   if (!snap.exists()) return
   if (snap.data().notifications != null) return
   await updateDoc(ref, {
-    notifications: {
-      pushEnabled: false,
-      pushToken: null,
-    },
+    notifications: { ...DEFAULT_NOTIFICATIONS },
   })
 }
 
@@ -103,37 +129,74 @@ export async function getUserGroupIds(uid) {
 }
 
 /**
+ * One `getDoc(users/{uid})`, parallel `getDoc(groups/{gid})`, reuse snapshots for the list,
+ * batch `arrayRemove` for stale ids. Prefer this on the home screen over separate prune +
+ * `getUserGroupIds` + `getGroupsByIds` (avoids duplicate reads and serial prune latency).
+ *
+ * @returns {Promise<Array<{ id: string } & Record<string, unknown>>>}
+ */
+export async function loadUserGroupsForHome(uid) {
+  const db = getFirebaseDb()
+  if (!db) {
+    throw new Error('Firestore is not available. Check Firebase configuration.')
+  }
+  const userRef = doc(db, 'users', uid)
+  const userSnap = await getDoc(userRef)
+  if (!userSnap.exists()) return []
+
+  const raw = userSnap.data().groupIds
+  const groupIds = Array.isArray(raw) ? raw : []
+  const uniqueIds = [...new Set(groupIds.filter((id) => typeof id === 'string' && id))]
+  if (uniqueIds.length === 0) return []
+
+  const fetched = await Promise.all(
+    uniqueIds.map(async (gid) => {
+      try {
+        const gSnap = await getDoc(doc(db, 'groups', gid))
+        return { gid, snap: gSnap, denied: false }
+      } catch (e) {
+        if (e?.code === 'permission-denied') return { gid, snap: null, denied: true }
+        throw e
+      }
+    }),
+  )
+
+  const stale = []
+  const validGroups = []
+  for (let i = 0; i < uniqueIds.length; i += 1) {
+    const { gid, snap, denied } = fetched[i]
+    if (denied) {
+      stale.push(gid)
+      continue
+    }
+    if (!snap.exists()) {
+      stale.push(gid)
+      continue
+    }
+    const memberIds = snap.data().memberIds || []
+    if (!memberIds.includes(uid)) {
+      stale.push(gid)
+      continue
+    }
+    validGroups.push({ id: snap.id, ...snap.data() })
+  }
+
+  if (stale.length > 0) {
+    const uniqueStale = [...new Set(stale)]
+    await updateDoc(userRef, { groupIds: arrayRemove(...uniqueStale) })
+  }
+
+  return validGroups
+}
+
+/**
  * Drops groupIds the user can no longer read or is not a member of (e.g. after owner removal).
  * Firestore rules do not allow owners to edit other users' `users/` docs, so removals only
  * update the group; this self-heals on next home visit.
+ * Delegates to {@link loadUserGroupsForHome} when Firestore is available (same read/write pattern as home).
  */
 export async function pruneStaleGroupIdsFromUser(uid) {
   const db = getFirebaseDb()
   if (!db) return
-  const userRef = doc(db, 'users', uid)
-  const userSnap = await getDoc(userRef)
-  if (!userSnap.exists()) return
-  const groupIds = userSnap.data().groupIds
-  if (!Array.isArray(groupIds) || groupIds.length === 0) return
-
-  const stale = []
-  for (const gid of groupIds) {
-    if (typeof gid !== 'string' || !gid) continue
-    try {
-      const gSnap = await getDoc(doc(db, 'groups', gid))
-      if (!gSnap.exists()) {
-        stale.push(gid)
-        continue
-      }
-      const memberIds = gSnap.data().memberIds || []
-      if (!memberIds.includes(uid)) stale.push(gid)
-    } catch (e) {
-      if (e?.code === 'permission-denied') stale.push(gid)
-      else throw e
-    }
-  }
-
-  for (const gid of stale) {
-    await updateDoc(userRef, { groupIds: arrayRemove(gid) })
-  }
+  await loadUserGroupsForHome(uid)
 }

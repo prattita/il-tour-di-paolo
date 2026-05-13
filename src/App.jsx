@@ -6,13 +6,13 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { PublicOnlyRoute } from './components/PublicOnlyRoute'
 import { PageLoading } from './components/PageLoading'
 import { OwnerPendingAppBadge } from './components/OwnerPendingAppBadge'
+import { HomePage } from './pages/HomePage'
 
-/** Route-level code splitting — keeps initial parse smaller; Firebase stays in shared chunks as imported by pages. */
+/** Route-level code splitting — `HomePage` is eager for `/` to avoid an extra chunk round-trip on first paint after auth. */
 const GroupLayout = lazy(() =>
   import('./components/GroupLayout').then((m) => ({ default: m.GroupLayout })),
 )
 const AuthPage = lazy(() => import('./pages/AuthPage').then((m) => ({ default: m.AuthPage })))
-const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })))
 const CreateGroupPage = lazy(() =>
   import('./pages/CreateGroupPage').then((m) => ({ default: m.CreateGroupPage })),
 )
@@ -58,7 +58,7 @@ export default function App() {
       <AuthProvider>
         <OwnerPendingAppBadge />
         <FcmForegroundBanner />
-        <Suspense fallback={<PageLoading />}>
+        <Suspense fallback={<PageLoading layout="fullscreen" />}>
           <Routes>
           <Route
             path="/auth"

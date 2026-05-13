@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 import { getFirebaseAuth } from '../lib/firebase'
-import { ensureNotificationDefaults, ensureUserProfile } from '../services/userService'
+import { ensureUserDocumentOnAuth } from '../services/userService'
 import { AuthContext } from './authContext'
 
 export function AuthProvider({ children }) {
@@ -17,14 +17,13 @@ export function AuthProvider({ children }) {
     const unsub = onAuthStateChanged(auth, async (nextUser) => {
       if (nextUser) {
         try {
-          await ensureUserProfile(nextUser.uid, {
+          await ensureUserDocumentOnAuth(nextUser.uid, {
             email: nextUser.email || '',
             displayName: nextUser.displayName,
             avatarUrl: nextUser.photoURL || null,
           })
-          await ensureNotificationDefaults(nextUser.uid)
         } catch (e) {
-          console.error('[auth] ensureUserProfile failed', e)
+          console.error('[auth] ensureUserDocumentOnAuth failed', e)
         }
       }
       setUser(nextUser)
