@@ -1,8 +1,9 @@
 @import 'tailwindcss';
 
-/* Tokens aligned with docs/UI_MOCKUPS.html (warm neutrals + green accent) */
+/* Tokens aligned with docs/UI_MOCKUPS.html (warm neutrals + green accent).
+   Canvas matches phone shell (#f5f5f3), not the mockup *gallery* backdrop (#e8edf2). */
 @theme {
-  --color-tour-canvas: #e8edf2;
+  --color-tour-canvas: #f5f5f3;
   --color-tour-muted: #f5f5f3;
   --color-tour-surface: #ffffff;
   --color-tour-text: #1a1a18;
